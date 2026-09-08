@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RashePharma.Api/RashePharma.Api.csproj" />
+    <Project Path="src/RashePharma.Application/RashePharma.Application.csproj" />
+    <Project Path="src/RashePharma.Domain/RashePharma.Domain.csproj" />
+    <Project Path="src/RashePharma.Infrastructure/RashePharma.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RashePharma.Tests/RashePharma.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,20 @@
+using RashePharma.Domain.Entities;
+
+namespace RashePharma.Application.Interfaces.Repositories;
+
+public interface ICategoryRepository
+{
+    Task<List<Category>> GetAllAsync();
+
+    Task<Category?> GetByIdAsync(int id);
+
+    Task<Category?> GetBySlugAsync(string slug);
+
+    Task AddAsync(Category category);
+
+    Task UpdateAsync(Category category);
+
+    Task DeleteAsync(Category category);
+
+    Task<bool> ExistsBySlugAsync(string slug);
+}

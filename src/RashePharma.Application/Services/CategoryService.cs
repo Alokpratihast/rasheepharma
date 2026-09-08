@@ -1,0 +1,127 @@
+using RashePharma.Application.DTOs.Categories;
+using RashePharma.Application.Interfaces.Repositories;
+using RashePharma.Application.Interfaces;
+using RashePharma.Application.Interfaces.Services;
+using RashePharma.Domain.Entities;
+
+namespace RashePharma.Application.Services;
+
+public class CategoryService : ICategoryService
+{
+    private readonly ICategoryRepository _categoryRepository;
+private readonly IUnitOfWork _unitOfWork;
+
+public CategoryService(
+    ICategoryRepository categoryRepository,
+    IUnitOfWork unitOfWork)
+{
+    _categoryRepository = categoryRepository;
+    _unitOfWork = unitOfWork;
+}
+
+    public async Task<List<CategoryListDto>> GetAllAsync()
+    {
+        var categories = await _categoryRepository.GetAllAsync();
+
+        return categories.Select(c => new CategoryListDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Slug = c.Slug,
+            
+            IsActive = c.IsActive
+        }).ToList();
+    }
+
+    public async Task<CategoryDetailsDto?> GetByIdAsync(int id)
+    {
+        var category = await _categoryRepository.GetByIdAsync(id);
+
+        if (category == null)
+            return null;
+
+        return MapToDetailsDto(category);
+    }
+
+    public async Task<CategoryDetailsDto?> GetBySlugAsync(string slug)
+    {
+        var category = await _categoryRepository.GetBySlugAsync(slug);
+
+        if (category == null)
+            return null;
+
+        return MapToDetailsDto(category);
+    }
+
+    public async Task<CategoryDetailsDto> CreateAsync(CategoryCreateDto dto)
+    {
+        if (await _categoryRepository.ExistsBySlugAsync(dto.Slug))
+            throw new InvalidOperationException(
+                "A category with this slug already exists.");
+
+        var category = new Category
+        {
+            Name = dto.Name,
+            Slug = dto.Slug,
+            Description = dto.Description,
+            IsActive = dto.IsActive
+        };
+
+        await _categoryRepository.AddAsync(category);
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToDetailsDto(category);
+    }
+
+    public async Task<CategoryDetailsDto?> UpdateAsync(
+        int id,
+        CategoryUpdateDto dto)
+    {
+        var category = await _categoryRepository.GetByIdAsync(id);
+
+        if (category == null)
+            return null;
+
+        if (category.Slug != dto.Slug &&
+            await _categoryRepository.ExistsBySlugAsync(dto.Slug))
+        {
+            throw new InvalidOperationException(
+                "A category with this slug already exists.");
+        }
+
+        category.Name = dto.Name;
+        category.Slug = dto.Slug;
+        category.Description = dto.Description;
+        category.IsActive = dto.IsActive;
+        category.UpdatedAt = DateTime.UtcNow;
+
+        await _categoryRepository.UpdateAsync(category);
+        await _unitOfWork.SaveChangesAsync();
+        return MapToDetailsDto(category);
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var category = await _categoryRepository.GetByIdAsync(id);
+
+        if (category == null)
+            return false;
+
+        await _categoryRepository.DeleteAsync(category);
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
+
+    private static CategoryDetailsDto MapToDetailsDto(Category category)
+    {
+        return new CategoryDetailsDto
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Slug = category.Slug,
+            Description = category.Description,
+            IsActive = category.IsActive
+        };
+    }
+}
