@@ -1,0 +1,276 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* =========================================================
+   RASHEPHARMA DESIGN SYSTEM
+   ========================================================= */
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================
+   LIGHT THEME
+   ========================================================= */
+
+:root {
+  /* ---------- Brand ---------- */
+
+  --brand-primary: #087f5b;
+  --brand-primary-dark: #056044;
+  --brand-primary-light: #e8f7f0;
+  --brand-dark: #073f32;
+
+  /* ---------- Application ---------- */
+
+  --background: #ffffff;
+  --foreground: #10231f;
+
+  --card: #ffffff;
+  --card-foreground: #10231f;
+
+  --popover: #ffffff;
+  --popover-foreground: #10231f;
+
+  /* ---------- shadcn semantic colors ---------- */
+
+  --primary: #087f5b;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e8f7f0;
+  --secondary-foreground: #073f32;
+
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+
+  --accent: #e8f7f0;
+  --accent-foreground: #073f32;
+
+  --destructive: #dc2626;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #087f5b;
+
+  /* ---------- Charts ---------- */
+
+  --chart-1: #087f5b;
+  --chart-2: #0f766e;
+  --chart-3: #056044;
+  --chart-4: #64748b;
+  --chart-5: #94a3b8;
+
+  /* ---------- Sidebar ---------- */
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #10231f;
+
+  --sidebar-primary: #087f5b;
+  --sidebar-primary-foreground: #ffffff;
+
+  --sidebar-accent: #e8f7f0;
+  --sidebar-accent-foreground: #073f32;
+
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #087f5b;
+
+  /* ---------- Radius ---------- */
+
+  --radius: 0.75rem;
+}
+
+/* =========================================================
+   TAILWIND THEME TOKENS
+   ========================================================= */
+
+@theme inline {
+  /* ---------- Colors ---------- */
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-primary-dark: var(--brand-primary-dark);
+  --color-primary-light: var(--brand-primary-light);
+  --color-brand-dark: var(--brand-dark);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* ---------- Charts ---------- */
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ---------- Sidebar ---------- */
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ---------- Typography ---------- */
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* ---------- Radius Scale ---------- */
+
+  --radius-sm: calc(var(--radius) * 0.65);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.35);
+  --radius-2xl: calc(var(--radius) * 1.7);
+  --radius-3xl: calc(var(--radius) * 2.1);
+  --radius-4xl: calc(var(--radius) * 2.5);
+}
+
+/* =========================================================
+   GLOBAL BASE STYLES
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   INTERACTION
+   ========================================================= */
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: var(--brand-primary-light);
+  color: var(--brand-dark);
+}
+
+/* =========================================================
+   DARK THEME
+   Future-ready.
+   Main website currently uses light theme.
+   ========================================================= */
+
+.dark {
+  --background: #0b1714;
+  --foreground: #f1f5f9;
+
+  --card: #10231f;
+  --card-foreground: #f1f5f9;
+
+  --popover: #10231f;
+  --popover-foreground: #f1f5f9;
+
+  --primary: #18a878;
+  --primary-foreground: #ffffff;
+
+  --secondary: #16382f;
+  --secondary-foreground: #d9f3ea;
+
+  --muted: #142720;
+  --muted-foreground: #94a3b8;
+
+  --accent: #16382f;
+  --accent-foreground: #d9f3ea;
+
+  --destructive: #ef4444;
+
+  --border: #25443b;
+  --input: #25443b;
+  --ring: #18a878;
+
+  --sidebar: #0d1d18;
+  --sidebar-foreground: #f1f5f9;
+
+  --sidebar-primary: #18a878;
+  --sidebar-primary-foreground: #ffffff;
+
+  --sidebar-accent: #16382f;
+  --sidebar-accent-foreground: #d9f3ea;
+
+  --sidebar-border: #25443b;
+  --sidebar-ring: #18a878;
+}
+
+/* =========================================================
+   SHADCN BASE LAYER
+   ========================================================= */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    @apply font-sans;
+  }
+}

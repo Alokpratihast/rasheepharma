@@ -18,7 +18,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotations = new List<Quotation>
@@ -34,7 +34,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetAllAsync();
@@ -58,7 +58,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -68,7 +68,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetAllAsync();
@@ -76,7 +76,6 @@ public class QuotationServiceTests
         Assert.NotNull(result);
         Assert.Empty(result);
     }
-
 
     // =========================================================
     // GetByUserIdAsync
@@ -87,7 +86,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotations = new List<Quotation>
@@ -103,7 +102,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByUserIdAsync(10);
@@ -118,7 +117,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -128,7 +127,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByUserIdAsync(10);
@@ -136,7 +135,6 @@ public class QuotationServiceTests
         Assert.NotNull(result);
         Assert.Empty(result);
     }
-
 
     // =========================================================
     // GetByEnquiryIdAsync - Customer
@@ -147,7 +145,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotations = new List<Quotation>
@@ -163,7 +161,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByEnquiryIdAsync(
@@ -181,7 +179,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotations = new List<Quotation>
@@ -196,7 +194,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByEnquiryIdAsync(
@@ -212,7 +210,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -222,7 +220,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByEnquiryIdAsync(
@@ -233,7 +231,6 @@ public class QuotationServiceTests
         Assert.Empty(result);
     }
 
-
     // =========================================================
     // GetByEnquiryIdForAdminAsync
     // =========================================================
@@ -243,7 +240,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotations = new List<Quotation>
@@ -259,7 +256,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -268,7 +265,6 @@ public class QuotationServiceTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
     }
-
 
     // =========================================================
     // GetByIdAsync - Customer
@@ -279,7 +275,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -292,7 +288,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -322,7 +318,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -335,7 +331,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -349,7 +345,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -359,7 +355,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -367,7 +363,6 @@ public class QuotationServiceTests
 
         Assert.Null(result);
     }
-
 
     // =========================================================
     // GetByIdForAdminAsync
@@ -378,7 +373,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -391,7 +386,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -407,7 +402,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -417,7 +412,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -425,7 +420,6 @@ public class QuotationServiceTests
 
         Assert.Null(result);
     }
-
 
     // =========================================================
     // GetByQuoteNumberAsync - Customer
@@ -436,7 +430,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -449,7 +443,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -468,7 +462,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -481,7 +475,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -497,7 +491,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -507,7 +501,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -518,7 +512,6 @@ public class QuotationServiceTests
         Assert.Null(result);
     }
 
-
     // =========================================================
     // GetByQuoteNumberForAdminAsync
     // =========================================================
@@ -528,7 +521,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -541,7 +534,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -557,7 +550,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -567,7 +560,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -576,7 +569,6 @@ public class QuotationServiceTests
 
         Assert.Null(result);
     }
-
 
     // =========================================================
     // CreateAsync
@@ -587,7 +579,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Quotation? createdQuotation = null;
@@ -607,8 +599,8 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         quotationRepository
@@ -631,7 +623,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -671,19 +663,18 @@ public class QuotationServiceTests
             Times.Once);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldRejectEmptyItems()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -706,13 +697,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldRejectZeroQuantity()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = new Enquiry
@@ -728,7 +718,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -751,13 +741,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldReject_WhenEnquiryDoesNotExist()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -767,7 +756,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -789,13 +778,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldReject_WhenEnquiryBelongsToAnotherUser()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = new Enquiry
@@ -811,7 +799,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -833,13 +821,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldReject_WhenVariantDoesNotExist()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = new Enquiry
@@ -852,14 +839,14 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync((ProductVariant?)null);
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -881,13 +868,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldReject_WhenVariantIsInactive()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = new Enquiry
@@ -907,14 +893,14 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -936,13 +922,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldReject_WhenProductIsInactive()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = new Enquiry
@@ -962,14 +947,14 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -991,13 +976,12 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldUseDatabasePrice_AndIgnoreClientPrice()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Quotation? createdQuotation = null;
@@ -1017,8 +1001,8 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         quotationRepository
@@ -1041,7 +1025,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -1056,13 +1040,12 @@ public class QuotationServiceTests
         Assert.Equal(250, result.TotalAmount);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldCreateQuotationWithMultipleItems()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Quotation? createdQuotation = null;
@@ -1089,12 +1072,12 @@ public class QuotationServiceTests
             .Setup(r => r.GetByIdAsync(100))
             .ReturnsAsync(enquiry);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant1);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(6))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(6))
             .ReturnsAsync(variant2);
 
         quotationRepository
@@ -1117,7 +1100,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -1139,19 +1122,18 @@ public class QuotationServiceTests
         Assert.Equal(400, result.TotalAmount);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldRejectPastValidUntil()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -1170,19 +1152,18 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldRejectBlankCurrency()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -1201,19 +1182,18 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task CreateAsync_ShouldRejectUnsupportedCurrency()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateQuotationDto();
@@ -1232,7 +1212,6 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     // =========================================================
     // UpdateStatusAsync
     // =========================================================
@@ -1242,7 +1221,7 @@ public class QuotationServiceTests
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var quotation =
@@ -1255,12 +1234,12 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateQuotationStatusDto
         {
-            Status = "sent" // Testing case-insensitivity
+            Status = "sent"
         };
 
         var result =
@@ -1279,19 +1258,18 @@ public class QuotationServiceTests
             Times.Once);
     }
 
-
     [Fact]
     public async Task UpdateStatusAsync_ShouldRejectInvalidStatus()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateQuotationStatusDto
@@ -1320,19 +1298,18 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     [Fact]
     public async Task UpdateStatusAsync_ShouldRejectBlankStatus()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateQuotationStatusDto
@@ -1352,18 +1329,21 @@ public class QuotationServiceTests
             r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
+        quotationRepository.Verify(
+            r => r.UpdateAsync(It.IsAny<Quotation>()),
+            Times.Never);
+
         unitOfWork.Verify(
             u => u.SaveChangesAsync(),
             Times.Never);
     }
-
 
     [Fact]
     public async Task UpdateStatusAsync_ShouldReturnFalse_WhenQuotationDoesNotExist()
     {
         var quotationRepository = new Mock<IQuotationRepository>();
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         quotationRepository
@@ -1373,7 +1353,7 @@ public class QuotationServiceTests
         var service = CreateService(
             quotationRepository,
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateQuotationStatusDto
@@ -1395,7 +1375,6 @@ public class QuotationServiceTests
             Times.Never);
     }
 
-
     // =========================================================
     // Helpers
     // =========================================================
@@ -1403,16 +1382,15 @@ public class QuotationServiceTests
     private static QuotationService CreateService(
         Mock<IQuotationRepository> quotationRepository,
         Mock<IEnquiryRepository> enquiryRepository,
-        Mock<IProductRepository> productRepository,
+        Mock<IProductVariantRepository> variantRepository,
         Mock<IUnitOfWork> unitOfWork)
     {
         return new QuotationService(
             quotationRepository.Object,
             enquiryRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
     }
-
 
     private static ProductVariant CreateActiveVariant(
         int id,
@@ -1435,7 +1413,6 @@ public class QuotationServiceTests
             }
         };
     }
-
 
     private static Quotation CreateQuotation(
         int id,
@@ -1483,7 +1460,6 @@ public class QuotationServiceTests
             }
         };
     }
-
 
     private static CreateQuotationDto CreateQuotationDto()
     {

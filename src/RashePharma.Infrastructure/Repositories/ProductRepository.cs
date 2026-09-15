@@ -66,10 +66,5 @@ public class ProductRepository : IProductRepository
             .AnyAsync(p => p.Slug == slug);
     }
 
-    public async Task<ProductVariant?> GetVariantByIdAsync(int variantId)
-{
-    return await _context.ProductVariants
-        .Include(v => v.Product)
-        .FirstOrDefaultAsync(v => v.Id == variantId);
-}
+
 }

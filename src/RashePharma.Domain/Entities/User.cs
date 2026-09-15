@@ -24,6 +24,8 @@ public class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    
+
     // Navigation Property
     public Role Role { get; set; } = null!;
     public ICollection<Address> Addresses { get; set; } = new List<Address>();

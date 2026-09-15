@@ -31,8 +31,6 @@ public class OrdersControllerTests : IClassFixture<CustomWebApplicationFactory>
 
     private async Task<(int UserId, string Token)> CreateAuthenticatedUserAsync()
     {
-        await SeedRoleAsync();
-
         var email =
             $"order-auth-{Guid.NewGuid():N}@example.com";
 
@@ -111,26 +109,6 @@ public class OrdersControllerTests : IClassFixture<CustomWebApplicationFactory>
     // ROLE
     // =========================================================
 
-    private async Task SeedRoleAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-
-        var db = scope.ServiceProvider
-            .GetRequiredService<ApplicationDbContext>();
-
-        if (!db.Roles.Any(r => r.Id == 2))
-        {
-            db.Roles.Add(new Role
-            {
-                Id = 2,
-                Name = "Customer"
-            });
-
-            await db.SaveChangesAsync();
-        }
-    }
-
-
     private async Task<string> CreateAdminTokenAsync()
     {
         using var scope = _factory.Services.CreateScope();
@@ -141,13 +119,13 @@ public class OrdersControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         // Make sure Admin role exists.
         var adminRole = await db.Roles
-            .FirstOrDefaultAsync(r => r.Id == 1);
+            .FirstOrDefaultAsync(r => r.Id == 2);
 
         if (adminRole == null)
         {
             adminRole = new Role
             {
-                Id = 1,
+                Id = 2,
                 Name = "Admin"
             };
 

@@ -9,16 +9,16 @@ namespace RashePharma.Application.Services;
 public class EnquiryService : IEnquiryService
 {
     private readonly IEnquiryRepository _enquiryRepository;
-    private readonly IProductRepository _productRepository;
+    private readonly IProductVariantRepository _variantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public EnquiryService(
         IEnquiryRepository enquiryRepository,
-        IProductRepository productRepository,
+        IProductVariantRepository variantRepository,
         IUnitOfWork unitOfWork)
     {
         _enquiryRepository = enquiryRepository;
-        _productRepository = productRepository;
+        _variantRepository = variantRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -132,8 +132,8 @@ public class EnquiryService : IEnquiryService
             }
 
             var variant =
-                await _productRepository
-                    .GetVariantByIdAsync(item.ProductVariantId);
+                await _variantRepository
+                    .GetByIdAsync(item.ProductVariantId);
 
             if (variant == null)
             {

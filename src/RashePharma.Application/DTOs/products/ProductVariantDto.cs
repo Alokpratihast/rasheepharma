@@ -10,6 +10,12 @@ public class ProductVariantDto
 
     public decimal Price { get; set; }
 
+    public string? Currency { get; set; }
+
+    public int? MOQ { get; set; }
+
+    public string? UnitType { get; set; }
+
     public string? SKU { get; set; }
 
     public int StockQuantity { get; set; }

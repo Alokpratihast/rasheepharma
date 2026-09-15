@@ -33,16 +33,20 @@ public class ProductService : IProductService
             Slug = p.Slug,
             GenericName = p.GenericName,
             DosageForm = p.DosageForm,
+            BrandName = p.BrandName,
             Manufacturer = p.Manufacturer,
             CategoryName = p.Category.Name,
+
             StartingPrice = p.Variants
                 .Where(v => v.IsActive)
                 .Select(v => (decimal?)v.Price)
                 .Min(),
+
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
                 .Select(i => i.ImageUrl)
                 .FirstOrDefault(),
+
             IsActive = p.IsActive
         }).ToList();
     }
@@ -93,6 +97,7 @@ public class ProductService : IProductService
             Composition = dto.Composition,
             DosageForm = dto.DosageForm,
             Description = dto.Description,
+            BrandName = dto.BrandName,
             Manufacturer = dto.Manufacturer,
             CategoryId = dto.CategoryId,
             IsActive = dto.IsActive
@@ -143,6 +148,7 @@ public class ProductService : IProductService
         product.Composition = dto.Composition;
         product.DosageForm = dto.DosageForm;
         product.Description = dto.Description;
+        product.BrandName = dto.BrandName;
         product.Manufacturer = dto.Manufacturer;
         product.CategoryId = dto.CategoryId;
         product.IsActive = dto.IsActive;
@@ -180,6 +186,7 @@ public class ProductService : IProductService
             Composition = product.Composition,
             DosageForm = product.DosageForm,
             Description = product.Description,
+            BrandName = product.BrandName,
             Manufacturer = product.Manufacturer,
             CategoryId = product.CategoryId,
             CategoryName = product.Category.Name,
@@ -192,6 +199,9 @@ public class ProductService : IProductService
                     Strength = v.Strength,
                     PackSize = v.PackSize,
                     Price = v.Price,
+                    Currency = v.Currency,
+                    MOQ = v.MOQ,
+                    UnitType = v.UnitType,
                     SKU = v.SKU,
                     StockQuantity = v.StockQuantity,
                     IsActive = v.IsActive

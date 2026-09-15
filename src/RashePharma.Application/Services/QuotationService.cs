@@ -10,7 +10,7 @@ public class QuotationService : IQuotationService
 {
     private readonly IQuotationRepository _quotationRepository;
     private readonly IEnquiryRepository _enquiryRepository;
-    private readonly IProductRepository _productRepository;
+    private readonly IProductVariantRepository _variantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     private static readonly HashSet<string> AllowedStatuses =
@@ -35,12 +35,12 @@ public class QuotationService : IQuotationService
     public QuotationService(
         IQuotationRepository quotationRepository,
         IEnquiryRepository enquiryRepository,
-        IProductRepository productRepository,
+        IProductVariantRepository variantRepository,
         IUnitOfWork unitOfWork)
     {
         _quotationRepository = quotationRepository;
         _enquiryRepository = enquiryRepository;
-        _productRepository = productRepository;
+        _variantRepository = variantRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -216,10 +216,10 @@ public class QuotationService : IQuotationService
                     "Quotation item quantity must be greater than zero.");
             }
 
-            // Load the variant from the database.
+            // Load the variant from the variant repository.
             var variant =
-                await _productRepository
-                    .GetVariantByIdAsync(item.ProductVariantId);
+                await _variantRepository
+                    .GetByIdAsync(item.ProductVariantId);
 
             if (variant == null)
             {

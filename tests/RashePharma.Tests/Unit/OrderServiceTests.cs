@@ -19,7 +19,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var orders = new List<Order>
@@ -52,7 +52,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetMyOrdersAsync(10);
@@ -71,7 +71,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         orderRepository
@@ -82,7 +82,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetMyOrdersAsync(10);
@@ -101,7 +101,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var order = CreateOrder(1, 10);
@@ -114,7 +114,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByIdAsync(1, 10);
@@ -134,7 +134,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         orderRepository
@@ -145,7 +145,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByIdAsync(999, 10);
@@ -159,7 +159,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var order = CreateOrder(1, 20);
@@ -172,7 +172,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByIdAsync(1, 10);
@@ -190,7 +190,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var order = CreateOrder(1, 10);
@@ -203,7 +203,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByOrderNumberAsync("ORD-001", 10);
@@ -220,7 +220,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         orderRepository
@@ -231,7 +231,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByOrderNumberAsync("ORD-999", 10);
@@ -245,7 +245,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var order = CreateOrder(1, 20);
@@ -258,7 +258,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByOrderNumberAsync("ORD-001", 10);
@@ -276,7 +276,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -291,8 +291,8 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(address);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(cart.Items.First().ProductVariant);
 
         unitOfWork
@@ -318,7 +318,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new CreateOrderDto
@@ -388,7 +388,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -399,7 +399,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new CreateOrderDto
@@ -431,7 +431,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -442,7 +442,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new CreateOrderDto
@@ -462,7 +462,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -477,7 +477,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new CreateOrderDto
@@ -505,7 +505,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -520,7 +520,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new CreateOrderDto
@@ -548,7 +548,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -559,15 +559,15 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync((ProductVariant?)null);
 
         var service = CreateService(
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -594,7 +594,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var variant = CreateVariant(
@@ -611,15 +611,15 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = CreateService(
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -646,7 +646,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var variant = CreateVariant(
@@ -663,15 +663,15 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = CreateService(
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -698,7 +698,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -722,8 +722,8 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(latestVariant);
 
         unitOfWork
@@ -743,7 +743,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.CreateAsync(
@@ -761,7 +761,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -800,12 +800,12 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(cart.Items.First().ProductVariant);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(6))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(6))
             .ReturnsAsync(secondVariant);
 
         unitOfWork
@@ -825,7 +825,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.CreateAsync(
@@ -844,7 +844,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -858,8 +858,8 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(cart.Items.First().ProductVariant);
 
         unitOfWork
@@ -879,7 +879,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         await service.CreateAsync(
@@ -901,7 +901,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -915,8 +915,8 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(cart.Items.First().ProductVariant);
 
         unitOfWork
@@ -947,7 +947,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         await service.CreateAsync(
@@ -966,7 +966,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var transaction = CreateTransactionMock();
 
@@ -980,8 +980,8 @@ public class OrderServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(CreateAddress(1, 10));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(cart.Items.First().ProductVariant);
 
         unitOfWork
@@ -998,7 +998,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -1033,7 +1033,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var order = CreateOrder(1, 10);
@@ -1062,7 +1062,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateOrderStatusDto
@@ -1100,7 +1100,7 @@ public class OrderServiceTests
         var orderRepository = new Mock<IOrderRepository>();
         var cartRepository = new Mock<ICartRepository>();
         var addressRepository = new Mock<IAddressRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         orderRepository
@@ -1111,7 +1111,7 @@ public class OrderServiceTests
             orderRepository,
             cartRepository,
             addressRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateOrderStatusDto
@@ -1146,14 +1146,14 @@ public class OrderServiceTests
         Mock<IOrderRepository> orderRepository,
         Mock<ICartRepository> cartRepository,
         Mock<IAddressRepository> addressRepository,
-        Mock<IProductRepository> productRepository,
+        Mock<IProductVariantRepository> variantRepository,
         Mock<IUnitOfWork> unitOfWork)
     {
         return new OrderService(
             orderRepository.Object,
             cartRepository.Object,
             addressRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
     }
 

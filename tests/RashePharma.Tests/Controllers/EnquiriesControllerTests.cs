@@ -33,8 +33,6 @@ public class EnquiriesControllerTests
     private async Task<(int UserId, string Token)>
         CreateAuthenticatedUserAsync()
     {
-        await SeedCustomerRoleAsync();
-
         var email =
             $"enquiry-auth-{Guid.NewGuid():N}@example.com";
 
@@ -121,13 +119,13 @@ public class EnquiriesControllerTests
                 .GetRequiredService<ApplicationDbContext>();
 
         var adminRole =
-            await db.Roles.FirstOrDefaultAsync(r => r.Id == 1);
+            await db.Roles.FirstOrDefaultAsync(r => r.Id == 2);
 
         if (adminRole == null)
         {
             adminRole = new Role
             {
-                Id = 1,
+                Id = 2,
                 Name = "Admin"
             };
 
@@ -191,28 +189,6 @@ public class EnquiriesControllerTests
     // =========================================================
     // ROLE
     // =========================================================
-
-    private async Task SeedCustomerRoleAsync()
-    {
-        await using var scope =
-            _factory.Services.CreateAsyncScope();
-
-        var db =
-            scope.ServiceProvider
-                .GetRequiredService<ApplicationDbContext>();
-
-        if (!await db.Roles.AnyAsync(r => r.Id == 2))
-        {
-            db.Roles.Add(
-                new Role
-                {
-                    Id = 2,
-                    Name = "Customer"
-                });
-
-            await db.SaveChangesAsync();
-        }
-    }
 
     // =========================================================
     // GET ALL

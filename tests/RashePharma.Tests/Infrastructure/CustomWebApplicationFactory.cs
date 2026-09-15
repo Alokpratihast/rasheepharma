@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using RashePharma.Domain.Entities;
 using RashePharma.Infrastructure.Data;
 
 namespace RashePharma.Tests.Infrastructure;
@@ -34,8 +35,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             var dbContextDescriptor = services
                 .SingleOrDefault(
-                    d => d.ServiceType ==
-                         typeof(DbContextOptions<ApplicationDbContext>));
+                    d =>
+                        d.ServiceType ==
+                        typeof(DbContextOptions<ApplicationDbContext>));
 
             if (dbContextDescriptor != null)
             {
@@ -85,7 +87,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                             return JwtBearerDefaults.AuthenticationScheme;
                         };
                     })
-                .AddScheme<AuthenticationSchemeOptions,
+                .AddScheme<
+                    AuthenticationSchemeOptions,
                     TestAuthenticationHandler>(
                     TestAuthenticationHandler.SchemeName,
                     _ => { });
@@ -106,6 +109,37 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     .GetRequiredService<ApplicationDbContext>();
 
             db.Database.EnsureCreated();
+
+
+            // ---------------------------------------------------------
+            // Seed required roles for integration tests
+            //
+            // AuthService uses:
+            // RoleId = 1 -> User
+            // RoleId = 2 -> Admin
+            // ---------------------------------------------------------
+
+            if (!db.Roles.Any(r => r.Id == 1))
+            {
+                db.Roles.Add(
+                    new Role
+                    {
+                        Id = 1,
+                        Name = "User"
+                    });
+            }
+
+            if (!db.Roles.Any(r => r.Id == 2))
+            {
+                db.Roles.Add(
+                    new Role
+                    {
+                        Id = 2,
+                        Name = "Admin"
+                    });
+            }
+
+            db.SaveChanges();
         });
     }
 
@@ -138,7 +172,8 @@ public class TestAuthenticationHandler
     {
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override Task<AuthenticateResult>
+        HandleAuthenticateAsync()
     {
         // ---------------------------------------------------------
         // Read test identity from request headers

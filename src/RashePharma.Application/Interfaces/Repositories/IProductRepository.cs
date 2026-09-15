@@ -10,7 +10,7 @@ public interface IProductRepository
 
     Task<Product?> GetBySlugAsync(string slug);
 
-    Task<ProductVariant?> GetVariantByIdAsync(int variantId);
+    
 
     Task AddAsync(Product product);
 

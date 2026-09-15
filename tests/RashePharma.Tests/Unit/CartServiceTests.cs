@@ -18,7 +18,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -29,7 +29,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -64,7 +64,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -84,7 +84,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -111,7 +111,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateEmptyCart();
@@ -122,7 +122,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -143,7 +143,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateEmptyCart();
@@ -158,8 +158,8 @@ public class CartServiceTests
             Quantity = 2
         };
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -186,7 +186,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -220,7 +220,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -236,8 +236,8 @@ public class CartServiceTests
             Quantity = 3
         };
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -250,7 +250,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -279,7 +279,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Cart? createdCart = null;
@@ -288,8 +288,8 @@ public class CartServiceTests
             stockQuantity: 50,
             price: 100);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -329,7 +329,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -360,12 +360,12 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -383,8 +383,8 @@ public class CartServiceTests
             "Quantity must be greater than zero.",
             exception.Message);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
     }
 
@@ -393,16 +393,16 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync((ProductVariant?)null);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -426,7 +426,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var variant = CreateVariant(
@@ -435,13 +435,13 @@ public class CartServiceTests
 
         variant.IsActive = false;
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -465,20 +465,20 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var variant = CreateVariant(
             stockQuantity: 0,
             price: 100);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -502,15 +502,15 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var variant = CreateVariant(
             stockQuantity: 5,
             price: 100);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -523,7 +523,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -555,7 +555,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -565,8 +565,8 @@ public class CartServiceTests
             stockQuantity: 4,
             price: 100);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -579,7 +579,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         var dto = new AddToCartDto
@@ -617,7 +617,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -627,8 +627,8 @@ public class CartServiceTests
             stockQuantity: 50,
             price: 120);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         cartRepository
@@ -641,7 +641,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -669,7 +669,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -678,7 +678,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -693,8 +693,8 @@ public class CartServiceTests
                 It.IsAny<int>()),
             Times.Never);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
         unitOfWork.Verify(
@@ -707,7 +707,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateEmptyCart();
@@ -722,7 +722,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -735,8 +735,8 @@ public class CartServiceTests
             r => r.UpdateItemAsync(It.IsAny<CartItem>()),
             Times.Never);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
         unitOfWork.Verify(
@@ -749,12 +749,12 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -772,7 +772,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -786,13 +786,13 @@ public class CartServiceTests
             .Setup(r => r.GetItemAsync(1, 5))
             .ReturnsAsync(item);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync((ProductVariant?)null);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -810,7 +810,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -830,13 +830,13 @@ public class CartServiceTests
             .Setup(r => r.GetItemAsync(1, 5))
             .ReturnsAsync(item);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -854,7 +854,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -872,13 +872,13 @@ public class CartServiceTests
             .Setup(r => r.GetItemAsync(1, 5))
             .ReturnsAsync(item);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -910,7 +910,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateCart();
@@ -926,7 +926,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -949,7 +949,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         cartRepository
@@ -958,7 +958,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act
@@ -983,7 +983,7 @@ public class CartServiceTests
     {
         // Arrange
         var cartRepository = new Mock<ICartRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var cart = CreateEmptyCart();
@@ -998,7 +998,7 @@ public class CartServiceTests
 
         var service = new CartService(
             cartRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
 
         // Act

@@ -25,67 +25,102 @@ public class AuthService : IAuthService
         _passwordHasher = new PasswordHasher<User>();
     }
 
-   public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
-{
-    var existingUser = await _userRepository.GetByEmailAsync(dto.Email);
+    // =========================================================
+    // Register
+    // =========================================================
 
-    if (existingUser != null)
-        throw new InvalidOperationException(
-            "A user with this email already exists.");
-
-    var user = new User
+    public async Task<AuthResponseDto> RegisterAsync(
+        RegisterDto dto)
     {
-        FirstName = dto.FirstName,
-        LastName = dto.LastName,
-        Email = dto.Email,
-        PhoneNumber = dto.PhoneNumber,
-        Country = dto.Country,
-        RoleId = 2,
-        IsActive = true
-    };
+        var existingUser =
+            await _userRepository.GetByEmailAsync(dto.Email);
 
-    user.PasswordHash = _passwordHasher.HashPassword(
-        user,
-        dto.Password);
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException(
+                "A user with this email already exists.");
+        }
 
-    await _userRepository.AddAsync(user);
-    await _unitOfWork.SaveChangesAsync();
+        var user = new User
+        {
+            FirstName = dto.FirstName,
+            LastName = dto.LastName,
+            Email = dto.Email,
+            PhoneNumber = dto.PhoneNumber,
+            Country = dto.Country,
 
-    // Reload user with Role navigation property
-    var savedUser = await _userRepository.GetByEmailAsync(dto.Email);
+            // New registrations are always normal Users
+            // RoleId 1 = User
+            // RoleId 2 = Admin
+            RoleId = 1,
 
-    if (savedUser == null)
-        throw new InvalidOperationException(
-            "User could not be loaded after registration.");
+            IsActive = true
+        };
 
-    var token = _jwtTokenService.GenerateToken(savedUser);
+        user.PasswordHash =
+            _passwordHasher.HashPassword(
+                user,
+                dto.Password);
 
-    return new AuthResponseDto
+        await _userRepository.AddAsync(user);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Reload user with Role navigation property
+        var savedUser =
+            await _userRepository.GetByEmailAsync(dto.Email);
+
+        if (savedUser == null)
+        {
+            throw new InvalidOperationException(
+                "User could not be loaded after registration.");
+        }
+
+        var token =
+            _jwtTokenService.GenerateToken(savedUser);
+
+        return new AuthResponseDto
+        {
+            UserId = savedUser.Id,
+            FirstName = savedUser.FirstName,
+            LastName = savedUser.LastName,
+            Email = savedUser.Email,
+            PhoneNumber = savedUser.PhoneNumber,
+            Country = savedUser.Country,
+            Role = savedUser.Role?.Name ?? "User",
+            Token = token
+        };
+    }
+
+    // =========================================================
+    // Login
+    // =========================================================
+
+    public async Task<AuthResponseDto?> LoginAsync(
+        LoginDto dto)
     {
-        UserId = savedUser.Id,
-        FirstName = savedUser.FirstName,
-        LastName = savedUser.LastName,
-        Email = savedUser.Email,
-        Token = token
-    };
-}
-
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
-    {
-        var user = await _userRepository.GetByEmailAsync(dto.Email);
+        var user =
+            await _userRepository.GetByEmailAsync(dto.Email);
 
         if (user == null || !user.IsActive)
+        {
             return null;
+        }
 
-        var verificationResult = _passwordHasher.VerifyHashedPassword(
-            user,
-            user.PasswordHash,
-            dto.Password);
+        var verificationResult =
+            _passwordHasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                dto.Password);
 
-        if (verificationResult == PasswordVerificationResult.Failed)
+        if (verificationResult ==
+            PasswordVerificationResult.Failed)
+        {
             return null;
+        }
 
-        var token = _jwtTokenService.GenerateToken(user);
+        var token =
+            _jwtTokenService.GenerateToken(user);
 
         return new AuthResponseDto
         {
@@ -93,16 +128,27 @@ public class AuthService : IAuthService
             FirstName = user.FirstName,
             LastName = user.LastName,
             Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Country = user.Country,
+            Role = user.Role?.Name ?? "User",
             Token = token
         };
     }
 
-    public async Task<UserProfileDto?> GetProfileAsync(int userId)
+    // =========================================================
+    // Current User Profile
+    // =========================================================
+
+    public async Task<UserProfileDto?> GetProfileAsync(
+        int userId)
     {
-        var user = await _userRepository.GetByIdAsync(userId);
+        var user =
+            await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
+        {
             return null;
+        }
 
         return new UserProfileDto
         {
@@ -111,7 +157,10 @@ public class AuthService : IAuthService
             LastName = user.LastName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
-            Country = user.Country
+            Country = user.Country,
+            Role = user.Role?.Name ?? "User",
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
         };
     }
 }

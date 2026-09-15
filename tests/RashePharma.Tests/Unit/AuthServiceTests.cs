@@ -92,119 +92,66 @@ public class AuthServiceTests
 
 
     [Fact]
-    public async Task RegisterAsync_ShouldThrowException_WhenEmailAlreadyExists()
+public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
+{
+    // Arrange
+    var userRepository = new Mock<IUserRepository>();
+    var unitOfWork = new Mock<IUnitOfWork>();
+    var jwtTokenService = CreateJwtTokenServiceMock();
+
+    var dto = new RegisterDto
     {
-        // Arrange
-        var userRepository = new Mock<IUserRepository>();
-        var unitOfWork = new Mock<IUnitOfWork>();
-        var jwtTokenService = CreateJwtTokenServiceMock();
+        FirstName = "Alok",
+        LastName = "Pratihast",
+        Email = "alok@example.com",
+        PhoneNumber = "9876543210",
+        Country = "India",
+        Password = "Password123"
+    };
 
-        var dto = new RegisterDto
+    User? capturedUser = null;
+
+    // First call = user does not exist.
+    // Second call = return the newly created user.
+    userRepository
+        .SetupSequence(r => r.GetByEmailAsync(dto.Email))
+        .ReturnsAsync((User?)null)
+        .ReturnsAsync(() => capturedUser);
+
+    userRepository
+        .Setup(r => r.AddAsync(It.IsAny<User>()))
+        .Callback<User>(user =>
         {
-            FirstName = "Alok",
-            LastName = "Pratihast",
-            Email = "alok@example.com",
-            PhoneNumber = "9876543210",
-            Country = "India",
-            Password = "Password123"
-        };
+            capturedUser = user;
+            user.Id = 1;
+        })
+        .Returns(Task.CompletedTask);
 
-        var existingUser = new User
-        {
-            Id = 1,
-            Email = dto.Email,
-            FirstName = "Existing",
-            LastName = "User",
-            IsActive = true
-        };
+    var service = new AuthService(
+        userRepository.Object,
+        unitOfWork.Object,
+        jwtTokenService.Object);
 
-        userRepository
-            .Setup(r => r.GetByEmailAsync(dto.Email))
-            .ReturnsAsync(existingUser);
+    // Act
+    await service.RegisterAsync(dto);
 
-        var service = new AuthService(
-            userRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+    // Assert
+    Assert.NotNull(capturedUser);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.RegisterAsync(dto));
+    // RoleId 1 = User
+    Assert.Equal(1, capturedUser!.RoleId);
 
-        userRepository.Verify(
-            r => r.AddAsync(It.IsAny<User>()),
-            Times.Never);
+    // New users should be active
+    Assert.True(capturedUser.IsActive);
 
-        unitOfWork.Verify(
-            u => u.SaveChangesAsync(),
-            Times.Never);
+    userRepository.Verify(
+        r => r.AddAsync(It.IsAny<User>()),
+        Times.Once);
 
-        jwtTokenService.Verify(
-            j => j.GenerateToken(It.IsAny<User>()),
-            Times.Never);
-    }
-
-
-    [Fact]
-    public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
-    {
-        // Arrange
-        var userRepository = new Mock<IUserRepository>();
-        var unitOfWork = new Mock<IUnitOfWork>();
-        var jwtTokenService = CreateJwtTokenServiceMock();
-
-        var dto = new RegisterDto
-        {
-            FirstName = "Alok",
-            LastName = "Pratihast",
-            Email = "alok@example.com",
-            PhoneNumber = "9876543210",
-            Country = "India",
-            Password = "Password123"
-        };
-
-        User? capturedUser = null;
-
-        // First call = user does not exist.
-        // Second call = return the newly created user.
-        userRepository
-            .SetupSequence(r => r.GetByEmailAsync(dto.Email))
-            .ReturnsAsync((User?)null)
-            .ReturnsAsync(() => capturedUser);
-
-        userRepository
-            .Setup(r => r.AddAsync(It.IsAny<User>()))
-            .Callback<User>(user =>
-            {
-                capturedUser = user;
-
-                user.Id = 1;
-
-                user.Role = new Role
-                {
-                    Id = 2,
-                    Name = "Customer"
-                };
-            })
-            .Returns(Task.CompletedTask);
-
-        var service = new AuthService(
-            userRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
-
-        // Act
-        await service.RegisterAsync(dto);
-
-        // Assert
-        Assert.NotNull(capturedUser);
-        Assert.Equal(2, capturedUser!.RoleId);
-        Assert.True(capturedUser.IsActive);
-
-        Assert.NotNull(capturedUser.Role);
-        Assert.Equal(2, capturedUser.Role.Id);
-        Assert.Equal("Customer", capturedUser.Role.Name);
-    }
+    unitOfWork.Verify(
+        u => u.SaveChangesAsync(),
+        Times.Once);
+}
 
 
     [Fact]

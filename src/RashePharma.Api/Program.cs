@@ -7,6 +7,7 @@ using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Application.Services;
 using RashePharma.Infrastructure.Data;
+using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
 using System.Text;
@@ -15,14 +16,29 @@ using System.Text;
 // Load .env
 // =========================================================
 
+var currentDirectory = new DirectoryInfo(
+    AppContext.BaseDirectory);
+
+var rootDirectory = currentDirectory;
+
+while (rootDirectory != null &&
+       !File.Exists(
+           Path.Combine(rootDirectory.FullName, ".env")))
+{
+    rootDirectory = rootDirectory.Parent;
+}
+
+if (rootDirectory == null)
+{
+    throw new FileNotFoundException(
+        "Root .env file could not be found.");
+}
+
 var envFilePath = Path.Combine(
-    Directory.GetCurrentDirectory(),
+    rootDirectory.FullName,
     ".env");
 
-if (File.Exists(envFilePath))
-{
-    Env.Load(envFilePath);
-}
+Env.Load(envFilePath);
 
 // =========================================================
 // Create application builder
@@ -63,6 +79,21 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
 // =========================================================
+// CORS
+// =========================================================
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// =========================================================
 // Database
 // =========================================================
 
@@ -73,11 +104,19 @@ if (builder.Environment.IsEnvironment("Testing"))
 }
 else
 {
+    var connectionString =
+        builder.Configuration.GetConnectionString(
+            "DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection is not configured.");
+    }
+
     builder.Services.AddDbContext<ApplicationDbContext>(
         options =>
-            options.UseSqlServer(
-                builder.Configuration.GetConnectionString(
-                    "DefaultConnection")));
+            options.UseSqlServer(connectionString));
 }
 
 // =========================================================
@@ -150,6 +189,14 @@ builder.Services.AddScoped<
     CategoryRepository>();
 
 builder.Services.AddScoped<
+    IProductImageRepository,
+    ProductImageRepository>();
+
+builder.Services.AddScoped<
+    IProductVariantRepository,
+    ProductVariantRepository>();
+
+builder.Services.AddScoped<
     IUserRepository,
     UserRepository>();
 
@@ -188,6 +235,14 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IProductService,
     ProductService>();
+
+builder.Services.AddScoped<
+    IProductVariantService,
+    ProductVariantService>();
+
+builder.Services.AddScoped<
+    IProductImageService,
+    ProductImageService>();
 
 builder.Services.AddScoped<
     ICategoryService,
@@ -232,6 +287,20 @@ builder.Services.AddScoped<
 var app = builder.Build();
 
 // =========================================================
+// Database Seed
+// =========================================================
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+
+    var db = scope.ServiceProvider
+        .GetRequiredService<ApplicationDbContext>();
+
+    await ProductCatalogSeeder.SeedAsync(db);
+}
+
+// =========================================================
 // Swagger / OpenAPI
 // =========================================================
 
@@ -249,6 +318,11 @@ if (app.Environment.IsDevelopment())
 // =========================================================
 
 app.UseHttpsRedirection();
+
+// IMPORTANT: CORS must be enabled before
+// Authentication / Authorization
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 

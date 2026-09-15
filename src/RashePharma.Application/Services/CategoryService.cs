@@ -9,15 +9,15 @@ namespace RashePharma.Application.Services;
 public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _categoryRepository;
-private readonly IUnitOfWork _unitOfWork;
+    private readonly IUnitOfWork _unitOfWork;
 
-public CategoryService(
-    ICategoryRepository categoryRepository,
-    IUnitOfWork unitOfWork)
-{
-    _categoryRepository = categoryRepository;
-    _unitOfWork = unitOfWork;
-}
+    public CategoryService(
+        ICategoryRepository categoryRepository,
+        IUnitOfWork unitOfWork)
+    {
+        _categoryRepository = categoryRepository;
+        _unitOfWork = unitOfWork;
+    }
 
     public async Task<List<CategoryListDto>> GetAllAsync()
     {
@@ -28,8 +28,11 @@ public CategoryService(
             Id = c.Id,
             Name = c.Name,
             Slug = c.Slug,
-            
-            IsActive = c.IsActive
+            IsActive = c.IsActive,
+
+            ParentCategoryId = c.ParentCategoryId,
+            ParentCategoryName = c.ParentCategory?.Name
+
         }).ToList();
     }
 
@@ -59,12 +62,25 @@ public CategoryService(
             throw new InvalidOperationException(
                 "A category with this slug already exists.");
 
+        // Validate Parent Category
+        if (dto.ParentCategoryId.HasValue)
+        {
+            var parentCategory =
+                await _categoryRepository.GetByIdAsync(dto.ParentCategoryId.Value);
+
+            if (parentCategory == null)
+                throw new InvalidOperationException(
+                    "The selected parent category does not exist.");
+        }
+
         var category = new Category
         {
             Name = dto.Name,
             Slug = dto.Slug,
             Description = dto.Description,
-            IsActive = dto.IsActive
+            IsActive = dto.IsActive,
+
+            ParentCategoryId = dto.ParentCategoryId
         };
 
         await _categoryRepository.AddAsync(category);
@@ -89,14 +105,34 @@ public CategoryService(
                 "A category with this slug already exists.");
         }
 
+        // Validate Parent Category
+        if (dto.ParentCategoryId.HasValue)
+        {
+            // Category cannot be its own parent
+            if (dto.ParentCategoryId.Value == id)
+                throw new InvalidOperationException(
+                    "A category cannot be its own parent.");
+
+            var parentCategory =
+                await _categoryRepository.GetByIdAsync(dto.ParentCategoryId.Value);
+
+            if (parentCategory == null)
+                throw new InvalidOperationException(
+                    "The selected parent category does not exist.");
+        }
+
         category.Name = dto.Name;
         category.Slug = dto.Slug;
         category.Description = dto.Description;
         category.IsActive = dto.IsActive;
+
+        category.ParentCategoryId = dto.ParentCategoryId;
+
         category.UpdatedAt = DateTime.UtcNow;
 
         await _categoryRepository.UpdateAsync(category);
         await _unitOfWork.SaveChangesAsync();
+
         return MapToDetailsDto(category);
     }
 
@@ -121,7 +157,13 @@ public CategoryService(
             Name = category.Name,
             Slug = category.Slug,
             Description = category.Description,
-            IsActive = category.IsActive
+            IsActive = category.IsActive,
+
+            ParentCategoryId = category.ParentCategoryId,
+            ParentCategoryName = category.ParentCategory?.Name,
+
+            CreatedAt = category.CreatedAt,
+            UpdatedAt = category.UpdatedAt
         };
     }
 }

@@ -11,20 +11,20 @@ public class OrderService : IOrderService
     private readonly IOrderRepository _orderRepository;
     private readonly ICartRepository _cartRepository;
     private readonly IAddressRepository _addressRepository;
-    private readonly IProductRepository _productRepository;
+    private readonly IProductVariantRepository _variantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public OrderService(
         IOrderRepository orderRepository,
         ICartRepository cartRepository,
         IAddressRepository addressRepository,
-        IProductRepository productRepository,
+        IProductVariantRepository variantRepository,
         IUnitOfWork unitOfWork)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
         _addressRepository = addressRepository;
-        _productRepository = productRepository;
+        _variantRepository = variantRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -95,8 +95,9 @@ public class OrderService : IOrderService
         // 3. Validate all cart items before creating order
         foreach (var cartItem in cart.Items)
         {
-            var variant = await _productRepository
-                .GetVariantByIdAsync(cartItem.ProductVariantId);
+            var variant =
+                await _variantRepository
+                    .GetByIdAsync(cartItem.ProductVariantId);
 
             if (variant == null)
             {
@@ -141,8 +142,9 @@ public class OrderService : IOrderService
             // 5. Create order items using latest DB price
             foreach (var cartItem in cart.Items)
             {
-                var variant = await _productRepository
-                    .GetVariantByIdAsync(cartItem.ProductVariantId);
+                var variant =
+                    await _variantRepository
+                        .GetByIdAsync(cartItem.ProductVariantId);
 
                 if (variant == null)
                 {

@@ -17,7 +17,7 @@ public class EnquiryServiceTests
     public async Task GetAllAsync_ShouldReturnEnquiries()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiries = new List<Enquiry>
@@ -32,7 +32,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetAllAsync();
@@ -53,7 +53,7 @@ public class EnquiryServiceTests
     public async Task GetAllAsync_ShouldReturnEmpty_WhenNoEnquiries()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -62,7 +62,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetAllAsync();
@@ -80,7 +80,7 @@ public class EnquiryServiceTests
     public async Task GetByUserIdAsync_ShouldReturnUserEnquiries()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiries = new List<Enquiry>
@@ -95,7 +95,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByUserIdAsync(10);
@@ -109,7 +109,7 @@ public class EnquiryServiceTests
     public async Task GetByUserIdAsync_ShouldReturnEmpty_WhenUserHasNoEnquiries()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -118,7 +118,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByUserIdAsync(10);
@@ -136,7 +136,7 @@ public class EnquiryServiceTests
     public async Task GetByIdAsync_ShouldReturnEnquiry_WhenUserOwnsEnquiry()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -147,7 +147,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByIdAsync(1, 10);
@@ -169,7 +169,7 @@ public class EnquiryServiceTests
     public async Task GetByIdAsync_ShouldReturnNull_WhenEnquiryDoesNotExist()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -178,7 +178,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result = await service.GetByIdAsync(999, 10);
@@ -190,7 +190,7 @@ public class EnquiryServiceTests
     public async Task GetByIdAsync_ShouldReturnNull_WhenEnquiryBelongsToAnotherUser()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -201,7 +201,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         // Enquiry belongs to user 10,
@@ -220,7 +220,7 @@ public class EnquiryServiceTests
     public async Task GetByEnquiryNumberAsync_ShouldReturnEnquiry_WhenUserOwnsEnquiry()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -231,7 +231,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -249,7 +249,7 @@ public class EnquiryServiceTests
     public async Task GetByEnquiryNumberAsync_ShouldReturnNull_WhenEnquiryDoesNotExist()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -258,7 +258,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -273,7 +273,7 @@ public class EnquiryServiceTests
     public async Task GetByEnquiryNumberAsync_ShouldReturnNull_WhenEnquiryBelongsToAnotherUser()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -284,7 +284,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -304,7 +304,7 @@ public class EnquiryServiceTests
     public async Task GetByIdForAdminAsync_ShouldReturnEnquiry_WhenFound()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -315,7 +315,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -330,7 +330,7 @@ public class EnquiryServiceTests
     public async Task GetByIdForAdminAsync_ShouldReturnNull_WhenNotFound()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -339,7 +339,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -357,7 +357,7 @@ public class EnquiryServiceTests
     public async Task GetByEnquiryNumberForAdminAsync_ShouldReturnEnquiry_WhenFound()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -368,7 +368,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -384,7 +384,7 @@ public class EnquiryServiceTests
     public async Task GetByEnquiryNumberForAdminAsync_ShouldReturnNull_WhenNotFound()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -393,7 +393,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -412,7 +412,7 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldCreateEnquirySuccessfully_ForLoggedInUser()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Enquiry? createdEnquiry = null;
@@ -422,8 +422,8 @@ public class EnquiryServiceTests
             isVariantActive: true,
             isProductActive: true);
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(variant);
 
         enquiryRepository
@@ -453,7 +453,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -483,8 +483,8 @@ public class EnquiryServiceTests
         Assert.Equal(10, createdEnquiry!.UserId);
         Assert.Single(createdEnquiry.Items);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(5),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(5),
             Times.Once);
 
         enquiryRepository.Verify(
@@ -501,13 +501,13 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldCreateEnquirySuccessfully_ForGuestUser()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Enquiry? createdEnquiry = null;
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(
                 CreateProductVariant(
                     5,
@@ -541,7 +541,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var result =
@@ -563,21 +563,21 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldCreateEnquiryWithMultipleItems()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Enquiry? createdEnquiry = null;
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(
                 CreateProductVariant(
                     5,
                     isVariantActive: true,
                     isProductActive: true));
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(6))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(6))
             .ReturnsAsync(
                 CreateProductVariant(
                     6,
@@ -611,7 +611,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -639,12 +639,12 @@ public class EnquiryServiceTests
         Assert.NotNull(createdEnquiry);
         Assert.Equal(2, createdEnquiry!.Items.Count);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(5),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(5),
             Times.Once);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(6),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(6),
             Times.Once);
     }
 
@@ -653,7 +653,7 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldCreateEnquiryWithNoItems()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         Enquiry? createdEnquiry = null;
@@ -677,7 +677,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -690,8 +690,8 @@ public class EnquiryServiceTests
         Assert.Empty(result.Items);
         Assert.Equal("Pending", result.Status);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
         enquiryRepository.Verify(
@@ -712,12 +712,12 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldThrow_WhenQuantityIsZero()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -731,8 +731,8 @@ public class EnquiryServiceTests
             "Enquiry item quantity must be greater than zero.",
             exception.Message);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
         enquiryRepository.Verify(
@@ -749,12 +749,12 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldThrow_WhenQuantityIsNegative()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -768,8 +768,8 @@ public class EnquiryServiceTests
             "Enquiry item quantity must be greater than zero.",
             exception.Message);
 
-        productRepository.Verify(
-            r => r.GetVariantByIdAsync(It.IsAny<int>()),
+        variantRepository.Verify(
+            r => r.GetByIdAsync(It.IsAny<int>()),
             Times.Never);
 
         enquiryRepository.Verify(
@@ -786,16 +786,16 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldThrow_WhenProductVariantDoesNotExist()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(999))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(999))
             .ReturnsAsync((ProductVariant?)null);
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -823,11 +823,11 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldThrow_WhenProductVariantIsInactive()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(
                 CreateProductVariant(
                     5,
@@ -836,7 +836,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -863,11 +863,11 @@ public class EnquiryServiceTests
     public async Task CreateAsync_ShouldThrow_WhenProductIsInactive()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
-        productRepository
-            .Setup(r => r.GetVariantByIdAsync(5))
+        variantRepository
+            .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(
                 CreateProductVariant(
                     5,
@@ -876,7 +876,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = CreateEnquiryDto();
@@ -907,7 +907,7 @@ public class EnquiryServiceTests
     public async Task UpdateStatusAsync_ShouldUpdateStatusSuccessfully()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -918,7 +918,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateEnquiryStatusDto
@@ -947,7 +947,7 @@ public class EnquiryServiceTests
     public async Task UpdateStatusAsync_ShouldReturnFalse_WhenEnquiryDoesNotExist()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         enquiryRepository
@@ -956,7 +956,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateEnquiryStatusDto
@@ -983,7 +983,7 @@ public class EnquiryServiceTests
     public async Task UpdateStatusAsync_ShouldThrow_WhenStatusIsEmpty()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -994,7 +994,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateEnquiryStatusDto
@@ -1024,7 +1024,7 @@ public class EnquiryServiceTests
     public async Task UpdateStatusAsync_ShouldThrow_WhenStatusIsInvalid()
     {
         var enquiryRepository = new Mock<IEnquiryRepository>();
-        var productRepository = new Mock<IProductRepository>();
+        var variantRepository = new Mock<IProductVariantRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var enquiry = CreateEnquiry(1, 10, "ENQ-001");
@@ -1035,7 +1035,7 @@ public class EnquiryServiceTests
 
         var service = CreateService(
             enquiryRepository,
-            productRepository,
+            variantRepository,
             unitOfWork);
 
         var dto = new UpdateEnquiryStatusDto
@@ -1067,12 +1067,12 @@ public class EnquiryServiceTests
 
     private static EnquiryService CreateService(
         Mock<IEnquiryRepository> enquiryRepository,
-        Mock<IProductRepository> productRepository,
+        Mock<IProductVariantRepository> variantRepository,
         Mock<IUnitOfWork> unitOfWork)
     {
         return new EnquiryService(
             enquiryRepository.Object,
-            productRepository.Object,
+            variantRepository.Object,
             unitOfWork.Object);
     }
 

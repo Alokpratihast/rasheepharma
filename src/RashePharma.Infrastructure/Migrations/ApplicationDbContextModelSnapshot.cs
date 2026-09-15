@@ -150,6 +150,9 @@ namespace RashePharma.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ParentCategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -158,6 +161,8 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCategoryId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -510,6 +515,9 @@ namespace RashePharma.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BrandName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
@@ -597,8 +605,14 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Currency")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("MOQ")
+                        .HasColumnType("int");
 
                     b.Property<string>("PackSize")
                         .HasColumnType("nvarchar(max)");
@@ -617,6 +631,9 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Strength")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UnitType")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -827,6 +844,16 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("ProductVariant");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.Category", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.Category", "ParentCategory")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentCategory");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.User", "User")
@@ -1008,6 +1035,11 @@ namespace RashePharma.Infrastructure.Migrations
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Category", b =>
+                {
+                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>

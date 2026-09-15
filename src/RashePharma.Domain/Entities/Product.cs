@@ -16,6 +16,8 @@ public class Product
 
     public string? Description { get; set; }
 
+    public string? BrandName { get; set; }
+
     public string? Manufacturer { get; set; }
 
     public int CategoryId { get; set; }

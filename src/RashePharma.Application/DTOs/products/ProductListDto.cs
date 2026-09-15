@@ -12,6 +12,8 @@ public class ProductListDto
 
     public string? DosageForm { get; set; }
 
+    public string? BrandName { get; set; }
+
     public string? Manufacturer { get; set; }
 
     public string CategoryName { get; set; } = string.Empty;

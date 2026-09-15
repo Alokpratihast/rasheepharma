@@ -51,6 +51,13 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Category → Category (Self Referencing)
+modelBuilder.Entity<Category>()
+    .HasOne(c => c.ParentCategory)
+    .WithMany(c => c.Children)
+    .HasForeignKey(c => c.ParentCategoryId)
+    .OnDelete(DeleteBehavior.Restrict);
+
         // Category → Product
         modelBuilder.Entity<Product>()
             .HasOne(p => p.Category)

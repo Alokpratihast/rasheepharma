@@ -9,16 +9,16 @@ namespace RashePharma.Application.Services;
 public class CartService : ICartService
 {
     private readonly ICartRepository _cartRepository;
-    private readonly IProductRepository _productRepository;
+    private readonly IProductVariantRepository _variantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CartService(
         ICartRepository cartRepository,
-        IProductRepository productRepository,
+        IProductVariantRepository variantRepository,
         IUnitOfWork unitOfWork)
     {
         _cartRepository = cartRepository;
-        _productRepository = productRepository;
+        _variantRepository = variantRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -58,8 +58,9 @@ public class CartService : ICartService
             throw new InvalidOperationException(
                 "Quantity must be greater than zero.");
 
-        var variant = await _productRepository
-            .GetVariantByIdAsync(dto.ProductVariantId);
+        var variant =
+            await _variantRepository
+                .GetByIdAsync(dto.ProductVariantId);
 
         if (variant == null)
             throw new InvalidOperationException(
@@ -164,8 +165,8 @@ public class CartService : ICartService
             return null;
 
         var variant =
-            await _productRepository
-                .GetVariantByIdAsync(productVariantId);
+            await _variantRepository
+                .GetByIdAsync(productVariantId);
 
         if (variant == null)
             throw new InvalidOperationException(

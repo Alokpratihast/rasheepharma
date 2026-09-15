@@ -15,4 +15,12 @@ public class Category
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    // Parent Category
+    public int? ParentCategoryId { get; set; }
+
+    public Category? ParentCategory { get; set; }
+
+    // Child Categories
+    public ICollection<Category> Children { get; set; } = new List<Category>();
 }
