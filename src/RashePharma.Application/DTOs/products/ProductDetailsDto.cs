@@ -26,6 +26,8 @@ public class ProductDetailsDto
 
     public bool IsActive { get; set; }
 
+    public bool IsFeatured { get; set; }
+
     public List<ProductVariantDto> Variants { get; set; } = new();
 
     public List<ProductImageDto> Images { get; set; } = new();

@@ -10,7 +10,13 @@ public class ProductListDto
 
     public string? GenericName { get; set; }
 
+    public string? Composition { get; set; }
+
     public string? DosageForm { get; set; }
+
+    public string? PackSize { get; set; }
+
+    public int? MOQ { get; set; }
 
     public string? BrandName { get; set; }
 
@@ -23,4 +29,6 @@ public class ProductListDto
     public string? PrimaryImageUrl { get; set; }
 
     public bool IsActive { get; set; }
+
+    public bool IsFeatured { get; set; }
 }

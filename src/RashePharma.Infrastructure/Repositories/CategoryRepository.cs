@@ -21,6 +21,14 @@ public class CategoryRepository : ICategoryRepository
             .ToListAsync();
     }
 
+    public async Task<List<Category>> GetNavigationAsync()
+{
+    return await _context.Categories
+        .Include(c => c.Children)
+        .Include(c => c.Products)
+        .ToListAsync();
+}
+
     public async Task<Category?> GetByIdAsync(int id)
     {
         return await _context.Categories

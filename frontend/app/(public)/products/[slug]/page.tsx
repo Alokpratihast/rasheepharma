@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -10,9 +11,9 @@ import {
 } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
-import { productService } from "@/services/product.service";
 import { Button } from "@/components/ui/button";
-
+import { getApiAssetUrl } from "@/lib/api/client";
+import { productService } from "@/services/product.service";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -58,6 +59,16 @@ export default async function ProductDetailPage({
     notFound();
   }
 
+  // Select primary product image.
+  // If no primary image exists, use the first available image.
+  const primaryImage =
+    product.images.find((image) => image.isPrimary) ??
+    product.images[0];
+
+  const primaryImageUrl = getApiAssetUrl(
+    primaryImage?.imageUrl
+  );
+
   return (
     <main className="min-h-screen bg-white">
       {/* =================================================
@@ -102,20 +113,33 @@ export default async function ProductDetailPage({
           <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
             {/* ================= PRODUCT IMAGE ================= */}
 
-            <div className="flex min-h-[340px] items-center justify-center rounded-2xl border border-border bg-[#F2F2F2]">
-              <div className="flex flex-col items-center justify-center text-center">
-                <div className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-white shadow-sm">
-                  <Pill className="size-10 text-[#3E8F96]" />
+            <div className="relative flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#F2F2F2]">
+              {primaryImageUrl ? (
+                <Image
+                  src={primaryImageUrl}
+                  alt={
+                    primaryImage?.altText ??
+                    product.name
+                  }
+                  fill
+                  priority
+                  className="object-contain p-8"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center">
+                  <div className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-white shadow-sm">
+                    <Pill className="size-10 text-[#3E8F96]" />
+                  </div>
+
+                  <p className="text-sm font-medium text-[#1B2A4A]">
+                    Product Image
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Image not available
+                  </p>
                 </div>
-
-                <p className="text-sm font-medium text-[#1B2A4A]">
-                  Product Image
-                </p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Image will be added later
-                </p>
-              </div>
+              )}
             </div>
 
             {/* ================= PRODUCT INFO ================= */}

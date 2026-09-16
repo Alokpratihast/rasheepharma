@@ -36,6 +36,19 @@ public class CategoryService : ICategoryService
         }).ToList();
     }
 
+    public async Task<List<CategoryNavigationDto>> GetNavigationAsync()
+    {
+        var categories = await _categoryRepository.GetNavigationAsync();
+
+        var rootCategories = categories
+            .Where(c => c.ParentCategoryId == null && c.IsActive)
+            .ToList();
+
+        return rootCategories
+            .Select(MapToNavigationDto)
+            .ToList();
+    }
+
     public async Task<CategoryDetailsDto?> GetByIdAsync(int id)
     {
         var category = await _categoryRepository.GetByIdAsync(id);
@@ -147,6 +160,31 @@ public class CategoryService : ICategoryService
         await _unitOfWork.SaveChangesAsync();
 
         return true;
+    }
+
+    private static CategoryNavigationDto MapToNavigationDto(Category category)
+    {
+        return new CategoryNavigationDto
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Slug = category.Slug,
+
+            Children = category.Children
+                .Where(c => c.IsActive)
+                .Select(MapToNavigationDto)
+                .ToList(),
+
+            Products = category.Products
+                .Where(p => p.IsActive)
+                .Select(p => new CategoryNavigationProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Slug = p.Slug
+                })
+                .ToList()
+        };
     }
 
     private static CategoryDetailsDto MapToDetailsDto(Category category)

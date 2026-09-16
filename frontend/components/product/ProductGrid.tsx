@@ -7,6 +7,7 @@ export interface ProductGridItem {
   composition: string;
   packSize: string;
   slug: string;
+  imageUrl?: string | null;
 }
 
 interface ProductGridProps {
@@ -40,6 +41,7 @@ export function ProductGrid({
           composition={product.composition}
           packSize={product.packSize}
           slug={product.slug}
+          imageUrl={product.imageUrl}
         />
       ))}
     </div>

@@ -3,15 +3,52 @@ import { ArrowRight, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { productService } from "@/services/product.service";
+import type { ProductList } from "@/types/product";
 
-const searchSuggestions = [
-  "Antibiotics",
-  "Syrups",
-  "Derma",
-  "Injectables",
-];
+export async function HeroSection() {
+  let products : ProductList[] = [];
 
-export function HeroSection() {
+  try {
+    products = await productService.getAll();
+  } catch {
+    products = [];
+  }
+
+  /*
+   * Build popular categories dynamically from database products.
+   *
+   * Example:
+   *
+   * Pharmaceutical Tablets  → 16 products
+   * Pharmaceutical Capsules → 7 products
+   * Pharmaceutical Injection → 3 products
+   *
+   * The categories with the highest product count
+   * will be shown as popular search suggestions.
+   */
+  const categoryCounts = new Map<string, number>();
+
+  for (const product of products) {
+    const categoryName = product.categoryName?.trim();
+
+    if (!categoryName) {
+      continue;
+    }
+
+    categoryCounts.set(
+      categoryName,
+      (categoryCounts.get(categoryName) ?? 0) + 1
+    );
+  }
+
+  const popularCategories = Array.from(
+    categoryCounts.entries()
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([categoryName]) => categoryName);
+
   return (
     <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-[#edf7f7] via-white to-white">
       {/* Background decoration */}
@@ -43,43 +80,52 @@ export function HeroSection() {
           </p>
 
           {/* Hero Search */}
-          <div className="mt-8 w-full max-w-2xl">
+          <form
+            action="/products"
+            method="GET"
+            className="mt-8 w-full max-w-2xl"
+          >
             <div className="flex h-14 items-center rounded-xl border border-[#d9e4e4] bg-white px-4 shadow-sm transition-shadow focus-within:shadow-md">
               <Search className="size-5 shrink-0 text-[#7a7a7a]" />
 
               <input
                 type="search"
+                name="search"
                 placeholder="Search product or salt (e.g. cefixime)"
                 aria-label="Search pharmaceutical products"
                 className="ml-3 w-full bg-transparent text-sm text-[#1B2A4A] outline-none placeholder:text-[#999] sm:text-base"
               />
 
               <Button
-                type="button"
+                type="submit"
                 size="sm"
                 className="hidden shrink-0 rounded-lg bg-[#F5821F] px-5 text-white hover:bg-[#df7115] sm:inline-flex"
               >
                 Search
               </Button>
             </div>
-          </div>
+          </form>
 
           {/* Search suggestions */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <span className="mr-1 text-xs font-medium text-[#777]">
-              Popular:
-            </span>
+          {popularCategories.length > 0 && (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <span className="mr-1 text-xs font-medium text-[#777]">
+                Popular:
+              </span>
 
-            {searchSuggestions.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className="rounded-full border border-[#dcdcdc] bg-white px-3 py-1.5 text-xs font-medium text-[#555] transition-colors hover:border-[#3E8F96] hover:text-[#3E8F96]"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+              {popularCategories.map((categoryName) => (
+                <Link
+                  key={categoryName}
+                  href={`/products?search=${encodeURIComponent(
+                    categoryName
+                  )}`}
+                  className="rounded-full border border-[#dcdcdc] bg-white px-3 py-1.5 text-xs font-medium text-[#555] transition-colors hover:border-[#3E8F96] hover:text-[#3E8F96]"
+                >
+                  {categoryName}
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* CTA */}
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -107,21 +153,30 @@ export function HeroSection() {
           {/* Supporting stats */}
           <div className="mt-10 grid w-full max-w-2xl grid-cols-3 divide-x divide-[#dde5e5] rounded-xl border border-[#e5ecec] bg-white/80 py-4 shadow-sm">
             <div className="px-3">
-              <p className="text-lg font-semibold text-[#1B2A4A]">Quality</p>
+              <p className="text-lg font-semibold text-[#1B2A4A]">
+                Quality
+              </p>
+
               <p className="mt-1 text-xs text-[#777]">
                 Focused
               </p>
             </div>
 
             <div className="px-3">
-              <p className="text-lg font-semibold text-[#1B2A4A]">Global</p>
+              <p className="text-lg font-semibold text-[#1B2A4A]">
+                Global
+              </p>
+
               <p className="mt-1 text-xs text-[#777]">
                 Reach
               </p>
             </div>
 
             <div className="px-3">
-              <p className="text-lg font-semibold text-[#1B2A4A]">B2B</p>
+              <p className="text-lg font-semibold text-[#1B2A4A]">
+                B2B
+              </p>
+
               <p className="mt-1 text-xs text-[#777]">
                 Support
               </p>

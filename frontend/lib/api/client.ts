@@ -5,6 +5,25 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "https://localhost:7001/api";
 
+export function getApiAssetUrl(
+  assetUrl: string | null | undefined,
+): string | null {
+  if (!assetUrl) {
+    return null;
+  }
+
+  if (
+    assetUrl.startsWith("http://") ||
+    assetUrl.startsWith("https://")
+  ) {
+    return assetUrl;
+  }
+
+  const apiRoot = API_BASE_URL.replace(/\/api\/?$/, "");
+
+  return `${apiRoot}${assetUrl.startsWith("/") ? "" : "/"}${assetUrl}`;
+}
+
 interface ApiRequestOptions extends RequestInit {
   token?: string;
 }

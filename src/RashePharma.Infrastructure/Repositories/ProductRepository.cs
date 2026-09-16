@@ -23,6 +23,16 @@ public class ProductRepository : IProductRepository
             .ToListAsync();
     }
 
+    public async Task<List<Product>> GetFeaturedAsync()
+    {
+        return await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.Variants)
+            .Include(p => p.Images)
+            .Where(p => p.IsActive && p.IsFeatured)
+            .ToListAsync();
+    }
+
     public async Task<Product?> GetByIdAsync(int id)
     {
         return await _context.Products
@@ -65,6 +75,4 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .AnyAsync(p => p.Slug == slug);
     }
-
-
 }

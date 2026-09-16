@@ -539,6 +539,9 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFeatured")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Manufacturer")
                         .HasColumnType("nvarchar(max)");
 
@@ -803,6 +806,43 @@ namespace RashePharma.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.WebsiteContent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Section")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WebsiteContents");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Address", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.User", "User")
@@ -954,7 +994,7 @@ namespace RashePharma.Infrastructure.Migrations
             modelBuilder.Entity("RashePharma.Domain.Entities.Product", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.Category", "Category")
-                        .WithMany()
+                        .WithMany("Products")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1040,6 +1080,8 @@ namespace RashePharma.Infrastructure.Migrations
             modelBuilder.Entity("RashePharma.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Children");
+
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>

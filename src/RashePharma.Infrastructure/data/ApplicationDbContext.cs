@@ -47,6 +47,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Partner> Partners => Set<Partner>();
 
+    public DbSet<WebsiteContent> WebsiteContents => Set<WebsiteContent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -59,11 +61,12 @@ modelBuilder.Entity<Category>()
     .OnDelete(DeleteBehavior.Restrict);
 
         // Category → Product
-        modelBuilder.Entity<Product>()
-            .HasOne(p => p.Category)
-            .WithMany()
-            .HasForeignKey(p => p.CategoryId)
-            .OnDelete(DeleteBehavior.Restrict);
+       // Category → Product
+modelBuilder.Entity<Product>()
+    .HasOne(p => p.Category)
+    .WithMany(c => c.Products)
+    .HasForeignKey(p => p.CategoryId)
+    .OnDelete(DeleteBehavior.Restrict);
 
 
          // Product → ProductVariant

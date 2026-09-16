@@ -3,12 +3,16 @@ export interface ProductList {
   name: string;
   slug: string;
   genericName: string | null;
+  composition: string | null;
   dosageForm: string | null;
+  packSize: string | null;
+  moq: number | null;
   manufacturer: string | null;
   categoryName: string;
   startingPrice: number | null;
   primaryImageUrl: string | null;
   isActive: boolean;
+  isFeatured: boolean;
 }
 
 export interface ProductDetails {

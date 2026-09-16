@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { ProductFilters } from "@/components/product/ProductFilters";
 import {
@@ -16,7 +17,12 @@ interface ProductsPageClientProps {
 export function ProductsPageClient({
   products,
 }: ProductsPageClientProps) {
-  const [search, setSearch] = useState("");
+  const searchParams = useSearchParams();
+
+  const initialSearch =
+    searchParams.get("search") ?? "";
+
+  const [search, setSearch] = useState(initialSearch);
   const [category, setCategory] = useState("All Categories");
   const [form, setForm] = useState("All Forms");
 
@@ -26,8 +32,13 @@ export function ProductsPageClient({
     return products.filter((product) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.name
+          .toLowerCase()
+          .includes(normalizedSearch) ||
         (product.genericName ?? "")
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        (product.composition ?? "")
           .toLowerCase()
           .includes(normalizedSearch) ||
         product.categoryName
@@ -59,12 +70,14 @@ export function ProductsPageClient({
       form: product.dosageForm ?? "Product",
       composition:
         product.genericName ??
+        product.composition ??
         "Pharmaceutical product",
       packSize:
         product.startingPrice !== null
           ? `Starting from ₹${product.startingPrice}`
           : "Contact for details",
       slug: product.slug,
+      imageUrl: product.primaryImageUrl,
     }));
 
   const clearFilters = () => {
@@ -76,6 +89,7 @@ export function ProductsPageClient({
   return (
     <>
       <ProductFilters
+        products={products}
         search={search}
         category={category}
         form={form}

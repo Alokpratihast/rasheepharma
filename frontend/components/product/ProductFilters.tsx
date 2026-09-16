@@ -1,9 +1,12 @@
 "use client";
 
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import type { ProductList } from "@/types/product";
 
 interface ProductFiltersProps {
+  products: ProductList[];
   search?: string;
   category?: string;
   form?: string;
@@ -13,43 +16,8 @@ interface ProductFiltersProps {
   onClear?: () => void;
 }
 
-const categories = [
-  "All Categories",
-  "Gynae Range",
-  "Anti-Inflammatory",
-  "Antibiotics",
-  "Anti-Ulcerant",
-  "Multivitamin Products",
-  "Other Products",
-  "Injectables",
-  "Syrups",
-  "Gel/Oil",
-  "Powder & Sachet",
-  "Derma Range",
-  "Derma Cosmetic Range",
-  "Pediatric Range",
-  "Gummies Range",
-  "Veterinary Range",
-  "Dental Range",
-  "Diabetic Range",
-];
-
-const dosageForms = [
-  "All Forms",
-  "Tablets",
-  "Capsules",
-  "Syrup",
-  "Injection",
-  "Cream",
-  "Lotion",
-  "Gel",
-  "Powder",
-  "Sachet",
-  "Drops",
-  "Suspension",
-];
-
 export function ProductFilters({
+  products,
   search = "",
   category = "All Categories",
   form = "All Forms",
@@ -59,6 +27,64 @@ export function ProductFilters({
   onClear,
 }: ProductFiltersProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  /*
+   * Build category options dynamically from products.
+   *
+   * Example:
+   * Products
+   *   ├── Pharmaceutical Tablets
+   *   ├── Pharmaceutical Tablets
+   *   ├── Pharmaceutical Capsules
+   *   └── Pharmaceutical Injection
+   *
+   * becomes:
+   *   All Categories
+   *   Pharmaceutical Tablets
+   *   Pharmaceutical Capsules
+   *   Pharmaceutical Injection
+   */
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(
+        products
+          .map((product) => product.categoryName?.trim())
+          .filter(
+            (categoryName): categoryName is string =>
+              Boolean(categoryName)
+          )
+      )
+    );
+
+    return ["All Categories", ...uniqueCategories];
+  }, [products]);
+
+  /*
+   * Build dosage-form options dynamically from products.
+   *
+   * Example:
+   * Tablet, Tablet, Capsule, Injection
+   *
+   * becomes:
+   * All Forms
+   * Tablet
+   * Capsule
+   * Injection
+   */
+  const dosageForms = useMemo(() => {
+    const uniqueForms = Array.from(
+      new Set(
+        products
+          .map((product) => product.dosageForm?.trim())
+          .filter(
+            (dosageForm): dosageForm is string =>
+              Boolean(dosageForm)
+          )
+      )
+    );
+
+    return ["All Forms", ...uniqueForms];
+  }, [products]);
 
   const hasFilters =
     search.trim().length > 0 ||

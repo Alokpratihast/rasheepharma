@@ -6,11 +6,11 @@ public interface IProductRepository
 {
     Task<List<Product>> GetAllAsync();
 
+    Task<List<Product>> GetFeaturedAsync();
+
     Task<Product?> GetByIdAsync(int id);
 
     Task<Product?> GetBySlugAsync(string slug);
-
-    
 
     Task AddAsync(Product product);
 

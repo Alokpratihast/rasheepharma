@@ -5,6 +5,9 @@ namespace RashePharma.Application.Interfaces.Services;
 public interface IProductService
 {
     Task<List<ProductListDto>> GetAllAsync();
+
+    Task<List<ProductListDto>> GetFeaturedAsync();
+
     Task<ProductDetailsDto?> GetByIdAsync(int id);
     Task<ProductDetailsDto?> GetBySlugAsync(string slug);
 

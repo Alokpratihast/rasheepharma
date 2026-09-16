@@ -8,83 +8,77 @@ import {
 } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
+import { categoryService } from "@/services/category.service";
 
-const categories = [
+const categoryStyles = [
   {
-    title: "Anti-Infectives",
     icon: ShieldPlus,
     className: "bg-[#3E8F96]",
   },
   {
-    title: "Respiratory & Cough Care",
     icon: Wind,
     className: "bg-[#F5821F]",
   },
   {
-    title: "Vitamins & Nutrition",
     icon: HeartPulse,
     className: "bg-[#1B2A4A]",
   },
   {
-    title: "Bone & Joint Health",
     icon: Bone,
     className: "bg-[#5DCAA5]",
   },
   {
-    title: "Pediatric Care",
     icon: Baby,
     className: "bg-[#639922]",
   },
   {
-    title: "Pain & Fever Care",
     icon: Pill,
     className: "bg-[#993C1D]",
   },
 ];
 
-export function CategoriesSection() {
+export async function CategoriesSection() {
+  const categories = await categoryService.getAll();
+
+  const activeCategories = categories.filter(
+    (category) => category.isActive,
+  );
+
   return (
     <section className="bg-background py-12 sm:py-16">
       <Container>
-        {/* Section heading */}
-        <div className="mb-5 flex items-end justify-between gap-4">
+        <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-[#1B2A4A] sm:text-2xl">
-              Browse by category
-            </h2>
-
-            <p className="mt-1 text-sm text-[#595959]">
-              Explore our pharmaceutical product range by therapeutic area.
+            <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">
+              Our Categories
             </p>
+
+            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Explore Our Products
+            </h2>
           </div>
         </div>
 
-        {/* Category tiles */}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-          {categories.map((category) => {
-            const Icon = category.icon;
+          {activeCategories.map((category, index) => {
+            const style =
+              categoryStyles[index % categoryStyles.length];
+
+            const Icon = style.icon;
 
             return (
               <button
-                key={category.title}
+                key={category.id}
                 type="button"
-                className={[
-                  "group flex min-h-28 flex-col items-center justify-center",
-                  "rounded-lg px-3 py-5 text-center text-white",
-                  "transition-all duration-200",
-                  "hover:-translate-y-0.5 hover:shadow-md",
-                  "focus-visible:outline-none focus-visible:ring-2",
-                  "focus-visible:ring-[#3E8F96] focus-visible:ring-offset-2",
-                  category.className,
-                ].join(" ")}
+                className={`group flex min-h-[140px] flex-col items-center justify-center rounded-xl p-5 text-center text-white transition-transform hover:-translate-y-1 ${style.className}`}
               >
                 <Icon
-                  aria-hidden="true"
-                  className="size-7 transition-transform duration-200 group-hover:scale-105"
+                  className="mb-3 h-8 w-8 transition-transform group-hover:scale-110"
+                  strokeWidth={1.8}
                 />
 
-                <span className="mt-3 text-xs font-semibold leading-4 sm:text-sm">
-                  {category.title}
+                <span className="text-sm font-semibold">
+                  {category.name}
                 </span>
               </button>
             );

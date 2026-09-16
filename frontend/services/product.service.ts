@@ -13,6 +13,12 @@ export const productService = {
     );
   },
 
+  async getFeatured(): Promise<ProductList[]> {
+    return apiClient<ProductList[]>(
+      `${PRODUCT_ENDPOINT}/featured`,
+    );
+  },
+
   async getById(id: number): Promise<ProductDetails> {
     return apiClient<ProductDetails>(
       `${PRODUCT_ENDPOINT}/${id}`,

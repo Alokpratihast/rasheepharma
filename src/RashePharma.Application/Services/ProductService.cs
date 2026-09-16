@@ -32,6 +32,7 @@ public class ProductService : IProductService
             Name = p.Name,
             Slug = p.Slug,
             GenericName = p.GenericName,
+            Composition = p.Composition,
             DosageForm = p.DosageForm,
             BrandName = p.BrandName,
             Manufacturer = p.Manufacturer,
@@ -42,12 +43,64 @@ public class ProductService : IProductService
                 .Select(v => (decimal?)v.Price)
                 .Min(),
 
+            PackSize = p.Variants
+                .Where(v => v.IsActive)
+                .Select(v => v.PackSize)
+                .FirstOrDefault(),
+
+            MOQ = p.Variants
+                .Where(v => v.IsActive)
+                .Select(v => (int?)v.MOQ)
+                .FirstOrDefault(),
+
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
                 .Select(i => i.ImageUrl)
                 .FirstOrDefault(),
 
-            IsActive = p.IsActive
+            IsActive = p.IsActive,
+            IsFeatured = p.IsFeatured
+        }).ToList();
+    }
+
+    public async Task<List<ProductListDto>> GetFeaturedAsync()
+    {
+        var products = await _productRepository.GetFeaturedAsync();
+
+        return products.Select(p => new ProductListDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Slug = p.Slug,
+            GenericName = p.GenericName,
+            Composition = p.Composition,
+            DosageForm = p.DosageForm,
+            BrandName = p.BrandName,
+            Manufacturer = p.Manufacturer,
+            CategoryName = p.Category.Name,
+
+            StartingPrice = p.Variants
+                .Where(v => v.IsActive)
+                .Select(v => (decimal?)v.Price)
+                .Min(),
+
+            PackSize = p.Variants
+                .Where(v => v.IsActive)
+                .Select(v => v.PackSize)
+                .FirstOrDefault(),
+
+            MOQ = p.Variants
+                .Where(v => v.IsActive)
+                .Select(v => (int?)v.MOQ)
+                .FirstOrDefault(),
+
+            PrimaryImageUrl = p.Images
+                .Where(i => i.IsPrimary)
+                .Select(i => i.ImageUrl)
+                .FirstOrDefault(),
+
+            IsActive = p.IsActive,
+            IsFeatured = p.IsFeatured
         }).ToList();
     }
 
@@ -100,7 +153,8 @@ public class ProductService : IProductService
             BrandName = dto.BrandName,
             Manufacturer = dto.Manufacturer,
             CategoryId = dto.CategoryId,
-            IsActive = dto.IsActive
+            IsActive = dto.IsActive,
+            IsFeatured = dto.IsFeatured
         };
 
         await _productRepository.AddAsync(product);
@@ -152,6 +206,7 @@ public class ProductService : IProductService
         product.Manufacturer = dto.Manufacturer;
         product.CategoryId = dto.CategoryId;
         product.IsActive = dto.IsActive;
+        product.IsFeatured = dto.IsFeatured;
         product.UpdatedAt = DateTime.UtcNow;
 
         await _productRepository.UpdateAsync(product);

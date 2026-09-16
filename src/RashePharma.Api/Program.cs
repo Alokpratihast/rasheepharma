@@ -174,7 +174,9 @@ builder.Services.AddAuthorization();
 // Unit of Work
 // =========================================================
 
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<
+    IUnitOfWork,
+    UnitOfWork>();
 
 // =========================================================
 // Repositories
@@ -228,6 +230,10 @@ builder.Services.AddScoped<
     IPartnerRepository,
     PartnerRepository>();
 
+builder.Services.AddScoped<
+    IWebsiteContentRepository,
+    WebsiteContentRepository>();
+
 // =========================================================
 // Services
 // =========================================================
@@ -247,6 +253,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     ICategoryService,
     CategoryService>();
+
+builder.Services.AddScoped<
+    IWebsiteContentService,
+    WebsiteContentService>();
 
 builder.Services.AddScoped<
     IAuthService,
@@ -298,6 +308,8 @@ if (!app.Environment.IsEnvironment("Testing"))
         .GetRequiredService<ApplicationDbContext>();
 
     await ProductCatalogSeeder.SeedAsync(db);
+    await ProductImageSeeder.SeedAsync(db);
+    await AdminSeeder.SeedAsync(db);
 }
 
 // =========================================================
@@ -318,6 +330,8 @@ if (app.Environment.IsDevelopment())
 // =========================================================
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
 
 // IMPORTANT: CORS must be enabled before
 // Authentication / Authorization

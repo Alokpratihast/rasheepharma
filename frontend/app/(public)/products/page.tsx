@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ProductsPageClient } from "@/components/product/ProductsPageClient";
 import { productService } from "@/services/product.service";
 import type { ProductList } from "@/types/product";
@@ -39,7 +41,9 @@ export default async function ProductsPage() {
             </p>
           </div>
         ) : (
-          <ProductsPageClient products={products} />
+          <Suspense fallback={null}>
+            <ProductsPageClient products={products} />
+          </Suspense>
         )}
       </div>
     </main>

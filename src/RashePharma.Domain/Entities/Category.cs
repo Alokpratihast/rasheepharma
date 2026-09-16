@@ -23,4 +23,6 @@ public class Category
 
     // Child Categories
     public ICollection<Category> Children { get; set; } = new List<Category>();
+
+    public ICollection<Product> Products { get; set; } = new List<Product>();
 }

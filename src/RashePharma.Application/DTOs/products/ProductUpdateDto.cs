@@ -21,4 +21,6 @@ public class ProductUpdateDto
     public int CategoryId { get; set; }
 
     public bool IsActive { get; set; }
+
+    public bool IsFeatured { get; set; }
 }

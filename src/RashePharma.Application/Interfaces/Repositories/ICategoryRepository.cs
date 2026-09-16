@@ -6,6 +6,8 @@ public interface ICategoryRepository
 {
     Task<List<Category>> GetAllAsync();
 
+    Task<List<Category>> GetNavigationAsync();
+
     Task<Category?> GetByIdAsync(int id);
 
     Task<Category?> GetBySlugAsync(string slug);

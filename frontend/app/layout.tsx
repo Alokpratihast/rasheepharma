@@ -5,8 +5,6 @@ import "./globals.css";
 
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { categoryService } from "@/services/category.service";
-import type { Category } from "@/types/category";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 
 const geistSans = Geist({
@@ -25,19 +23,11 @@ export const metadata: Metadata = {
     "RashePharma provides quality pharmaceutical products and reliable healthcare solutions for customers, distributors and business partners.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let categories: Category[] = [];
-
-  try {
-    categories = await categoryService.getAll();
-  } catch {
-    categories = [];
-  }
-
   return (
     <html
       lang="en"
@@ -45,7 +35,7 @@ export default async function RootLayout({
     >
       <body>
         <AuthProvider>
-          <Header categories={categories} />
+          <Header />
           {children}
           <Footer />
         </AuthProvider>

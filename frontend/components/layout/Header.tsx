@@ -1,26 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   ShoppingCart,
   UserRound,
   Menu,
   X,
-  ChevronDown,
-  ArrowUpRight,
+  Pill,
+  FolderTree,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { UserProfile } from "@/components/account/UserProfile";
+import { useEffect, useMemo, useState } from "react";
 
+import { UserProfile } from "@/components/account/UserProfile";
+import { CategoriesMegaMenu } from "@/components/navigation/CategoriesMegaMenu";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import type { Category } from "@/types/category";
 import { EnquiryForm } from "@/components/forms/EnquiryForm";
 
-interface HeaderProps {
-  categories: Category[];
-}
+import { productService } from "@/services/product.service";
+import { categoryService } from "@/services/category.service";
+
+import type { ProductList } from "@/types/product";
+import type { Category } from "@/types/category";
 
 const navigation = [
   {
@@ -33,75 +36,237 @@ const navigation = [
   },
 ];
 
-export function Header({ categories }: HeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
-  const [enquiryOpen, setEnquiryOpen] = useState(false);
+export function Header() {
+  const router = useRouter();
 
-  const categoriesRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] =
+    useState(false);
 
-  const activeCategories = categories.filter(
-    (category) => category.isActive
-  );
+  const [enquiryOpen, setEnquiryOpen] =
+    useState(false);
 
-  /* =================================================
-     CLOSE CATEGORY DROPDOWN ON OUTSIDE CLICK
-  ================================================== */
+  const [products, setProducts] =
+    useState<ProductList[]>([]);
+
+  const [categories, setCategories] =
+    useState<Category[]>([]);
+
+  const [desktopSearch, setDesktopSearch] =
+    useState("");
+
+  const [mobileSearch, setMobileSearch] =
+    useState("");
+
+  const [desktopSearchFocused, setDesktopSearchFocused] =
+    useState(false);
+
+  const [mobileSearchFocused, setMobileSearchFocused] =
+    useState(false);
+
+  /*
+   * =================================================
+   * LOAD PRODUCTS + CATEGORIES
+   * ==================================================
+   */
 
   useEffect(() => {
-    function handleOutsideClick(event: MouseEvent) {
-      if (
-        categoriesRef.current &&
-        !categoriesRef.current.contains(event.target as Node)
-      ) {
-        setCategoriesOpen(false);
+    async function loadSearchData() {
+      try {
+        const [productData, categoryData] =
+          await Promise.all([
+            productService.getAll(),
+            categoryService.getAll(),
+          ]);
+
+        setProducts(productData);
+        setCategories(categoryData);
+      } catch {
+        setProducts([]);
+        setCategories([]);
       }
     }
 
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
-    };
+    loadSearchData();
   }, []);
 
-  /* =================================================
-     CLOSE MENUS / MODAL WITH ESC
-  ================================================== */
+  /*
+   * =================================================
+   * DESKTOP SEARCH RESULTS
+   * ==================================================
+   */
+
+  const desktopSearchResults = useMemo(() => {
+    const query = desktopSearch.trim().toLowerCase();
+
+    if (!query) {
+      return {
+        products: [],
+        categories: [],
+      };
+    }
+
+    const matchingProducts = products
+      .filter((product) => {
+        return (
+          product.name
+            .toLowerCase()
+            .includes(query) ||
+          (product.genericName ?? "")
+            .toLowerCase()
+            .includes(query) ||
+          (product.composition ?? "")
+            .toLowerCase()
+            .includes(query) ||
+          product.categoryName
+            .toLowerCase()
+            .includes(query)
+        );
+      })
+      .slice(0, 5);
+
+    const matchingCategories = categories
+      .filter((category) => {
+        return (
+          category.isActive &&
+          (category.name
+            .toLowerCase()
+            .includes(query) ||
+            category.slug
+              .toLowerCase()
+              .includes(query))
+        );
+      })
+      .slice(0, 4);
+
+    return {
+      products: matchingProducts,
+      categories: matchingCategories,
+    };
+  }, [desktopSearch, products, categories]);
+
+  /*
+   * =================================================
+   * MOBILE SEARCH RESULTS
+   * ==================================================
+   */
+
+  const mobileSearchResults = useMemo(() => {
+    const query = mobileSearch.trim().toLowerCase();
+
+    if (!query) {
+      return {
+        products: [],
+        categories: [],
+      };
+    }
+
+    const matchingProducts = products
+      .filter((product) => {
+        return (
+          product.name
+            .toLowerCase()
+            .includes(query) ||
+          (product.genericName ?? "")
+            .toLowerCase()
+            .includes(query) ||
+          (product.composition ?? "")
+            .toLowerCase()
+            .includes(query) ||
+          product.categoryName
+            .toLowerCase()
+            .includes(query)
+        );
+      })
+      .slice(0, 5);
+
+    const matchingCategories = categories
+      .filter((category) => {
+        return (
+          category.isActive &&
+          (category.name
+            .toLowerCase()
+            .includes(query) ||
+            category.slug
+              .toLowerCase()
+              .includes(query))
+        );
+      })
+      .slice(0, 4);
+
+    return {
+      products: matchingProducts,
+      categories: matchingCategories,
+    };
+  }, [mobileSearch, products, categories]);
+
+  /*
+   * =================================================
+   * SEARCH SUBMIT
+   * ==================================================
+   */
+
+  const handleSearch = (value: string) => {
+    const query = value.trim();
+
+    if (!query) {
+      return;
+    }
+
+    router.push(
+      `/products?search=${encodeURIComponent(query)}`
+    );
+
+    setDesktopSearchFocused(false);
+    setMobileSearchFocused(false);
+    setMobileMenuOpen(false);
+  };
+
+  /*
+   * =================================================
+   * CLOSE MENUS / MODAL WITH ESC
+   * ==================================================
+   */
 
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
 
-      setCategoriesOpen(false);
-      setMobileCategoriesOpen(false);
       setEnquiryOpen(false);
+      setMobileMenuOpen(false);
+      setDesktopSearchFocused(false);
+      setMobileSearchFocused(false);
     }
 
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
     };
   }, []);
 
-  /* =================================================
-     BODY SCROLL LOCK WHEN ENQUIRY MODAL IS OPEN
-  ================================================== */
+  /*
+   * =================================================
+   * BODY SCROLL LOCK WHEN ENQUIRY MODAL IS OPEN
+   * ==================================================
+   */
 
   useEffect(() => {
     if (!enquiryOpen) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow =
+        previousOverflow;
     };
   }, [enquiryOpen]);
 
@@ -125,7 +290,10 @@ export function Header({ categories }: HeaderProps) {
 
               <div className="hidden sm:block">
                 <div className="text-lg font-bold tracking-tight text-[#1B2A4A]">
-                  Rashe<span className="text-primary">Pharma</span>
+                  Rashe
+                  <span className="text-primary">
+                    Pharma
+                  </span>
                 </div>
 
                 <p className="text-[8px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -138,17 +306,121 @@ export function Header({ categories }: HeaderProps) {
                 DESKTOP SEARCH
             ================================================== */}
 
-            <div className="mx-auto hidden w-full max-w-xl md:block">
-              <div className="flex h-11 items-center rounded-xl border border-transparent bg-[#F3F4F4] px-3 transition-colors focus-within:border-[#cbded9] focus-within:bg-white">
-                <Search className="mr-2 size-4 shrink-0 text-[#617083]" />
+            <div className="relative mx-auto hidden w-full max-w-xl md:block">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSearch(desktopSearch);
+                }}
+              >
+                <div className="flex h-11 items-center rounded-xl border border-transparent bg-[#F3F4F4] px-3 transition-colors focus-within:border-[#cbded9] focus-within:bg-white">
+                  <Search className="mr-2 size-4 shrink-0 text-[#617083]" />
 
-                <input
-                  type="search"
-                  placeholder="Search product or salt (e.g. cefixime)"
-                  aria-label="Search products"
-                  className="w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-[#718096]"
-                />
-              </div>
+                  <input
+                    type="search"
+                    value={desktopSearch}
+                    onChange={(event) =>
+                      setDesktopSearch(
+                        event.target.value
+                      )
+                    }
+                    onFocus={() =>
+                      setDesktopSearchFocused(true)
+                    }
+                    placeholder="Search product or salt (e.g. cefixime)"
+                    aria-label="Search products"
+                    className="w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-[#718096]"
+                  />
+                </div>
+              </form>
+
+              {/* Desktop suggestions */}
+              {desktopSearchFocused &&
+                desktopSearch.trim() && (
+                  <div className="absolute left-0 right-0 top-12 z-[70] overflow-hidden rounded-xl border border-[#e5e5e5] bg-white shadow-xl">
+                    {desktopSearchResults.products
+                      .length > 0 && (
+                      <div className="p-2">
+                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#999]">
+                          Products
+                        </p>
+
+                        {desktopSearchResults.products.map(
+                          (product) => (
+                            <Link
+                              key={product.id}
+                              href={`/products/${product.slug}`}
+                              onClick={() =>
+                                setDesktopSearchFocused(
+                                  false
+                                )
+                              }
+                              className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[#F4F7F6]"
+                            >
+                              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#E8F4F4]">
+                                <Pill className="size-4 text-[#3E8F96]" />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-[#1B2A4A]">
+                                  {product.name}
+                                </p>
+
+                                <p className="truncate text-[11px] text-[#888]">
+                                  {product.categoryName}
+                                </p>
+                              </div>
+                            </Link>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {desktopSearchResults.categories
+                      .length > 0 && (
+                      <div className="border-t border-[#eeeeee] p-2">
+                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#999]">
+                          Categories
+                        </p>
+
+                        {desktopSearchResults.categories.map(
+                          (category) => (
+                            <Link
+                              key={category.id}
+                              href={`/products/category/${category.slug}`}
+                              onClick={() =>
+                                setDesktopSearchFocused(
+                                  false
+                                )
+                              }
+                              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6]"
+                            >
+                              <FolderTree className="size-4 text-[#3E8F96]" />
+
+                              {category.name}
+                            </Link>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {desktopSearchResults.products
+                      .length === 0 &&
+                      desktopSearchResults.categories
+                        .length === 0 && (
+                        <div className="px-4 py-6 text-center">
+                          <p className="text-sm font-medium text-[#1B2A4A]">
+                            No results found
+                          </p>
+
+                          <p className="mt-1 text-xs text-[#888]">
+                            Try another product, salt or
+                            category.
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                )}
             </div>
 
             {/* =================================================
@@ -159,97 +431,7 @@ export function Header({ categories }: HeaderProps) {
               aria-label="Main navigation"
               className="hidden items-center gap-5 lg:flex"
             >
-              {/* ================= CATEGORIES ================= */}
-
-              <div
-                ref={categoriesRef}
-                className="relative"
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCategoriesOpen((current) => !current)
-                  }
-                  aria-expanded={categoriesOpen}
-                  aria-haspopup="true"
-                  className={[
-                    "flex items-center gap-1.5 rounded-lg px-1 py-2",
-                    "text-sm font-medium text-[#1B2A4A]",
-                    "transition-colors hover:text-primary",
-                  ].join(" ")}
-                >
-                  Categories
-
-                  <ChevronDown
-                    className={[
-                      "size-4 transition-transform duration-200",
-                      categoriesOpen ? "rotate-180" : "",
-                    ].join(" ")}
-                  />
-                </button>
-
-                {categoriesOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-3 w-[600px] overflow-hidden rounded-2xl border border-[#e4e8e7] bg-white shadow-[0_20px_50px_rgba(27,42,74,0.14)]">
-                    {/* Dropdown header */}
-                    <div className="flex items-center justify-between border-b border-[#edf0ef] bg-[#fafbfb] px-5 py-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[#1B2A4A]">
-                          Product Categories
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-[#6b7280]">
-                          Explore our pharmaceutical product portfolio
-                        </p>
-                      </div>
-
-                      <Link
-                        href="/categories"
-                        onClick={() =>
-                          setCategoriesOpen(false)
-                        }
-                        className="group inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-primary transition-colors hover:bg-[#EAF6F1]"
-                      >
-                        View all
-                        <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                      </Link>
-                    </div>
-
-                    {/* Categories */}
-                    {activeCategories.length > 0 ? (
-                      <div className="grid max-h-[420px] grid-cols-3 gap-1 overflow-y-auto p-3">
-                        {activeCategories.map((category) => (
-                          <Link
-                            key={category.id}
-                            href={`/products/category/${category.slug}`}
-                            onClick={() =>
-                              setCategoriesOpen(false)
-                            }
-                            className="group flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-[#F5F9F7]"
-                          >
-                            <span className="size-1.5 shrink-0 rounded-full bg-[#3E8F96]" />
-
-                            <p className="min-w-0 text-[13px] font-medium leading-5 text-[#1B2A4A] group-hover:text-primary">
-                              {category.name}
-                            </p>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-5 py-10 text-center">
-                        <p className="text-sm font-medium text-[#1B2A4A]">
-                          No categories available
-                        </p>
-
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Please check the product catalogue later.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ================= OTHER NAV ================= */}
+              <CategoriesMegaMenu />
 
               {navigation.map((item) => (
                 <Link
@@ -261,12 +443,12 @@ export function Header({ categories }: HeaderProps) {
                 </Link>
               ))}
 
-              {/* ================= ENQUIRE ================= */}
-
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setEnquiryOpen(true)}
+                onClick={() =>
+                  setEnquiryOpen(true)
+                }
                 className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md"
               >
                 Enquire
@@ -277,27 +459,22 @@ export function Header({ categories }: HeaderProps) {
                 DESKTOP ACCOUNT / CART
             ================================================== */}
 
-            {/* =================================================
-    DESKTOP ACCOUNT / CART
-================================================== */}
+            <div className="hidden items-center gap-1 lg:flex">
+              <UserProfile />
 
-<div className="hidden items-center gap-1 lg:flex">
-  <UserProfile />
-
-  <Link
-    href="/cart"
-    aria-label="Shopping cart"
-  >
-    <Button
-      variant="ghost"
-      size="icon"
-      className="rounded-lg text-[#1B2A4A] hover:bg-[#F3F6F5] hover:text-primary"
-    >
-      <ShoppingCart className="size-4" />
-    </Button>
-  </Link>
-</div>
-            
+              <Link
+                href="/cart"
+                aria-label="Shopping cart"
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-lg text-[#1B2A4A] hover:bg-[#F3F6F5] hover:text-primary"
+                >
+                  <ShoppingCart className="size-4" />
+                </Button>
+              </Link>
+            </div>
 
             {/* =================================================
                 MOBILE ACTIONS
@@ -308,6 +485,13 @@ export function Header({ categories }: HeaderProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Search products"
+                onClick={() =>
+                  document
+                    .getElementById(
+                      "mobile-product-search"
+                    )
+                    ?.focus()
+                }
                 className="rounded-lg text-[#1B2A4A]"
               >
                 <Search className="size-5" />
@@ -336,7 +520,9 @@ export function Header({ categories }: HeaderProps) {
                 }
                 aria-expanded={mobileMenuOpen}
                 onClick={() =>
-                  setMobileMenuOpen((current) => !current)
+                  setMobileMenuOpen(
+                    (current) => !current
+                  )
                 }
                 className="rounded-lg text-[#1B2A4A]"
               >
@@ -353,17 +539,122 @@ export function Header({ categories }: HeaderProps) {
               MOBILE SEARCH
           ==================================================== */}
 
-          <div className="pb-3 md:hidden">
-            <div className="flex h-10 items-center rounded-xl border border-transparent bg-[#F3F4F4] px-3 focus-within:border-[#cbded9] focus-within:bg-white">
-              <Search className="mr-2 size-4 shrink-0 text-[#617083]" />
+          <div className="relative pb-3 md:hidden">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleSearch(mobileSearch);
+              }}
+            >
+              <div className="flex h-10 items-center rounded-xl border border-transparent bg-[#F3F4F4] px-3 focus-within:border-[#cbded9] focus-within:bg-white">
+                <Search className="mr-2 size-4 shrink-0 text-[#617083]" />
 
-              <input
-                type="search"
-                placeholder="Search products or salt..."
-                aria-label="Search products"
-                className="w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </div>
+                <input
+                  id="mobile-product-search"
+                  type="search"
+                  value={mobileSearch}
+                  onChange={(event) =>
+                    setMobileSearch(
+                      event.target.value
+                    )
+                  }
+                  onFocus={() =>
+                    setMobileSearchFocused(true)
+                  }
+                  placeholder="Search products or salt..."
+                  aria-label="Search products"
+                  className="w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+            </form>
+
+            {/* Mobile suggestions */}
+            {mobileSearchFocused &&
+              mobileSearch.trim() && (
+                <div className="absolute left-0 right-0 top-12 z-[70] max-h-[70vh] overflow-y-auto rounded-xl border border-[#e5e5e5] bg-white shadow-xl">
+                  {mobileSearchResults.products
+                    .length > 0 && (
+                    <div className="p-2">
+                      <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#999]">
+                        Products
+                      </p>
+
+                      {mobileSearchResults.products.map(
+                        (product) => (
+                          <Link
+                            key={product.id}
+                            href={`/products/${product.slug}`}
+                            onClick={() =>
+                              setMobileSearchFocused(
+                                false
+                              )
+                            }
+                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#F4F7F6]"
+                          >
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#E8F4F4]">
+                              <Pill className="size-4 text-[#3E8F96]" />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-[#1B2A4A]">
+                                {product.name}
+                              </p>
+
+                              <p className="truncate text-[11px] text-[#888]">
+                                {product.categoryName}
+                              </p>
+                            </div>
+                          </Link>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  {mobileSearchResults.categories
+                    .length > 0 && (
+                    <div className="border-t border-[#eeeeee] p-2">
+                      <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#999]">
+                        Categories
+                      </p>
+
+                      {mobileSearchResults.categories.map(
+                        (category) => (
+                          <Link
+                            key={category.id}
+                            href={`/products/category/${category.slug}`}
+                            onClick={() =>
+                              setMobileSearchFocused(
+                                false
+                              )
+                            }
+                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#1B2A4A] hover:bg-[#F4F7F6]"
+                          >
+                            <FolderTree className="size-4 text-[#3E8F96]" />
+
+                            {category.name}
+                          </Link>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  {mobileSearchResults.products
+                    .length === 0 &&
+                    mobileSearchResults.categories
+                      .length === 0 && (
+                      <div className="px-4 py-6 text-center">
+                        <p className="text-sm font-medium text-[#1B2A4A]">
+                          No results found
+                        </p>
+
+                        <p className="mt-1 text-xs text-[#888]">
+                          Try another product, salt or
+                          category.
+                        </p>
+                      </div>
+                    )}
+                </div>
+              )}
           </div>
 
           {/* ===================================================
@@ -376,61 +667,12 @@ export function Header({ categories }: HeaderProps) {
                 aria-label="Mobile navigation"
                 className="flex flex-col"
               >
-                {/* ================= CATEGORIES ================= */}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMobileCategoriesOpen(
-                      (current) => !current
-                    )
+                <CategoriesMegaMenu
+                  mobile
+                  onNavigate={() =>
+                    setMobileMenuOpen(false)
                   }
-                  aria-expanded={mobileCategoriesOpen}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6]"
-                >
-                  <span>Categories</span>
-
-                  <ChevronDown
-                    className={[
-                      "size-4 transition-transform duration-200",
-                      mobileCategoriesOpen
-                        ? "rotate-180"
-                        : "",
-                    ].join(" ")}
-                  />
-                </button>
-
-                {mobileCategoriesOpen && (
-                  <div className="mb-2 ml-2 border-l border-[#dfe8e5] pl-2">
-                    <Link
-                      href="/categories"
-                      onClick={() =>
-                        setMobileMenuOpen(false)
-                      }
-                      className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-primary hover:bg-[#F4F7F6]"
-                    >
-                      View All Categories
-                      <ArrowUpRight className="size-4" />
-                    </Link>
-
-                    {activeCategories.map((category) => (
-                      <Link
-                        key={category.id}
-                        href={`/products/category/${category.slug}`}
-                        onClick={() =>
-                          setMobileMenuOpen(false)
-                        }
-                        className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-[#1B2A4A] hover:bg-[#F4F7F6] hover:text-primary"
-                      >
-                        <span className="size-1.5 rounded-full bg-[#3E8F96]" />
-
-                        {category.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-
-                {/* ================= OTHER NAV ================= */}
+                />
 
                 {navigation.map((item) => (
                   <Link
@@ -445,8 +687,6 @@ export function Header({ categories }: HeaderProps) {
                   </Link>
                 ))}
 
-                {/* ================= SIGN IN ================= */}
-
                 <Link
                   href="/login"
                   onClick={() =>
@@ -457,13 +697,10 @@ export function Header({ categories }: HeaderProps) {
                   Sign In
                 </Link>
 
-                {/* ================= ENQUIRE ================= */}
-
                 <Button
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    setMobileCategoriesOpen(false);
                     setEnquiryOpen(true);
                   }}
                   className="mt-2 h-11 w-full rounded-xl bg-[#F5821F] text-white hover:bg-[#df7115]"
@@ -485,7 +722,9 @@ export function Header({ categories }: HeaderProps) {
           className="fixed inset-0 z-[100] overflow-y-auto bg-black/45 px-4 py-6 backdrop-blur-sm sm:py-10"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget
+            ) {
               setEnquiryOpen(false);
             }
           }}
@@ -498,9 +737,12 @@ export function Header({ categories }: HeaderProps) {
           >
             <div className="relative">
               {/* Close button */}
+
               <button
                 type="button"
-                onClick={() => setEnquiryOpen(false)}
+                onClick={() =>
+                  setEnquiryOpen(false)
+                }
                 aria-label="Close enquiry form"
                 className="absolute right-3 top-3 z-20 flex size-9 items-center justify-center rounded-full border border-[#e5e8e7] bg-white text-[#1B2A4A] shadow-sm transition-colors hover:bg-[#F2F2F2]"
               >
@@ -508,8 +750,11 @@ export function Header({ categories }: HeaderProps) {
               </button>
 
               {/* Form */}
+
               <EnquiryForm
-                onSuccess={() => setEnquiryOpen(false)}
+                onSuccess={() =>
+                  setEnquiryOpen(false)
+                }
               />
             </div>
           </div>

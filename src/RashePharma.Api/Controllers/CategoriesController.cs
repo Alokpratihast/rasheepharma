@@ -81,4 +81,12 @@ public class CategoriesController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("navigation")]
+    public async Task<IActionResult> GetNavigation()
+    {
+        var categories = await _categoryService.GetNavigationAsync();
+
+        return Ok(categories);
+    }
 }

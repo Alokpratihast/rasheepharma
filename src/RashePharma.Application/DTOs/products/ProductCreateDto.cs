@@ -20,4 +20,6 @@ public class ProductCreateDto
     public int CategoryId { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public bool IsFeatured { get; set; } = false;
 }
