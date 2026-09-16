@@ -67,4 +67,9 @@ public class CategoryRepository : ICategoryRepository
         return await _context.Categories
             .AnyAsync(c => c.Slug == slug);
     }
+
+    public async Task<int> GetTotalCountAsync()
+{
+    return await _context.Categories.CountAsync();
+}
 }

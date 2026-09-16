@@ -62,4 +62,9 @@ public class OrderRepository : IOrderRepository
     {
         await _context.OrderStatusHistories.AddAsync(history);
     }
+
+        public async Task<int> GetTotalCountAsync()
+    {
+        return await _context.Orders.CountAsync();
+    }
 }

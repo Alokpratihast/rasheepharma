@@ -19,4 +19,6 @@ public interface ICategoryRepository
     Task DeleteAsync(Category category);
 
     Task<bool> ExistsBySlugAsync(string slug);
+
+    Task<int> GetTotalCountAsync();
 }

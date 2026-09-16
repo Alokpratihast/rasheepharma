@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RashePharma.Application.DTOs.Admin;
+using RashePharma.Application.Interfaces.Services;
 
 namespace RashePharma.Api.Controllers;
 
@@ -8,12 +10,18 @@ namespace RashePharma.Api.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminController : ControllerBase
 {
-    [HttpGet("dashboard")]
-    public IActionResult Dashboard()
+    private readonly IAdminService _adminService;
+
+    public AdminController(IAdminService adminService)
     {
-        return Ok(new
-        {
-            message = "Welcome to Admin Dashboard"
-        });
+        _adminService = adminService;
+    }
+
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<AdminDashboardDto>> Dashboard()
+    {
+        var dashboard = await _adminService.GetDashboardAsync();
+
+        return Ok(dashboard);
     }
 }

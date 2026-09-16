@@ -75,4 +75,15 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .AnyAsync(p => p.Slug == slug);
     }
+
+    public async Task<int> GetTotalCountAsync()
+    {
+        return await _context.Products.CountAsync();
+    }
+
+    public async Task<int> GetFeaturedCountAsync()
+    {
+        return await _context.Products
+            .CountAsync(p => p.IsActive && p.IsFeatured);
+    }
 }

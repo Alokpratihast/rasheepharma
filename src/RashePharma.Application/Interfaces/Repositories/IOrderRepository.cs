@@ -15,4 +15,6 @@ public interface IOrderRepository
     Task UpdateAsync(Order order);
 
     Task AddStatusHistoryAsync(OrderStatusHistory history);
+
+    Task<int> GetTotalCountAsync();
 }

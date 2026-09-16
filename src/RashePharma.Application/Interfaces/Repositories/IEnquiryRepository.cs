@@ -15,4 +15,8 @@ public interface IEnquiryRepository
     Task AddAsync(Enquiry enquiry);
 
     Task UpdateAsync(Enquiry enquiry);
+
+    Task<int> GetTotalCountAsync();
+
+    Task<int> GetPendingCountAsync();   
 }

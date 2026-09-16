@@ -13,4 +13,8 @@ public interface IUserRepository
     Task UpdateAsync(User user);
 
     Task<bool> ExistsByEmailAsync(string email);
+
+    Task<int> GetTotalCountAsync();
+
+    Task<int> GetActiveCountAsync();
 }

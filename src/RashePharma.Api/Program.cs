@@ -290,6 +290,9 @@ builder.Services.AddScoped<
     IPartnerService,
     PartnerService>();
 
+builder.Services.AddScoped<
+IAdminService, AdminService>();
+
 // =========================================================
 // Build application
 // =========================================================

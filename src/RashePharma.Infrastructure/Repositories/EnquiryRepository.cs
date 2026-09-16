@@ -64,4 +64,15 @@ public class EnquiryRepository : IEnquiryRepository
 
         await Task.CompletedTask;
     }
+
+    public async Task<int> GetTotalCountAsync()
+    {
+        return await _context.Enquiries.CountAsync();
+    }
+
+    public async Task<int> GetPendingCountAsync()
+    {
+        return await _context.Enquiries
+            .CountAsync(e => e.Status == "Pending");
+    }
 }

@@ -19,4 +19,8 @@ public interface IProductRepository
     Task DeleteAsync(Product product);
 
     Task<bool> ExistsBySlugAsync(string slug);
+
+    Task<int> GetTotalCountAsync();
+
+    Task<int> GetFeaturedCountAsync();
 }

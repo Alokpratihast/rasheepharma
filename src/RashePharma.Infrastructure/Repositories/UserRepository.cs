@@ -45,4 +45,16 @@ public class UserRepository : IUserRepository
         return await _context.Users
             .AnyAsync(u => u.Email == email);
     }
+
+
+    public async Task<int> GetTotalCountAsync()
+{
+    return await _context.Users.CountAsync();
+}
+
+public async Task<int> GetActiveCountAsync()
+{
+    return await _context.Users
+        .CountAsync(u => u.IsActive);
+}
 }
