@@ -1,7 +1,9 @@
 import { apiClient } from "@/lib/api/client";
 import type {
+  ProductCreateInput,
   ProductDetails,
   ProductList,
+  ProductUpdateInput,
 } from "@/types/product";
 
 const PRODUCT_ENDPOINT = "/Products";
@@ -30,6 +32,40 @@ export const productService = {
   ): Promise<ProductDetails> {
     return apiClient<ProductDetails>(
       `${PRODUCT_ENDPOINT}/slug/${encodeURIComponent(slug)}`,
+    );
+  },
+
+  async create(
+    data: ProductCreateInput,
+  ): Promise<ProductDetails> {
+    return apiClient<ProductDetails>(
+      PRODUCT_ENDPOINT,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    );
+  },
+
+  async update(
+    id: number,
+    data: ProductUpdateInput,
+  ): Promise<ProductDetails> {
+    return apiClient<ProductDetails>(
+      `${PRODUCT_ENDPOINT}/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+    );
+  },
+
+  async delete(id: number): Promise<void> {
+    await apiClient<void>(
+      `${PRODUCT_ENDPOINT}/${id}`,
+      {
+        method: "DELETE",
+      },
     );
   },
 };

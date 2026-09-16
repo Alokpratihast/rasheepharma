@@ -72,4 +72,16 @@ public class CategoryRepository : ICategoryRepository
 {
     return await _context.Categories.CountAsync();
 }
+
+public async Task<bool> HasChildrenAsync(int categoryId)
+{
+    return await _context.Categories
+        .AnyAsync(c => c.ParentCategoryId == categoryId);
+}
+
+public async Task<bool> HasProductsAsync(int categoryId)
+{
+    return await _context.Products
+        .AnyAsync(p => p.CategoryId == categoryId);
+}
 }

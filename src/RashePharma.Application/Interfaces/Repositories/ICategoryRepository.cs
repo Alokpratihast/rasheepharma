@@ -21,4 +21,8 @@ public interface ICategoryRepository
     Task<bool> ExistsBySlugAsync(string slug);
 
     Task<int> GetTotalCountAsync();
+
+    Task<bool> HasChildrenAsync(int categoryId);
+
+    Task<bool> HasProductsAsync(int categoryId);
 }

@@ -29,7 +29,7 @@ public class CategoryService : ICategoryService
             Name = c.Name,
             Slug = c.Slug,
             IsActive = c.IsActive,
-
+            Description = c.Description,
             ParentCategoryId = c.ParentCategoryId,
             ParentCategoryName = c.ParentCategory?.Name
 
@@ -150,17 +150,25 @@ public class CategoryService : ICategoryService
     }
 
     public async Task<bool> DeleteAsync(int id)
-    {
-        var category = await _categoryRepository.GetByIdAsync(id);
+{
+    var category = await _categoryRepository.GetByIdAsync(id);
 
-        if (category == null)
-            return false;
+    if (category == null)
+        return false;
 
-        await _categoryRepository.DeleteAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+    if (await _categoryRepository.HasChildrenAsync(id))
+        throw new InvalidOperationException(
+            "Cannot delete a category that has child categories.");
 
-        return true;
-    }
+    if (await _categoryRepository.HasProductsAsync(id))
+        throw new InvalidOperationException(
+            "Cannot delete a category that has products.");
+
+    await _categoryRepository.DeleteAsync(category);
+    await _unitOfWork.SaveChangesAsync();
+
+    return true;
+}
 
     private static CategoryNavigationDto MapToNavigationDto(Category category)
     {

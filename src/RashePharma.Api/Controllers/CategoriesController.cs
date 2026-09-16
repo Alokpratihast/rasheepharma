@@ -71,8 +71,10 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+[HttpDelete("{id:int}")]
+public async Task<IActionResult> Delete(int id)
+{
+    try
     {
         var deleted = await _categoryService.DeleteAsync(id);
 
@@ -81,6 +83,14 @@ public class CategoriesController : ControllerBase
 
         return NoContent();
     }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+}
 
     [HttpGet("navigation")]
     public async Task<IActionResult> GetNavigation()
