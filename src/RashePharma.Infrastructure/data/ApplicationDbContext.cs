@@ -5,7 +5,8 @@ namespace RashePharma.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
@@ -14,9 +15,11 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Product> Products => Set<Product>();
 
-    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<ProductVariant> ProductVariants
+        => Set<ProductVariant>();
 
-    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductImage> ProductImages
+        => Set<ProductImage>();
 
     public DbSet<User> Users => Set<User>();
 
@@ -37,258 +40,319 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
-    public DbSet<EnquiryItem> EnquiryItems => Set<EnquiryItem>();
+    public DbSet<EnquiryItem> EnquiryItems
+        => Set<EnquiryItem>();
 
-    public DbSet<Quotation> Quotations => Set<Quotation>();
+    public DbSet<Quotation> Quotations
+        => Set<Quotation>();
 
-    public DbSet<QuotationItem> QuotationItems => Set<QuotationItem>();
+    public DbSet<QuotationItem> QuotationItems
+        => Set<QuotationItem>();
 
-    public DbSet<PartnerRequest> PartnerRequests => Set<PartnerRequest>();
+    public DbSet<PartnerRequest> PartnerRequests
+        => Set<PartnerRequest>();
 
     public DbSet<Partner> Partners => Set<Partner>();
 
-    public DbSet<WebsiteContent> WebsiteContents => Set<WebsiteContent>();
+    public DbSet<WebsiteContent> WebsiteContents
+        => Set<WebsiteContent>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(
+        ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Category → Category (Self Referencing)
-modelBuilder.Entity<Category>()
-    .HasOne(c => c.ParentCategory)
-    .WithMany(c => c.Children)
-    .HasForeignKey(c => c.ParentCategoryId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // Category → Category
+        // Self Referencing
+        // =====================================================
 
+        modelBuilder.Entity<Category>()
+            .HasOne(c => c.ParentCategory)
+            .WithMany(c => c.Children)
+            .HasForeignKey(c => c.ParentCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // =====================================================
         // Category → Product
-       // Category → Product
-modelBuilder.Entity<Product>()
-    .HasOne(p => p.Category)
-    .WithMany(c => c.Products)
-    .HasForeignKey(p => p.CategoryId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
 
+        modelBuilder.Entity<Product>()
+            .HasOne(p => p.Category)
+            .WithMany(c => c.Products)
+            .HasForeignKey(p => p.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-         // Product → ProductVariant
-         modelBuilder.Entity<ProductVariant>()
-        .HasOne(v => v.Product)
-        .WithMany(p => p.Variants)
-        .HasForeignKey(v => v.ProductId)
-        .OnDelete(DeleteBehavior.Cascade);
+        // =====================================================
+        // Product → ProductVariant
+        // =====================================================
 
+        modelBuilder.Entity<ProductVariant>()
+            .HasOne(v => v.Product)
+            .WithMany(p => p.Variants)
+            .HasForeignKey(v => v.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
         // Product → ProductImage
-    modelBuilder.Entity<ProductImage>()
-    .HasOne(i => i.Product)
-    .WithMany(p => p.Images)
-    .HasForeignKey(i => i.ProductId)
-    .OnDelete(DeleteBehavior.Cascade);
+        // =====================================================
 
-    // Role → User
+        modelBuilder.Entity<ProductImage>()
+            .HasOne(i => i.Product)
+            .WithMany(p => p.Images)
+            .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    modelBuilder.Entity<User>()
-    .HasOne(u => u.Role)
-    .WithMany(r => r.Users)
-    .HasForeignKey(u => u.RoleId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // Role → User
+        // =====================================================
 
-    // User → Address
-    modelBuilder.Entity<Address>()
-    .HasOne(a => a.User)
-    .WithMany(u => u.Addresses)
-    .HasForeignKey(a => a.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Role)
+            .WithMany(r => r.Users)
+            .HasForeignKey(u => u.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // User → Cart
-    modelBuilder.Entity<Cart>()
-    .HasOne(c => c.User)
-    .WithOne(u => u.Cart)
-    .HasForeignKey<Cart>(c => c.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+        // =====================================================
+        // User → Address
+        // =====================================================
 
-    // Cart → CartItem
-    modelBuilder.Entity<CartItem>()
-    .HasOne(ci => ci.Cart)
-    .WithMany(c => c.Items)
-    .HasForeignKey(ci => ci.CartId)
-    .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Address>()
+            .HasOne(a => a.User)
+            .WithMany(u => u.Addresses)
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
+        // =====================================================
+        // User → Cart
+        // =====================================================
 
-    // CartItem → ProductVariant
-    modelBuilder.Entity<CartItem>()
-    .HasOne(ci => ci.ProductVariant)
-    .WithMany()
-    .HasForeignKey(ci => ci.ProductVariantId)
-    .OnDelete(DeleteBehavior.Restrict); 
+        modelBuilder.Entity<Cart>()
+            .HasOne(c => c.User)
+            .WithOne(u => u.Cart)
+            .HasForeignKey<Cart>(c => c.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    // User → Order
-    modelBuilder.Entity<Order>()
-    .HasOne(o => o.User)
-    .WithMany(u => u.Orders)
-    .HasForeignKey(o => o.UserId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // Cart → CartItem
+        // =====================================================
 
+        modelBuilder.Entity<CartItem>()
+            .HasOne(ci => ci.Cart)
+            .WithMany(c => c.Items)
+            .HasForeignKey(ci => ci.CartId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-// Order → OrderItem
-    modelBuilder.Entity<OrderItem>()
-    .HasOne(oi => oi.Order)
-    .WithMany(o => o.Items)
-    .HasForeignKey(oi => oi.OrderId)
-    .OnDelete(DeleteBehavior.Cascade);
+        // =====================================================
+        // CartItem → ProductVariant
+        // =====================================================
 
+        modelBuilder.Entity<CartItem>()
+            .HasOne(ci => ci.ProductVariant)
+            .WithMany()
+            .HasForeignKey(ci => ci.ProductVariantId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // OrderItem → ProductVariant
-modelBuilder.Entity<OrderItem>()
-    .HasOne(oi => oi.ProductVariant)
-    .WithMany()
-    .HasForeignKey(oi => oi.ProductVariantId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // User → Order
+        // =====================================================
 
+        modelBuilder.Entity<Order>()
+            .HasOne(o => o.User)
+            .WithMany(u => u.Orders)
+            .HasForeignKey(o => o.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // Order → OrderStatusHistory
-modelBuilder.Entity<OrderStatusHistory>()
-    .HasOne(h => h.Order)
-    .WithMany(o => o.StatusHistory)
-    .HasForeignKey(h => h.OrderId)
-    .OnDelete(DeleteBehavior.Cascade);
+        // =====================================================
+        // Order → OrderItem
+        // =====================================================
 
+        modelBuilder.Entity<OrderItem>()
+            .HasOne(oi => oi.Order)
+            .WithMany(o => o.Items)
+            .HasForeignKey(oi => oi.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    // User → Enquiry
-    modelBuilder.Entity<Enquiry>()
-    .HasOne(e => e.User)
-    .WithMany(u => u.Enquiries)
-    .HasForeignKey(e => e.UserId)
-    .OnDelete(DeleteBehavior.SetNull);
+        // =====================================================
+        // OrderItem → ProductVariant
+        // =====================================================
 
-    // Enquiry → EnquiryItem
-    modelBuilder.Entity<EnquiryItem>()
-    .HasOne(ei => ei.Enquiry)
-    .WithMany(e => e.Items)
-    .HasForeignKey(ei => ei.EnquiryId)
-    .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<OrderItem>()
+            .HasOne(oi => oi.ProductVariant)
+            .WithMany()
+            .HasForeignKey(oi => oi.ProductVariantId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // EnquiryItem → ProductVariant
-    modelBuilder.Entity<EnquiryItem>()
-    .HasOne(ei => ei.ProductVariant)
-    .WithMany()
-    .HasForeignKey(ei => ei.ProductVariantId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // Order → OrderStatusHistory
+        // =====================================================
 
+        modelBuilder.Entity<OrderStatusHistory>()
+            .HasOne(h => h.Order)
+            .WithMany(o => o.StatusHistory)
+            .HasForeignKey(h => h.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    // Enquiry → Quotation
-    modelBuilder.Entity<Quotation>()
-    .HasOne(q => q.Enquiry)
-    .WithMany()
-    .HasForeignKey(q => q.EnquiryId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // User → Enquiry
+        // =====================================================
 
+        modelBuilder.Entity<Enquiry>()
+            .HasOne(e => e.User)
+            .WithMany(u => u.Enquiries)
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
-    // User → Quotation
-    modelBuilder.Entity<Quotation>()
-    .HasOne(q => q.User)
-    .WithMany()
-    .HasForeignKey(q => q.UserId)
-    .OnDelete(DeleteBehavior.SetNull);
+        // =====================================================
+        // Enquiry → EnquiryItem
+        // =====================================================
 
+        modelBuilder.Entity<EnquiryItem>()
+            .HasOne(ei => ei.Enquiry)
+            .WithMany(e => e.Items)
+            .HasForeignKey(ei => ei.EnquiryId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    // Quotation → QuotationItem
-    modelBuilder.Entity<QuotationItem>()
-    .HasOne(qi => qi.Quotation)
-    .WithMany(q => q.Items)
-    .HasForeignKey(qi => qi.QuotationId)
-    .OnDelete(DeleteBehavior.Cascade);
-    
-    // QuotationItem → ProductVariant
-    modelBuilder.Entity<QuotationItem>()
-    .HasOne(qi => qi.ProductVariant)
-    .WithMany()
-    .HasForeignKey(qi => qi.ProductVariantId)
-    .OnDelete(DeleteBehavior.Restrict);
+        // =====================================================
+        // EnquiryItem → ProductVariant
+        // =====================================================
 
+        modelBuilder.Entity<EnquiryItem>()
+            .HasOne(ei => ei.ProductVariant)
+            .WithMany()
+            .HasForeignKey(ei => ei.ProductVariantId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // User → PartnerRequest
-    modelBuilder.Entity<PartnerRequest>()
-    .HasOne(pr => pr.User)
-    .WithMany()
-    .HasForeignKey(pr => pr.UserId)
-    .OnDelete(DeleteBehavior.SetNull);
+        // =====================================================
+        // Enquiry → Quotation
+        // =====================================================
 
-    // User → Partner
-    modelBuilder.Entity<Partner>()
-    .HasOne(p => p.User)
-    .WithMany()
-    .HasForeignKey(p => p.UserId)
-    .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<Quotation>()
+            .HasOne(q => q.Enquiry)
+            .WithMany()
+            .HasForeignKey(q => q.EnquiryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    // PartnerRequest → Partner
-    modelBuilder.Entity<Partner>()
-    .HasOne(p => p.PartnerRequest)
-    .WithOne()
-    .HasForeignKey<Partner>(p => p.PartnerRequestId)
-    .OnDelete(DeleteBehavior.SetNull);
+        // =====================================================
+        // User → Quotation
+        // =====================================================
 
+        modelBuilder.Entity<Quotation>()
+            .HasOne(q => q.User)
+            .WithMany()
+            .HasForeignKey(q => q.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
-    
+        // =====================================================
+        // Quotation → QuotationItem
+        // =====================================================
 
-// =============================
-// Unique Indexes
-// =============================
+        modelBuilder.Entity<QuotationItem>()
+            .HasOne(qi => qi.Quotation)
+            .WithMany(q => q.Items)
+            .HasForeignKey(qi => qi.QuotationId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-modelBuilder.Entity<User>()
-    .HasIndex(u => u.Email)
-    .IsUnique();
+        // =====================================================
+        // QuotationItem → ProductVariant
+        // =====================================================
 
-modelBuilder.Entity<Category>()
-    .HasIndex(c => c.Slug)
-    .IsUnique();
+        modelBuilder.Entity<QuotationItem>()
+            .HasOne(qi => qi.ProductVariant)
+            .WithMany()
+            .HasForeignKey(qi => qi.ProductVariantId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-modelBuilder.Entity<Product>()
-    .HasIndex(p => p.Slug)
-    .IsUnique();
+        // =====================================================
+        // User → PartnerRequest
+        // =====================================================
 
-modelBuilder.Entity<Order>()
-    .HasIndex(o => o.OrderNumber)
-    .IsUnique();
+        modelBuilder.Entity<PartnerRequest>()
+            .HasOne(pr => pr.User)
+            .WithMany()
+            .HasForeignKey(pr => pr.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
-modelBuilder.Entity<Enquiry>()
-    .HasIndex(e => e.EnquiryNumber)
-    .IsUnique();
+        // =====================================================
+        // User → Partner
+        // =====================================================
 
-modelBuilder.Entity<Quotation>()
-    .HasIndex(q => q.QuoteNumber)
-    .IsUnique();
+        modelBuilder.Entity<Partner>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
+        // =====================================================
+        // PartnerRequest → Partner
+        // One-to-One
+        // =====================================================
 
-// =============================
-// Decimal Precision
-// =============================
+        modelBuilder.Entity<Partner>()
+            .HasOne(p => p.PartnerRequest)
+            .WithOne()
+            .HasForeignKey<Partner>(
+                p => p.PartnerRequestId)
+            .OnDelete(DeleteBehavior.SetNull);
 
-modelBuilder.Entity<ProductVariant>()
-    .Property(v => v.Price)
-    .HasPrecision(18, 2);
+        // =====================================================
+        // Unique Indexes
+        // =====================================================
 
-modelBuilder.Entity<CartItem>()
-    .Property(ci => ci.UnitPrice)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
 
-modelBuilder.Entity<Order>()
-    .Property(o => o.TotalAmount)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<Category>()
+            .HasIndex(c => c.Slug)
+            .IsUnique();
 
-modelBuilder.Entity<OrderItem>()
-    .Property(oi => oi.UnitPrice)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => p.Slug)
+            .IsUnique();
 
-modelBuilder.Entity<Quotation>()
-    .Property(q => q.TotalAmount)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<Order>()
+            .HasIndex(o => o.OrderNumber)
+            .IsUnique();
 
-modelBuilder.Entity<QuotationItem>()
-    .Property(qi => qi.UnitPrice)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<Enquiry>()
+            .HasIndex(e => e.EnquiryNumber)
+            .IsUnique();
 
-modelBuilder.Entity<QuotationItem>()
-    .Property(qi => qi.TotalPrice)
-    .HasPrecision(18, 2);
+        modelBuilder.Entity<Quotation>()
+            .HasIndex(q => q.QuoteNumber)
+            .IsUnique();
+
+        // =====================================================
+        // Decimal Precision
+        // =====================================================
+
+        modelBuilder.Entity<ProductVariant>()
+            .Property(v => v.Price)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<CartItem>()
+            .Property(ci => ci.UnitPrice)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Order>()
+            .Property(o => o.TotalAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.UnitPrice)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Quotation>()
+            .Property(q => q.TotalAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<QuotationItem>()
+            .Property(qi => qi.UnitPrice)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<QuotationItem>()
+            .Property(qi => qi.TotalPrice)
+            .HasPrecision(18, 2);
     }
-    
 }

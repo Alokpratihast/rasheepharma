@@ -13,51 +13,53 @@ using RashePharma.Infrastructure.Services;
 using System.Text;
 
 // =========================================================
-// Load .env
-// =========================================================
-
-var currentDirectory = new DirectoryInfo(
-    AppContext.BaseDirectory);
-
-var rootDirectory = currentDirectory;
-
-while (rootDirectory != null &&
-       !File.Exists(
-           Path.Combine(rootDirectory.FullName, ".env")))
-{
-    rootDirectory = rootDirectory.Parent;
-}
-
-if (rootDirectory == null)
-{
-    throw new FileNotFoundException(
-        "Root .env file could not be found.");
-}
-
-var envFilePath = Path.Combine(
-    rootDirectory.FullName,
-    ".env");
-
-Env.Load(envFilePath);
-
-// =========================================================
 // Create application builder
 // =========================================================
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================================================
-// Map .env variables explicitly into ASP.NET configuration
+// Load .env for local development only
 // =========================================================
 
+if (builder.Environment.IsDevelopment())
+{
+    var currentDirectory = new DirectoryInfo(
+        AppContext.BaseDirectory);
+
+    var rootDirectory = currentDirectory;
+
+    while (rootDirectory != null)
+    {
+        var envFilePath = Path.Combine(
+            rootDirectory.FullName,
+            ".env");
+
+        if (File.Exists(envFilePath))
+        {
+            Env.Load(envFilePath);
+            break;
+        }
+
+        rootDirectory = rootDirectory.Parent;
+    }
+}
+
+// =========================================================
+// Environment Variables
+// =========================================================
+
+// JWT Key
 var jwtKeyFromEnv =
     Environment.GetEnvironmentVariable("JWT__KEY");
 
 if (!string.IsNullOrWhiteSpace(jwtKeyFromEnv))
 {
-    builder.Configuration["Jwt:Key"] = jwtKeyFromEnv;
+    builder.Configuration["Jwt:Key"] =
+        jwtKeyFromEnv;
 }
 
+// Database Connection String
 var connectionStringFromEnv =
     Environment.GetEnvironmentVariable(
         "ConnectionStrings__DefaultConnection");
@@ -70,12 +72,13 @@ if (!string.IsNullOrWhiteSpace(connectionStringFromEnv))
 }
 
 // =========================================================
-// Add services to the container
+// Controllers / API
 // =========================================================
 
 builder.Services.AddControllers();
 
 builder.Services.AddOpenApi();
+
 builder.Services.AddSwaggerGen();
 
 // =========================================================
@@ -86,10 +89,26 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        policy
-            .WithOrigins("http://localhost:3000")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        var allowedOrigins =
+            builder.Configuration
+                .GetSection("Cors:AllowedOrigins")
+                .Get<string[]>();
+
+        if (allowedOrigins != null &&
+            allowedOrigins.Length > 0)
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            policy
+                .WithOrigins("http://localhost:3000")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
     });
 });
 
@@ -97,12 +116,7 @@ builder.Services.AddCors(options =>
 // Database
 // =========================================================
 
-if (builder.Environment.IsEnvironment("Testing"))
-{
-    // Test database will be configured by
-    // CustomWebApplicationFactory
-}
-else
+if (!builder.Environment.IsEnvironment("Testing"))
 {
     var connectionString =
         builder.Configuration.GetConnectionString(
@@ -114,9 +128,29 @@ else
             "ConnectionStrings:DefaultConnection is not configured.");
     }
 
-    builder.Services.AddDbContext<ApplicationDbContext>(
-        options =>
-            options.UseSqlServer(connectionString));
+    // -----------------------------------------------------
+    // Development
+    // Local SQL Server
+    // -----------------------------------------------------
+
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddDbContext<ApplicationDbContext>(
+            options =>
+                options.UseSqlServer(connectionString));
+    }
+
+    // -----------------------------------------------------
+    // Staging / Production
+    // PostgreSQL / Neon
+    // -----------------------------------------------------
+
+    else
+    {
+        builder.Services.AddDbContext<ApplicationDbContext>(
+            options =>
+                options.UseNpgsql(connectionString));
+    }
 }
 
 // =========================================================
@@ -126,17 +160,32 @@ else
 var jwtSettings =
     builder.Configuration.GetSection("Jwt");
 
-var jwtKey = jwtSettings["Key"]
-    ?? throw new InvalidOperationException(
+var jwtKey =
+    jwtSettings["Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
         "JWT Key is not configured.");
+}
 
-var jwtIssuer = jwtSettings["Issuer"]
-    ?? throw new InvalidOperationException(
+var jwtIssuer =
+    jwtSettings["Issuer"];
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    throw new InvalidOperationException(
         "JWT Issuer is not configured.");
+}
 
-var jwtAudience = jwtSettings["Audience"]
-    ?? throw new InvalidOperationException(
+var jwtAudience =
+    jwtSettings["Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException(
         "JWT Audience is not configured.");
+}
 
 builder.Services
     .AddAuthentication(
@@ -153,9 +202,11 @@ builder.Services
                         Encoding.UTF8.GetBytes(jwtKey)),
 
                 ValidateIssuer = true,
+
                 ValidIssuer = jwtIssuer,
 
                 ValidateAudience = true,
+
                 ValidAudience = jwtAudience,
 
                 ValidateLifetime = true,
@@ -171,16 +222,17 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // =========================================================
-// Unit of Work
+// Dependency Injection
 // =========================================================
 
+// Unit of Work
 builder.Services.AddScoped<
     IUnitOfWork,
     UnitOfWork>();
 
-// =========================================================
+// ---------------------------------------------------------
 // Repositories
-// =========================================================
+// ---------------------------------------------------------
 
 builder.Services.AddScoped<
     IProductRepository,
@@ -234,9 +286,9 @@ builder.Services.AddScoped<
     IWebsiteContentRepository,
     WebsiteContentRepository>();
 
-// =========================================================
+// ---------------------------------------------------------
 // Services
-// =========================================================
+// ---------------------------------------------------------
 
 builder.Services.AddScoped<
     IProductService,
@@ -291,10 +343,11 @@ builder.Services.AddScoped<
     PartnerService>();
 
 builder.Services.AddScoped<
-IAdminService, AdminService>();
+    IAdminService,
+    AdminService>();
 
 // =========================================================
-// Build application
+// Build Application
 // =========================================================
 
 var app = builder.Build();
@@ -307,16 +360,20 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
 
-    var db = scope.ServiceProvider
-        .GetRequiredService<ApplicationDbContext>();
+    var db =
+        scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
 
     await ProductCatalogSeeder.SeedAsync(db);
+
     await ProductImageSeeder.SeedAsync(db);
+
     await AdminSeeder.SeedAsync(db);
 }
 
 // =========================================================
-// Swagger / OpenAPI
+// Swagger
+// Development only
 // =========================================================
 
 if (app.Environment.IsDevelopment())
@@ -329,15 +386,12 @@ if (app.Environment.IsDevelopment())
 }
 
 // =========================================================
-// Middleware
+// Middleware Pipeline
 // =========================================================
 
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-
-// IMPORTANT: CORS must be enabled before
-// Authentication / Authorization
 
 app.UseCors("Frontend");
 
@@ -354,7 +408,7 @@ app.MapControllers();
 app.Run();
 
 // =========================================================
-// Partial Program class
+// Partial Program Class
 // Required for integration tests
 // =========================================================
 
