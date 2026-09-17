@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.DTOs.Products;
 using RashePharma.Application.Interfaces.Services;
@@ -15,6 +16,10 @@ public class ProductVariantsController : ControllerBase
     {
         _variantService = variantService;
     }
+
+    // =========================
+    // PUBLIC APIs
+    // =========================
 
     [HttpGet("product/{productId:int}")]
     public async Task<ActionResult<List<ProductVariantDto>>> GetByProductId(
@@ -37,6 +42,11 @@ public class ProductVariantsController : ControllerBase
         return Ok(variant);
     }
 
+    // =========================
+    // ADMIN APIs
+    // =========================
+
+    [Authorize(Roles = "Admin")]
     [HttpPost("product/{productId:int}")]
     public async Task<ActionResult<ProductVariantDto>> Create(
         int productId,
@@ -61,6 +71,7 @@ public class ProductVariantsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ProductVariantDto>> Update(
         int id,
@@ -75,6 +86,7 @@ public class ProductVariantsController : ControllerBase
         return Ok(variant);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

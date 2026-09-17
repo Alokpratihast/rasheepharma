@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.DTOs.Partners;
 using RashePharma.Application.Interfaces.Services;
@@ -15,6 +17,11 @@ public class PartnersController : ControllerBase
         _partnerService = partnerService;
     }
 
+    // =========================
+    // ADMIN APIs
+    // =========================
+
+    [Authorize(Roles = "Admin")]
     [HttpGet("requests")]
     public async Task<ActionResult<List<PartnerRequestListDto>>> GetAllRequests()
     {
@@ -23,6 +30,7 @@ public class PartnersController : ControllerBase
         return Ok(requests);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpGet("requests/{id:int}")]
     public async Task<ActionResult<PartnerRequestDetailsDto>> GetRequestById(
         int id)
@@ -35,24 +43,7 @@ public class PartnersController : ControllerBase
         return Ok(request);
     }
 
-    [HttpGet("requests/user/{userId:int}")]
-    public async Task<ActionResult<List<PartnerRequestListDto>>> GetMyRequests(
-        int userId)
-    {
-        var requests = await _partnerService.GetMyRequestsAsync(userId);
-
-        return Ok(requests);
-    }
-
-    [HttpPost("requests")]
-    public async Task<ActionResult<PartnerRequestDetailsDto>> CreateRequest(
-        PartnerRequestCreateDto dto)
-    {
-        var request = await _partnerService.CreateRequestAsync(dto, null);
-
-        return Ok(request);
-    }
-
+    [Authorize(Roles = "Admin")]
     [HttpPatch("requests/{id:int}/status")]
     public async Task<IActionResult> UpdateRequestStatus(
         int id,
@@ -67,6 +58,49 @@ public class PartnersController : ControllerBase
         return NoContent();
     }
 
+    // =========================
+    // AUTHENTICATED USER API
+    // =========================
+
+    [Authorize]
+    [HttpGet("requests/user/{userId:int}")]
+    public async Task<ActionResult<List<PartnerRequestListDto>>> GetMyRequests(
+        int userId)
+    {
+        var currentUserId = GetCurrentUserId();
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        if (currentUserId.Value != userId)
+            return Forbid();
+
+        var requests = await _partnerService.GetMyRequestsAsync(userId);
+
+        return Ok(requests);
+    }
+
+    [Authorize]
+    [HttpPost("requests")]
+    public async Task<ActionResult<PartnerRequestDetailsDto>> CreateRequest(
+        PartnerRequestCreateDto dto)
+    {
+        var currentUserId = GetCurrentUserId();
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        var request = await _partnerService
+            .CreateRequestAsync(dto, currentUserId.Value);
+
+        return Ok(request);
+    }
+
+    // =========================
+    // PUBLIC APIs
+    // =========================
+
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<List<PartnerDto>>> GetAllPartners()
     {
@@ -75,6 +109,7 @@ public class PartnersController : ControllerBase
         return Ok(partners);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PartnerDto>> GetPartnerById(int id)
     {
@@ -86,15 +121,44 @@ public class PartnersController : ControllerBase
         return Ok(partner);
     }
 
+    // =========================
+    // AUTHENTICATED USER API
+    // =========================
+
+    [Authorize]
     [HttpGet("user/{userId:int}")]
     public async Task<ActionResult<PartnerDto>> GetMyPartner(
         int userId)
     {
+        var currentUserId = GetCurrentUserId();
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        if (currentUserId.Value != userId)
+            return Forbid();
+
         var partner = await _partnerService.GetMyPartnerAsync(userId);
 
         if (partner == null)
             return NotFound();
 
         return Ok(partner);
+    }
+
+    // =========================
+    // HELPER
+    // =========================
+
+    private int? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userIdClaim))
+            return null;
+
+        return int.TryParse(userIdClaim, out var userId)
+            ? userId
+            : null;
     }
 }

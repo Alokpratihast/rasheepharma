@@ -24,6 +24,7 @@ import { categoryService } from "@/services/category.service";
 
 import type { ProductList } from "@/types/product";
 import type { Category } from "@/types/category";
+import { MobileMenu } from "@/components/navigation/MobileMenu";
 
 const navigation = [
   {
@@ -658,58 +659,16 @@ export function Header() {
           </div>
 
           {/* ===================================================
-              MOBILE NAVIGATION
+              MOBILE MENU
           ==================================================== */}
 
           {mobileMenuOpen && (
-            <div className="border-t border-[#edf0ef] py-3 md:hidden">
-              <nav
-                aria-label="Mobile navigation"
-                className="flex flex-col"
-              >
-                <CategoriesMegaMenu
-                  mobile
-                  onNavigate={() =>
-                    setMobileMenuOpen(false)
-                  }
-                />
-
-                {navigation.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() =>
-                      setMobileMenuOpen(false)
-                    }
-                    className="rounded-xl px-3 py-3 text-sm font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
-                <Link
-                  href="/login"
-                  onClick={() =>
-                    setMobileMenuOpen(false)
-                  }
-                  className="rounded-xl px-3 py-3 text-sm font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
-                >
-                  Sign In
-                </Link>
-
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setEnquiryOpen(true);
-                  }}
-                  className="mt-2 h-11 w-full rounded-xl bg-[#F5821F] text-white hover:bg-[#df7115]"
-                >
-                  Enquire
-                </Button>
-              </nav>
-            </div>
+            <MobileMenu
+              onClose={() => setMobileMenuOpen(false)}
+              onEnquire={() => setEnquiryOpen(true)}
+            />
           )}
+
         </Container>
       </header>
 

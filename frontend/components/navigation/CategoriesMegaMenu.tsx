@@ -6,7 +6,7 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { categoryService } from "@/services/category.service";
 import type { CategoryNavigation } from "@/types/category";
@@ -25,6 +25,41 @@ export function CategoriesMegaMenu({
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryNavigation | null>(null);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * =====================================================
+   * CLOSE MENU ON OUTSIDE CLICK / ESCAPE
+   * =====================================================
+   */
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
 
   /*
    * =====================================================
@@ -73,18 +108,34 @@ export function CategoriesMegaMenu({
 
   /*
    * =====================================================
+   * CLOSE + NAVIGATE
+   * =====================================================
+   */
+
+  const handleNavigate = () => {
+    setOpen(false);
+    onNavigate?.();
+  };
+
+  /*
+   * =====================================================
    * MOBILE
    * =====================================================
    */
 
   if (mobile) {
     return (
-      <div className="w-full">
+      <div ref={menuRef} className="w-full">
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
           aria-expanded={open}
-          className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6]"
+          aria-haspopup="true"
+          className={[
+            "flex w-full items-center justify-between rounded-xl px-3 py-3",
+            "text-left text-sm font-medium text-[#1B2A4A]",
+            "transition-colors hover:bg-[#F4F7F6]",
+          ].join(" ")}
         >
           <span>Categories</span>
 
@@ -100,8 +151,8 @@ export function CategoriesMegaMenu({
           <div className="mb-2 ml-2 border-l border-[#dfe8e5] pl-2">
             <Link
               href="/categories"
-              onClick={onNavigate}
-              className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-primary hover:bg-[#F4F7F6]"
+              onClick={handleNavigate}
+              className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-[#F4F7F6]"
             >
               View All Categories
 
@@ -119,8 +170,8 @@ export function CategoriesMegaMenu({
                 <div key={category.id}>
                   <Link
                     href={`/products/category/${category.slug}`}
-                    onClick={onNavigate}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-[#1B2A4A] hover:bg-[#F4F7F6] hover:text-primary"
+                    onClick={handleNavigate}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
                   >
                     <span className="size-1.5 shrink-0 rounded-full bg-[#3E8F96]" />
 
@@ -133,8 +184,8 @@ export function CategoriesMegaMenu({
                         <Link
                           key={product.id}
                           href={`/products/${product.slug}`}
-                          onClick={onNavigate}
-                          className="block rounded-lg px-3 py-2 text-xs text-[#617083] hover:bg-[#F4F7F6] hover:text-primary"
+                          onClick={handleNavigate}
+                          className="block rounded-lg px-3 py-2 text-xs text-[#617083] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
                         >
                           {product.name}
                         </Link>
@@ -148,8 +199,8 @@ export function CategoriesMegaMenu({
                         <div key={child.id}>
                           <Link
                             href={`/products/category/${child.slug}`}
-                            onClick={onNavigate}
-                            className="block rounded-lg px-3 py-2 text-xs font-medium text-[#1B2A4A] hover:bg-[#F4F7F6] hover:text-primary"
+                            onClick={handleNavigate}
+                            className="block rounded-lg px-3 py-2 text-xs font-medium text-[#1B2A4A] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
                           >
                             {child.name}
                           </Link>
@@ -158,8 +209,8 @@ export function CategoriesMegaMenu({
                             <Link
                               key={product.id}
                               href={`/products/${product.slug}`}
-                              onClick={onNavigate}
-                              className="ml-3 block rounded-lg px-3 py-1.5 text-xs text-[#617083] hover:bg-[#F4F7F6] hover:text-primary"
+                              onClick={handleNavigate}
+                              className="ml-3 block rounded-lg px-3 py-1.5 text-xs text-[#617083] transition-colors hover:bg-[#F4F7F6] hover:text-primary"
                             >
                               {product.name}
                             </Link>
@@ -188,7 +239,7 @@ export function CategoriesMegaMenu({
    */
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -226,7 +277,7 @@ export function CategoriesMegaMenu({
 
             <Link
               href="/categories"
-              onClick={onNavigate}
+              onClick={handleNavigate}
               className="group inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-primary transition-colors hover:bg-[#EAF6F1]"
             >
               View all
@@ -235,6 +286,7 @@ export function CategoriesMegaMenu({
             </Link>
           </div>
 
+          {/* Loading */}
           {loading ? (
             <div className="flex min-h-[280px] items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -242,6 +294,7 @@ export function CategoriesMegaMenu({
               Loading categories...
             </div>
           ) : categories.length === 0 ? (
+            /* Empty */
             <div className="px-5 py-12 text-center">
               <p className="text-sm font-medium text-[#1B2A4A]">
                 No categories available
@@ -281,7 +334,8 @@ export function CategoriesMegaMenu({
                           setSelectedCategory(category)
                         }
                         className={[
-                          "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[13px] font-medium transition-colors",
+                          "flex w-full items-center justify-between rounded-lg px-3 py-2.5",
+                          "text-left text-[13px] font-medium transition-colors",
                           isSelected
                             ? "bg-white text-primary shadow-sm"
                             : "text-[#1B2A4A] hover:bg-white hover:text-primary",
@@ -329,8 +383,8 @@ export function CategoriesMegaMenu({
 
                       <Link
                         href={`/products/category/${selectedCategory.slug}`}
-                        onClick={onNavigate}
-                        className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                        onClick={handleNavigate}
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary transition-colors hover:underline"
                       >
                         View all
 
@@ -346,18 +400,16 @@ export function CategoriesMegaMenu({
                         </p>
 
                         <div className="grid grid-cols-2 gap-2">
-                          {selectedCategory.children.map(
-                            (child) => (
-                              <Link
-                                key={child.id}
-                                href={`/products/category/${child.slug}`}
-                                onClick={onNavigate}
-                                className="rounded-lg border border-[#edf0ef] px-3 py-2 text-xs font-medium text-[#1B2A4A] transition-colors hover:border-[#cbded9] hover:bg-[#F5F9F7] hover:text-primary"
-                              >
-                                {child.name}
-                              </Link>
-                            ),
-                          )}
+                          {selectedCategory.children.map((child) => (
+                            <Link
+                              key={child.id}
+                              href={`/products/category/${child.slug}`}
+                              onClick={handleNavigate}
+                              className="rounded-lg border border-[#edf0ef] px-3 py-2 text-xs font-medium text-[#1B2A4A] transition-colors hover:border-[#cbded9] hover:bg-[#F5F9F7] hover:text-primary"
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -370,20 +422,18 @@ export function CategoriesMegaMenu({
 
                       {selectedCategory.products.length > 0 ? (
                         <div className="grid max-h-[230px] grid-cols-2 gap-1 overflow-y-auto pr-1">
-                          {selectedCategory.products.map(
-                            (product) => (
-                              <Link
-                                key={product.id}
-                                href={`/products/${product.slug}`}
-                                onClick={onNavigate}
-                                className="group rounded-lg px-3 py-2.5 transition-colors hover:bg-[#F5F9F7]"
-                              >
-                                <p className="text-xs font-medium leading-5 text-[#1B2A4A] group-hover:text-primary">
-                                  {product.name}
-                                </p>
-                              </Link>
-                            ),
-                          )}
+                          {selectedCategory.products.map((product) => (
+                            <Link
+                              key={product.id}
+                              href={`/products/${product.slug}`}
+                              onClick={handleNavigate}
+                              className="group rounded-lg px-3 py-2.5 transition-colors hover:bg-[#F5F9F7]"
+                            >
+                              <p className="text-xs font-medium leading-5 text-[#1B2A4A] group-hover:text-primary">
+                                {product.name}
+                              </p>
+                            </Link>
+                          ))}
                         </div>
                       ) : (
                         <p className="rounded-lg bg-[#fafbfb] px-3 py-4 text-xs text-muted-foreground">

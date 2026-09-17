@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.DTOs.Products;
 using RashePharma.Application.Interfaces.Services;
@@ -14,6 +15,10 @@ public class ProductsController : ControllerBase
     {
         _productService = productService;
     }
+
+    // =========================
+    // PUBLIC APIs
+    // =========================
 
     [HttpGet]
     public async Task<ActionResult<List<ProductListDto>>> GetAll()
@@ -53,6 +58,11 @@ public class ProductsController : ControllerBase
         return Ok(product);
     }
 
+    // =========================
+    // ADMIN APIs
+    // =========================
+
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<ProductDetailsDto>> Create(
         ProductCreateDto dto)
@@ -75,6 +85,7 @@ public class ProductsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ProductDetailsDto>> Update(
         int id,
@@ -88,6 +99,7 @@ public class ProductsController : ControllerBase
         return Ok(product);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

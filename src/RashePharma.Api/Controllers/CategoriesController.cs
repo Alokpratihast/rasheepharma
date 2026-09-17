@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.DTOs.Categories;
 using RashePharma.Application.Interfaces.Services;
@@ -14,6 +15,10 @@ public class CategoriesController : ControllerBase
     {
         _categoryService = categoryService;
     }
+
+    // =========================
+    // PUBLIC APIs
+    // =========================
 
     [HttpGet]
     public async Task<ActionResult<List<CategoryListDto>>> GetAll()
@@ -46,6 +51,19 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
+    [HttpGet("navigation")]
+    public async Task<IActionResult> GetNavigation()
+    {
+        var categories = await _categoryService.GetNavigationAsync();
+
+        return Ok(categories);
+    }
+
+    // =========================
+    // ADMIN APIs
+    // =========================
+
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<CategoryDetailsDto>> Create(
         CategoryCreateDto dto)
@@ -58,6 +76,7 @@ public class CategoriesController : ControllerBase
             category);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<CategoryDetailsDto>> Update(
         int id,
@@ -71,32 +90,25 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
-[HttpDelete("{id:int}")]
-public async Task<IActionResult> Delete(int id)
-{
-    try
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _categoryService.DeleteAsync(id);
-
-        if (!deleted)
-            return NotFound();
-
-        return NoContent();
-    }
-    catch (InvalidOperationException ex)
-    {
-        return BadRequest(new
+        try
         {
-            message = ex.Message
-        });
-    }
-}
+            var deleted = await _categoryService.DeleteAsync(id);
 
-    [HttpGet("navigation")]
-    public async Task<IActionResult> GetNavigation()
-    {
-        var categories = await _categoryService.GetNavigationAsync();
+            if (!deleted)
+                return NotFound();
 
-        return Ok(categories);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

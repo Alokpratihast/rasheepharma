@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
@@ -15,6 +16,10 @@ public class WebsiteContentController : ControllerBase
     {
         _service = service;
     }
+
+    // =========================
+    // PUBLIC APIs
+    // =========================
 
     [HttpGet]
     public async Task<ActionResult<List<WebsiteContent>>> GetAll()
@@ -63,6 +68,11 @@ public class WebsiteContentController : ControllerBase
         return Ok(content);
     }
 
+    // =========================
+    // ADMIN APIs
+    // =========================
+
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<WebsiteContent>> Create(
         WebsiteContent content)
@@ -76,6 +86,7 @@ public class WebsiteContentController : ControllerBase
             createdContent);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<WebsiteContent>> Update(
         int id,
@@ -92,6 +103,7 @@ public class WebsiteContentController : ControllerBase
         return Ok(updatedContent);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
