@@ -373,7 +373,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 
     // Seed data after database schema is ready
     await RoleSeeder.SeedAsync(db);
-    
+
     await ProductCatalogSeeder.SeedAsync(db);
 
     await ProductImageSeeder.SeedAsync(db);
@@ -386,7 +386,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 // Development only
 // =========================================================
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
     app.MapOpenApi();
 
