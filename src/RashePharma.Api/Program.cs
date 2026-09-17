@@ -105,7 +105,7 @@ builder.Services.AddCors(options =>
         else if (builder.Environment.IsDevelopment())
         {
             policy
-                .WithOrigins("http://localhost:3000")
+                .WithOrigins("http://localhost:3000", "https://rasheepharma.vercel.app")
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         }
