@@ -372,6 +372,8 @@ if (!app.Environment.IsEnvironment("Testing"))
     await db.Database.MigrateAsync();
 
     // Seed data after database schema is ready
+    await RoleSeeder.SeedAsync(db);
+    
     await ProductCatalogSeeder.SeedAsync(db);
 
     await ProductImageSeeder.SeedAsync(db);
