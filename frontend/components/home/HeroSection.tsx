@@ -681,7 +681,7 @@ export async function HeroSection() {
             ====================================================== */}
             <div className="absolute bottom-0 left-[-8px] z-40 h-[180px] w-[265px] overflow-hidden rounded-[26px] border-[6px] border-white bg-white shadow-[0_25px_55px_rgba(27,42,74,0.20)] sm:left-[-20px] sm:h-[225px] sm:w-[330px] sm:rounded-[28px]">
               <Image
-                src="/images/rasheheader2.jfif"
+                src="/images/rasheheader2.png"
                 alt="Pharmaceutical products"
                 fill
                 sizes="330px"
