@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RashePharma.Application\RashePharma.Application.csproj" />
     <ProjectReference Include="..\RashePharma.Infrastructure\RashePharma.Infrastructure.csproj" />
+    <ProjectReference Include="..\RashePharma.PostgresMigrations\RashePharma.PostgresMigrations.csproj" />
   </ItemGroup>
 
 </Project>

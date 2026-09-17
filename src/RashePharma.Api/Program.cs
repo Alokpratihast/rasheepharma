@@ -146,11 +146,15 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // -----------------------------------------------------
 
     else
-    {
-        builder.Services.AddDbContext<ApplicationDbContext>(
-            options =>
-                options.UseNpgsql(connectionString));
-    }
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(
+        options =>
+            options.UseNpgsql(
+                connectionString,
+                npgsqlOptions =>
+                    npgsqlOptions.MigrationsAssembly(
+                        "RashePharma.PostgresMigrations")));
+}
 }
 
 // =========================================================
@@ -364,6 +368,10 @@ if (!app.Environment.IsEnvironment("Testing"))
         scope.ServiceProvider
             .GetRequiredService<ApplicationDbContext>();
 
+    // Apply pending database migrations
+    await db.Database.MigrateAsync();
+
+    // Seed data after database schema is ready
     await ProductCatalogSeeder.SeedAsync(db);
 
     await ProductImageSeeder.SeedAsync(db);
