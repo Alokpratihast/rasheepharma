@@ -9,7 +9,7 @@ const ENQUIRY_ENDPOINT = "/Enquiries";
 export const enquiryService = {
   async create(
     data: CreateEnquiry,
-    token: string,
+    token?: string,
   ): Promise<EnquiryDetails> {
     return apiClient<EnquiryDetails>(
       ENQUIRY_ENDPOINT,

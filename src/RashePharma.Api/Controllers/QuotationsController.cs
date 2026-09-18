@@ -144,6 +144,7 @@ public class QuotationsController : ControllerBase
         return Ok(quotation);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<QuotationDetailsDto>> Create(
         CreateQuotationDto dto)

@@ -1,11 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { Send } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { CheckCircle2, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
 
 import { Button } from "@/components/ui/button";
 import { PhoneCountryFields } from "@/components/forms/PhoneCountryFields";
+import { productService } from "@/services/product.service";
+import { enquiryService } from "@/services/enquiry.service";
+import { useAuth } from "@/components/providers/AuthProvider";
+
+import type { ProductList, ProductVariant } from "@/types/product";
 
 interface EnquiryFormProps {
   productName?: string;
@@ -13,11 +19,30 @@ interface EnquiryFormProps {
   onSuccess?: () => void;
 }
 
+const PENDING_ENQUIRY_KEY = "pending_enquiry";
+
+interface PendingEnquiry {
+  customerName: string;
+  email: string;
+  phoneNumber?: string;
+  country: Country;
+  businessType: string;
+  quantity: string;
+  message: string;
+  selectedProductId: string;
+  selectedVariantId: string;
+}
+
 export function EnquiryForm({
   productName,
   productVariantId,
   onSuccess,
 }: EnquiryFormProps) {
+  const router = useRouter();
+
+  const { token, isAuthenticated, isLoading: authLoading } =
+    useAuth();
+
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState<string>();
@@ -26,13 +51,312 @@ export function EnquiryForm({
   const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState("");
 
+  const [products, setProducts] = useState<ProductList[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState("");
+
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    productVariantId ? String(productVariantId) : "",
+  );
+
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const isProductEnquiry = Boolean(productVariantId);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  /*
+   * =================================================
+   * LOAD PRODUCTS
+   * =================================================
+   */
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        setLoadingProducts(true);
+
+        const data = await productService.getAll();
+
+        const activeProducts = data.filter(
+          (product) => product.isActive,
+        );
+
+        setProducts(activeProducts);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+
+        setError(
+          "Unable to load products. Please try again.",
+        );
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
+
+  /*
+   * =================================================
+   * RESTORE PENDING ENQUIRY
+   * =================================================
+   *
+   * If the user was redirected to login, restore the
+   * enquiry form data after coming back.
+   */
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      const stored = sessionStorage.getItem(
+        PENDING_ENQUIRY_KEY,
+      );
+
+      if (!stored) {
+        return;
+      }
+
+      const pending: PendingEnquiry = JSON.parse(stored);
+
+      setCustomerName(pending.customerName || "");
+      setEmail(pending.email || "");
+      setPhoneNumber(pending.phoneNumber);
+      setCountry(pending.country || "IN");
+      setBusinessType(pending.businessType || "");
+      setQuantity(pending.quantity || "1");
+      setMessage(pending.message || "");
+      setSelectedProductId(
+        pending.selectedProductId || "",
+      );
+      setSelectedVariantId(
+        pending.selectedVariantId || "",
+      );
+
+      sessionStorage.removeItem(PENDING_ENQUIRY_KEY);
+    } catch (error) {
+      console.error(
+        "Failed to restore pending enquiry:",
+        error,
+      );
+
+      sessionStorage.removeItem(PENDING_ENQUIRY_KEY);
+    }
+  }, [isAuthenticated]);
+
+  /*
+   * =================================================
+   * LOAD VARIANTS
+   * =================================================
+   */
+
+  useEffect(() => {
+    async function loadVariants() {
+      if (!selectedProductId) {
+        setVariants([]);
+        return;
+      }
+
+      try {
+        setLoadingVariants(true);
+        setError("");
+
+        const product = await productService.getById(
+          Number(selectedProductId),
+        );
+
+        const activeVariants = product.variants.filter(
+          (variant) => variant.isActive,
+        );
+
+        setVariants(activeVariants);
+
+        /*
+         * Keep selected variant if it belongs to
+         * the selected product.
+         */
+        if (
+          selectedVariantId &&
+          activeVariants.some(
+            (variant) =>
+              variant.id === Number(selectedVariantId),
+          )
+        ) {
+          return;
+        }
+
+        setSelectedVariantId("");
+      } catch (error) {
+        console.error(
+          "Failed to load product variants:",
+          error,
+        );
+
+        setVariants([]);
+        setSelectedVariantId("");
+
+        setError(
+          "Unable to load product variants. Please try again.",
+        );
+      } finally {
+        setLoadingVariants(false);
+      }
+    }
+
+    loadVariants();
+  }, [selectedProductId]);
+
+  /*
+   * =================================================
+   * HANDLE SUBMIT
+   * =================================================
+   */
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
-    // API integration will be added separately.
-    onSuccess?.();
+    setError("");
+    setSuccess("");
+
+    /*
+     * Wait until AuthProvider finishes restoring the
+     * existing session.
+     */
+    if (authLoading) {
+      return;
+    }
+
+    /*
+     * =================================================
+     * GUEST USER
+     * =================================================
+     *
+     * Save form data and redirect to login.
+     */
+
+    if (!isAuthenticated || !token) {
+      const pendingEnquiry: PendingEnquiry = {
+        customerName,
+        email,
+        phoneNumber,
+        country,
+        businessType,
+        quantity,
+        message,
+        selectedProductId,
+        selectedVariantId,
+      };
+
+      sessionStorage.setItem(
+        PENDING_ENQUIRY_KEY,
+        JSON.stringify(pendingEnquiry),
+      );
+
+      router.push("/login?redirect=enquiry");
+
+      return;
+    }
+
+    /*
+     * =================================================
+     * VALIDATION
+     * =================================================
+     */
+
+    if (selectedProductId && !selectedVariantId) {
+      setError(
+        "Please select a product variant before submitting.",
+      );
+
+      return;
+    }
+
+    const parsedQuantity = Number(quantity);
+
+    if (
+      selectedVariantId &&
+      (!Number.isInteger(parsedQuantity) ||
+        parsedQuantity <= 0)
+    ) {
+      setError("Please enter a valid quantity.");
+
+      return;
+    }
+
+    /*
+     * =================================================
+     * CREATE ENQUIRY
+     * =================================================
+     */
+
+    try {
+      setSubmitting(true);
+
+      const items = selectedVariantId
+        ? [
+            {
+              productVariantId: Number(selectedVariantId),
+              quantity: parsedQuantity,
+              message: message.trim() || null,
+            },
+          ]
+        : [];
+
+       const enquiry = await enquiryService.create(
+        {
+          customerName: customerName.trim(),
+          email: email.trim(),
+          phoneNumber: phoneNumber || null,
+          country,
+          businessType: businessType || null,
+          message: message.trim() || null,
+          items,
+        },
+        token,
+      );
+
+      setSuccess(
+  enquiry.enquiryNumber
+    ? `Your enquiry has been submitted successfully. Enquiry No: ${enquiry.enquiryNumber}`
+    : "Your enquiry has been submitted successfully. Our team will get back to you soon.",
+);
+
+setCustomerName("");
+setEmail("");
+setPhoneNumber(undefined);
+setBusinessType("");
+setQuantity("1");
+setMessage("");
+setSelectedProductId("");
+setSelectedVariantId("");
+setVariants([]);
+
+    } catch (error) {
+      console.error("Failed to submit enquiry:", error);
+
+      if (
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof error.message === "string"
+      ) {
+        setError(error.message);
+      } else {
+        setError(
+          "Unable to submit your enquiry. Please try again.",
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -51,7 +375,9 @@ export function EnquiryForm({
 
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#1B2A4A]">
           {isProductEnquiry
-            ? `Enquire about ${productName ?? "this product"}`
+            ? `Enquire about ${
+                productName ?? "this product"
+              }`
             : "Send us your enquiry"}
         </h2>
 
@@ -81,7 +407,6 @@ export function EnquiryForm({
       ================================================== */}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        {/* Customer Name */}
         <div>
           <label
             htmlFor="customer-name"
@@ -106,13 +431,13 @@ export function EnquiryForm({
           />
         </div>
 
-        {/* Email */}
         <div>
           <label
             htmlFor="email"
             className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
           >
-            Email <span className="text-[#F5821F]">*</span>
+            Email{" "}
+            <span className="text-[#F5821F]">*</span>
           </label>
 
           <input
@@ -145,86 +470,182 @@ export function EnquiryForm({
       </div>
 
       {/* =================================================
-          BUSINESS + QUANTITY
+          BUSINESS TYPE
+      ================================================== */}
+
+      <div className="mt-5">
+        <label
+          htmlFor="business-type"
+          className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
+        >
+          Business Type
+        </label>
+
+        <select
+          id="business-type"
+          name="businessType"
+          value={businessType}
+          onChange={(event) =>
+            setBusinessType(event.target.value)
+          }
+          className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96]"
+        >
+          <option value="">
+            Select business type
+          </option>
+
+          <option value="Distributor">
+            Distributor
+          </option>
+
+          <option value="Wholesaler">
+            Wholesaler
+          </option>
+
+          <option value="Retailer">
+            Retailer
+          </option>
+
+          <option value="Exporter">
+            Exporter
+          </option>
+
+          <option value="Hospital">
+            Hospital
+          </option>
+
+          <option value="Pharmacy">
+            Pharmacy
+          </option>
+
+          <option value="Other">
+            Other
+          </option>
+        </select>
+      </div>
+
+      {/* =================================================
+          PRODUCT + VARIANT
       ================================================== */}
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
-        {/* Business Type */}
+        {/* Product */}
+
         <div>
           <label
-            htmlFor="business-type"
+            htmlFor="product"
             className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
           >
-            Business Type
+            Product
           </label>
 
           <select
-            id="business-type"
-            name="businessType"
-            value={businessType}
-            onChange={(event) =>
-              setBusinessType(event.target.value)
-            }
-            className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96]"
+            id="product"
+            name="product"
+            value={selectedProductId}
+            onChange={(event) => {
+              setSelectedProductId(event.target.value);
+              setSelectedVariantId("");
+              setError("");
+            }}
+            disabled={loadingProducts}
+            className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96] disabled:cursor-not-allowed disabled:bg-[#f5f5f5]"
           >
             <option value="">
-              Select business type
+              {loadingProducts
+                ? "Loading products..."
+                : "Select product"}
             </option>
 
-            <option value="Distributor">
-              Distributor
-            </option>
-
-            <option value="Wholesaler">
-              Wholesaler
-            </option>
-
-            <option value="Retailer">
-              Retailer
-            </option>
-
-            <option value="Exporter">
-              Exporter
-            </option>
-
-            <option value="Hospital">
-              Hospital
-            </option>
-
-            <option value="Pharmacy">
-              Pharmacy
-            </option>
-
-            <option value="Other">
-              Other
-            </option>
+            {products.map((product) => (
+              <option
+                key={product.id}
+                value={product.id}
+              >
+                {product.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Quantity */}
-        {isProductEnquiry && (
-          <div>
-            <label
-              htmlFor="quantity"
-              className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
-            >
-              Quantity
-            </label>
+        {/* Variant */}
 
-            <input
-              id="quantity"
-              name="quantity"
-              type="number"
-              min="1"
-              inputMode="numeric"
-              value={quantity}
-              onChange={(event) =>
-                setQuantity(event.target.value)
-              }
-              className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96]"
-            />
-          </div>
-        )}
+        <div>
+          <label
+            htmlFor="product-variant"
+            className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
+          >
+            Strength / Pack
+          </label>
+
+          <select
+            id="product-variant"
+            name="productVariant"
+            value={selectedVariantId}
+            onChange={(event) => {
+              setSelectedVariantId(event.target.value);
+              setError("");
+            }}
+            disabled={
+              !selectedProductId ||
+              loadingVariants ||
+              variants.length === 0
+            }
+            className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96] disabled:cursor-not-allowed disabled:bg-[#f5f5f5]"
+          >
+            <option value="">
+              {!selectedProductId
+                ? "Select product first"
+                : loadingVariants
+                  ? "Loading variants..."
+                  : variants.length === 0
+                    ? "No variants available"
+                    : "Select strength / pack"}
+            </option>
+
+            {variants.map((variant) => (
+              <option
+                key={variant.id}
+                value={variant.id}
+              >
+                {[
+                  variant.strength,
+                  variant.packSize,
+                ]
+                  .filter(Boolean)
+                  .join(" - ") ||
+                  `Variant #${variant.id}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* =================================================
+          QUANTITY
+      ================================================== */}
+
+      <div className="mt-5">
+        <label
+          htmlFor="quantity"
+          className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
+        >
+          Quantity
+        </label>
+
+        <input
+          id="quantity"
+          name="quantity"
+          type="number"
+          min="1"
+          inputMode="numeric"
+          value={quantity}
+          onChange={(event) =>
+            setQuantity(event.target.value)
+          }
+          disabled={!selectedVariantId}
+          className="h-11 w-full rounded-lg border border-[#dfe4e3] bg-white px-3 text-sm text-[#1B2A4A] outline-none focus:border-[#3E8F96] disabled:cursor-not-allowed disabled:bg-[#f5f5f5]"
+        />
       </div>
 
       {/* =================================================
@@ -248,13 +669,51 @@ export function EnquiryForm({
             setMessage(event.target.value)
           }
           placeholder={
-            isProductEnquiry
+            selectedProductId
               ? "Tell us about your product requirement..."
               : "Tell us how we can help..."
           }
           className="w-full resize-none rounded-lg border border-[#dfe4e3] bg-white px-3 py-3 text-sm leading-6 text-[#1B2A4A] outline-none placeholder:text-[#999] focus:border-[#3E8F96]"
         />
       </div>
+
+      {/* =================================================
+          ERROR
+      ================================================== */}
+
+      {error && (
+        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* =================================================
+          SUCCESS
+      ================================================== */}
+
+      {success && (
+  <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
+    <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-green-100">
+      <CheckCircle2 className="size-8 text-green-600" />
+    </div>
+
+    <h3 className="mt-4 text-xl font-semibold text-[#1B2A4A]">
+      Thank You!
+    </h3>
+
+    <p className="mt-2 text-sm leading-6 text-[#595959]">
+      Your enquiry has been submitted successfully.
+    </p>
+
+    <p className="mt-1 text-sm leading-6 text-[#595959]">
+      Our team will review your enquiry and get back to you soon.
+    </p>
+
+    <p className="mt-4 text-sm font-medium text-green-700">
+      {success}
+    </p>
+  </div>
+)}
 
       {/* =================================================
           SUBMIT
@@ -268,10 +727,18 @@ export function EnquiryForm({
         <Button
           type="submit"
           size="lg"
-          className="h-11 rounded-lg bg-[#F5821F] px-6 text-white hover:bg-[#df7115]"
+          disabled={submitting || authLoading}
+          className="h-11 rounded-lg bg-[#F5821F] px-6 text-white hover:bg-[#df7115] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Send Enquiry
-          <Send className="size-4" />
+          {submitting
+            ? "Sending..."
+            : authLoading
+              ? "Checking account..."
+              : "Send Enquiry"}
+
+          {!submitting && !authLoading && (
+            <Send className="size-4" />
+          )}
         </Button>
       </div>
     </form>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Eye,
   EyeOff,
@@ -23,6 +23,7 @@ export function LoginForm({
   onSuccess,
 }: LoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { login } = useAuth();
 
@@ -45,12 +46,16 @@ export function LoginForm({
     setSuccessMessage("");
 
     if (!email.trim()) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(
+        "Please enter your email address.",
+      );
       return;
     }
 
     if (!password) {
-      setErrorMessage("Please enter your password.");
+      setErrorMessage(
+        "Please enter your password.",
+      );
       return;
     }
 
@@ -58,32 +63,57 @@ export function LoginForm({
       setIsLoading(true);
 
       const response = await authService.login({
-  email: email.trim(),
-  password,
-});
+        email: email.trim(),
+        password,
+      });
 
-console.log("LOGIN RESPONSE:", response);
-console.log("LOGIN ROLE:", response.role);
+      console.log("LOGIN RESPONSE:", response);
+      console.log("LOGIN ROLE:", response.role);
 
-login(response);
+      login(response);
 
-setSuccessMessage(
-  "Login successful! Redirecting...",
-);
+      setSuccessMessage(
+        "Login successful! Redirecting...",
+      );
 
-onSuccess?.();
+      onSuccess?.();
 
-const role = response.role?.trim().toLowerCase();
+      const role = response.role
+        ?.trim()
+        .toLowerCase();
 
-console.log("NORMALIZED ROLE:", role);
+      console.log("NORMALIZED ROLE:", role);
 
-setTimeout(() => {
-  if (role === "admin") {
-    router.push("/admin/dashboard");
-  } else {
-    router.push("/");
-  }
-}, 1000);
+      /*
+       * =================================================
+       * REDIRECT AFTER LOGIN
+       * =================================================
+       */
+
+      const redirect = searchParams.get("redirect");
+
+      setTimeout(() => {
+        /*
+         * User came from enquiry form.
+         *
+         * Enquiry form is opened inside Header modal,
+         * so return to home page and tell Header to
+         * automatically open the enquiry modal.
+         */
+        if (redirect === "enquiry") {
+          router.push("/?openEnquiry=1");
+          return;
+        }
+
+        /*
+         * Normal login flow
+         */
+        if (role === "admin") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/");
+        }
+      }, 1000);
     } catch (error) {
       const message =
         error instanceof Error
@@ -159,7 +189,9 @@ setTimeout(() => {
           className="mb-1.5 block text-sm font-medium text-[#1B2A4A]"
         >
           Email
-          <span className="ml-1 text-[#F5821F]">*</span>
+          <span className="ml-1 text-[#F5821F]">
+            *
+          </span>
         </label>
 
         <div className="relative">
@@ -192,7 +224,9 @@ setTimeout(() => {
             className="text-sm font-medium text-[#1B2A4A]"
           >
             Password
-            <span className="ml-1 text-[#F5821F]">*</span>
+            <span className="ml-1 text-[#F5821F]">
+              *
+            </span>
           </label>
 
           <button
@@ -209,7 +243,9 @@ setTimeout(() => {
           <input
             id="login-password"
             name="password"
-            type={showPassword ? "text" : "password"}
+            type={
+              showPassword ? "text" : "password"
+            }
             required
             autoComplete="current-password"
             value={password}
@@ -223,7 +259,9 @@ setTimeout(() => {
           <button
             type="button"
             onClick={() =>
-              setShowPassword((current) => !current)
+              setShowPassword(
+                (current) => !current,
+              )
             }
             aria-label={
               showPassword
@@ -251,6 +289,7 @@ setTimeout(() => {
             type="checkbox"
             className="size-4 rounded border-[#cfd6d4] accent-[#3E8F96]"
           />
+
           Remember me
         </label>
       </div>
@@ -261,7 +300,9 @@ setTimeout(() => {
 
       <Button
         type="submit"
-        disabled={isLoading || !!successMessage}
+        disabled={
+          isLoading || !!successMessage
+        }
         size="lg"
         className="mt-6 h-11 w-full rounded-lg bg-[#F5821F] text-white hover:bg-[#df7115] disabled:cursor-not-allowed disabled:opacity-60"
       >

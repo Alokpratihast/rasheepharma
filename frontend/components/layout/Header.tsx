@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   Search,
   ShoppingCart,
@@ -21,6 +24,7 @@ import { EnquiryForm } from "@/components/forms/EnquiryForm";
 
 import { productService } from "@/services/product.service";
 import { categoryService } from "@/services/category.service";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 import type { ProductList } from "@/types/product";
 import type { Category } from "@/types/category";
@@ -39,6 +43,9 @@ const navigation = [
 
 export function Header() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
@@ -63,6 +70,44 @@ export function Header() {
 
   const [mobileSearchFocused, setMobileSearchFocused] =
     useState(false);
+
+  /*
+   * =================================================
+   * ENQUIRY BUTTON
+   * ==================================================
+   */
+
+  const handleEnquiryClick = () => {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      router.push("/login?redirect=enquiry");
+      return;
+    }
+
+    setEnquiryOpen(true);
+  };
+
+
+  useEffect(() => {
+  const openEnquiry = searchParams.get("openEnquiry");
+
+  if (
+    openEnquiry === "1" &&
+    isAuthenticated &&
+    !authLoading
+  ) {
+    setEnquiryOpen(true);
+
+    // Remove query parameter after opening modal
+    router.replace("/", { scroll: false });
+  }
+}, [
+  searchParams,
+  isAuthenticated,
+  authLoading,
+  router,
+]);
 
   /*
    * =================================================
@@ -276,6 +321,7 @@ export function Header() {
       <header className="sticky top-0 z-50 border-b border-[#e7ebea] bg-white/95 backdrop-blur">
         <Container>
           <div className="flex min-h-16 items-center gap-4 py-2">
+
             {/* =================================================
                 LOGO
             ================================================== */}
@@ -336,9 +382,11 @@ export function Header() {
               </form>
 
               {/* Desktop suggestions */}
+
               {desktopSearchFocused &&
                 desktopSearch.trim() && (
                   <div className="absolute left-0 right-0 top-12 z-[70] overflow-hidden rounded-xl border border-[#e5e5e5] bg-white shadow-xl">
+
                     {desktopSearchResults.products
                       .length > 0 && (
                       <div className="p-2">
@@ -447,10 +495,9 @@ export function Header() {
               <Button
                 type="button"
                 size="sm"
-                onClick={() =>
-                  setEnquiryOpen(true)
-                }
-                className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md"
+                onClick={handleEnquiryClick}
+                disabled={authLoading}
+                className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
               >
                 Enquire
               </Button>
@@ -570,9 +617,11 @@ export function Header() {
             </form>
 
             {/* Mobile suggestions */}
+
             {mobileSearchFocused &&
               mobileSearch.trim() && (
                 <div className="absolute left-0 right-0 top-12 z-[70] max-h-[70vh] overflow-y-auto rounded-xl border border-[#e5e5e5] bg-white shadow-xl">
+
                   {mobileSearchResults.products
                     .length > 0 && (
                     <div className="p-2">
@@ -665,10 +714,9 @@ export function Header() {
           {mobileMenuOpen && (
             <MobileMenu
               onClose={() => setMobileMenuOpen(false)}
-              onEnquire={() => setEnquiryOpen(true)}
+              onEnquire={handleEnquiryClick}
             />
           )}
-
         </Container>
       </header>
 
@@ -695,6 +743,7 @@ export function Header() {
             aria-labelledby="enquiry-modal-title"
           >
             <div className="relative">
+
               {/* Close button */}
 
               <button
@@ -710,11 +759,7 @@ export function Header() {
 
               {/* Form */}
 
-              <EnquiryForm
-                onSuccess={() =>
-                  setEnquiryOpen(false)
-                }
-              />
+              <EnquiryForm/>
             </div>
           </div>
         </div>

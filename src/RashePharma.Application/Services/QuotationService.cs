@@ -189,18 +189,12 @@ public class QuotationService : IQuotationService
                 "Enquiry not found.");
         }
 
-        // A customer can create a quotation only
-        // for their own enquiry.
-        if (enquiry.UserId != userId)
-        {
-            throw new InvalidOperationException(
-                "You can only create a quotation for your own enquiry.");
-        }
+       
 
         var quotation = new Quotation
         {
             EnquiryId = dto.EnquiryId,
-            UserId = userId,
+            UserId = enquiry.UserId,
             QuoteNumber = GenerateQuoteNumber(),
             Currency = currency,
             Status = "Draft",
@@ -241,11 +235,16 @@ public class QuotationService : IQuotationService
 
             // Price always comes from the database.
             // Customer cannot submit or manipulate the price.
-            var unitPrice = variant.Price;
+            if (item.UnitPrice <= 0)
+{
+    throw new InvalidOperationException(
+        "Quotation item unit price must be greater than zero.");
+}
 
-            var totalPrice =
-                unitPrice * item.Quantity;
+var unitPrice = item.UnitPrice;
 
+var totalPrice =
+    unitPrice * item.Quantity;
             var quotationItem = new QuotationItem
             {
                 ProductVariantId = item.ProductVariantId,
