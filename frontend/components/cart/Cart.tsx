@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   RefreshCw,
   ShoppingCart as ShoppingCartIcon,
@@ -14,6 +15,8 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import type { Cart as CartType } from "@/types/cart";
 
 export function Cart() {
+
+  const router = useRouter();
   const {
     isAuthenticated,
     isLoading: authLoading,
@@ -332,7 +335,7 @@ export function Cart() {
           itemCount={itemCount}
           onCheckout={() => {
             // Checkout flow will be implemented later.
-            console.log("Checkout clicked");
+            router.push("/checkout");
           }}
         />
       </div>

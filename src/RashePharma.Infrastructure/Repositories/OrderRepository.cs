@@ -26,6 +26,19 @@ public class OrderRepository : IOrderRepository
             .ToListAsync();
     }
 
+    // Admin - get all orders
+    public async Task<List<Order>> GetAllAsync()
+    {
+        return await _context.Orders
+            .Include(o => o.User)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.ProductVariant)
+                    .ThenInclude(v => v.Product)
+            .Include(o => o.StatusHistory)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<Order?> GetByIdAsync(int id)
     {
         return await _context.Orders
@@ -36,6 +49,19 @@ public class OrderRepository : IOrderRepository
             .FirstOrDefaultAsync(o => o.Id == id);
     }
 
+    public async Task<Order?> GetByIdForAdminAsync(int id)
+{
+    return await _context.Orders
+        .Include(o => o.User)
+        .Include(o => o.Items)
+            .ThenInclude(i => i.ProductVariant)
+                .ThenInclude(v => v.Product)
+        .Include(o => o.StatusHistory)
+        .FirstOrDefaultAsync(o => o.Id == id);
+}
+
+
+// Admin - get order details
     public async Task<Order?> GetByOrderNumberAsync(string orderNumber)
     {
         return await _context.Orders
@@ -63,7 +89,7 @@ public class OrderRepository : IOrderRepository
         await _context.OrderStatusHistories.AddAsync(history);
     }
 
-        public async Task<int> GetTotalCountAsync()
+    public async Task<int> GetTotalCountAsync()
     {
         return await _context.Orders.CountAsync();
     }

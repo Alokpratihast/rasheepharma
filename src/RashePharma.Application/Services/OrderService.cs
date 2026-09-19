@@ -43,6 +43,72 @@ public class OrderService : IOrderService
         }).ToList();
     }
 
+
+    public async Task<List<OrderListDto>> GetAllOrdersAsync()
+{
+    var orders = await _orderRepository.GetAllAsync();
+
+    return orders.Select(o => new OrderListDto
+    {
+        Id = o.Id,
+        OrderNumber = o.OrderNumber,
+        TotalAmount = o.TotalAmount,
+        Currency = o.Currency,
+        Status = o.Status,
+        CreatedAt = o.CreatedAt
+    }).ToList();
+}
+
+    public async Task<OrderDetailsDto?> GetAdminOrderByIdAsync(int id)
+{
+    var order = await _orderRepository.GetByIdForAdminAsync(id);
+
+    if (order == null)
+        return null;
+
+    return new OrderDetailsDto
+    {
+        Id = order.Id,
+        OrderNumber = order.OrderNumber,
+        TotalAmount = order.TotalAmount,
+        Currency = order.Currency,
+        Status = order.Status,
+        CustomerId = order.User.Id,
+        CustomerName = $"{order.User.FirstName} {order.User.LastName}".Trim(),
+        CustomerEmail = order.User.Email,
+        CustomerPhone = order.User.PhoneNumber,
+        ShippingAddressLine1 = order.ShippingAddressLine1,
+        ShippingAddressLine2 = order.ShippingAddressLine2,
+        ShippingCity = order.ShippingCity,
+        ShippingState = order.ShippingState,
+        ShippingPostalCode = order.ShippingPostalCode,
+        ShippingCountry = order.ShippingCountry,
+        CreatedAt = order.CreatedAt,
+
+        Items = order.Items.Select(item => new OrderItemDto
+        {
+            Id = item.Id,
+            ProductVariantId = item.ProductVariantId,
+            ProductName = item.ProductVariant.Product.Name,
+            Strength = item.ProductVariant.Strength,
+            PackSize = item.ProductVariant.PackSize,
+            Quantity = item.Quantity,
+            UnitPrice = item.UnitPrice,
+            TotalPrice = item.UnitPrice * item.Quantity
+        }).ToList(),
+
+        StatusHistory = order.StatusHistory
+            .OrderByDescending(history => history.CreatedAt)
+            .Select(history => new OrderStatusHistoryDto
+            {
+                Id = history.Id,
+                Status = history.Status,
+                Comment = history.Comment,
+                CreatedAt = history.CreatedAt
+            }).ToList()
+    };
+}
+
     public async Task<OrderDetailsDto?> GetByIdAsync(
         int id,
         int userId)

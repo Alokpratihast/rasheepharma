@@ -38,6 +38,34 @@ public class OrdersController : ControllerBase
 
 
     // =========================================================
+// Get All Orders
+// Admin Only
+// =========================================================
+
+[Authorize(Roles = "Admin")]
+[HttpGet("admin")]
+public async Task<ActionResult<List<OrderListDto>>> GetAllOrders()
+{
+    var orders = await _orderService.GetAllOrdersAsync();
+
+    return Ok(orders);
+}
+
+
+[Authorize(Roles = "Admin")]
+[HttpGet("admin/{id:int}")]
+public async Task<ActionResult<OrderDetailsDto>> GetAdminOrderById(int id)
+{
+    var order = await _orderService.GetAdminOrderByIdAsync(id);
+
+    if (order == null)
+        return NotFound(new { message = "Order not found." });
+
+    return Ok(order);
+}
+
+
+    // =========================================================
     // Get Current User's Order Details
     // =========================================================
 

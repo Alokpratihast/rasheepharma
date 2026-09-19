@@ -1,23 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   UserRound,
   LogOut,
   ChevronDown,
+  ShoppingBag,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export function UserProfile() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const {
     user,
     isAuthenticated,
     logout,
   } = useAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch between server and client
+  if (!mounted) {
+    return null;
+  }
 
   if (!isAuthenticated || !user) {
     return (
@@ -66,6 +77,7 @@ export function UserProfile() {
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-[#e5e8e7] bg-white shadow-[0_15px_40px_rgba(27,42,74,0.12)]">
+
           {/* User information */}
           <div className="border-b border-[#edf0ef] px-4 py-3">
             <p className="truncate text-sm font-semibold text-[#1B2A4A]">
@@ -83,6 +95,8 @@ export function UserProfile() {
 
           {/* Account */}
           <div className="p-2">
+
+            {/* My Profile */}
             <Link
               href="/profile"
               onClick={() => setOpen(false)}
@@ -92,6 +106,17 @@ export function UserProfile() {
               My Profile
             </Link>
 
+            {/* My Orders */}
+            <Link
+              href="/orders"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-[#1B2A4A] transition-colors hover:bg-[#F5F8F7]"
+            >
+              <ShoppingBag className="size-4 text-[#3E8F96]" />
+              My Orders
+            </Link>
+
+            {/* Logout */}
             <button
               type="button"
               onClick={handleLogout}
@@ -100,6 +125,7 @@ export function UserProfile() {
               <LogOut className="size-4" />
               Logout
             </button>
+
           </div>
         </div>
       )}

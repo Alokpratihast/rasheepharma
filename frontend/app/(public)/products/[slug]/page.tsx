@@ -14,6 +14,7 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { getApiAssetUrl } from "@/lib/api/client";
 import { productService } from "@/services/product.service";
+import { ProductPurchaseActions } from "@/components/product/ProductPurchaseActions";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -213,6 +214,10 @@ export default async function ProductDetailPage({
                   </div>
                 </div>
               )}
+
+              <ProductPurchaseActions
+  variants={product.variants}
+/>
             </div>
           </div>
         </Container>

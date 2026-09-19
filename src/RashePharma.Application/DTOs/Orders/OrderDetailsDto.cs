@@ -12,6 +12,15 @@ public class OrderDetailsDto
 
     public string Status { get; set; } = "Pending";
 
+    // Customer Details
+    public int CustomerId { get; set; }
+
+    public string CustomerName { get; set; } = string.Empty;
+
+    public string CustomerEmail { get; set; } = string.Empty;
+
+    public string? CustomerPhone { get; set; }
+
     public string ShippingAddressLine1 { get; set; } = string.Empty;
 
     public string? ShippingAddressLine2 { get; set; }

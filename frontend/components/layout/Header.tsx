@@ -47,6 +47,12 @@ export function Header() {
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
+  const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
 
@@ -493,14 +499,14 @@ export function Header() {
               ))}
 
               <Button
-                type="button"
-                size="sm"
-                onClick={handleEnquiryClick}
-                disabled={authLoading}
-                className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Enquire
-              </Button>
+  type="button"
+  size="sm"
+  onClick={handleEnquiryClick}
+  disabled={!mounted || authLoading}
+  className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+>
+  Enquire
+</Button>
             </nav>
 
             {/* =================================================

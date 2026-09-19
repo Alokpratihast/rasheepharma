@@ -8,6 +8,12 @@ public interface IOrderRepository
 
     Task<Order?> GetByIdAsync(int id);
 
+
+    // Admin - get all orders
+    Task<List<Order>> GetAllAsync();
+
+    Task<Order?> GetByIdForAdminAsync(int id);
+
     Task<Order?> GetByOrderNumberAsync(string orderNumber);
 
     Task AddAsync(Order order);
