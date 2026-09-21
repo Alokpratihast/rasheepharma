@@ -11,6 +11,7 @@ import {
   MapPin,
   Package,
   Phone,
+  Save,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +27,10 @@ export function AdminOrderDetails() {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [comment, setComment] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const orderId = Number(params.id);
 
   useEffect(() => {
@@ -36,6 +41,7 @@ export function AdminOrderDetails() {
         const data = await orderService.getAdminOrderById(orderId);
 
         setOrder(data);
+        setSelectedStatus(data.status);
       } catch (error) {
         console.error("Failed to load order:", error);
         toast.error("Unable to load order details.");
@@ -139,6 +145,112 @@ export function AdminOrderDetails() {
           {order.status}
         </span>
       </div>
+
+      {/* Update Order Status */}
+<div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+  <div className="flex items-center gap-2">
+    <Clock3 className="size-5 text-[#3E8F96]" />
+
+    <h2 className="font-semibold text-gray-900">
+      Update Order Status
+    </h2>
+  </div>
+
+  <div className="mt-5 grid gap-5 md:grid-cols-2">
+    {/* Status */}
+    <div>
+      <label
+        htmlFor="order-status"
+        className="mb-2 block text-sm font-medium text-gray-700"
+      >
+        Status
+      </label>
+
+      <select
+        id="order-status"
+        value={selectedStatus}
+        onChange={(e) => setSelectedStatus(e.target.value)}
+        disabled={isUpdating}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#3E8F96] focus:ring-2 focus:ring-[#3E8F96]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+      >
+        <option value="Pending">Pending</option>
+        <option value="Processing">Processing</option>
+        <option value="Shipped">Shipped</option>
+        <option value="Delivered">Delivered</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+
+    {/* Comment */}
+    <div>
+      <label
+        htmlFor="order-comment"
+        className="mb-2 block text-sm font-medium text-gray-700"
+      >
+        Comment
+      </label>
+
+      <input
+        id="order-comment"
+        type="text"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Add a comment..."
+        disabled={isUpdating}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-[#3E8F96] focus:ring-2 focus:ring-[#3E8F96]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+      />
+    </div>
+  </div>
+
+  <div className="mt-5 flex justify-end">
+    <Button
+      type="button"
+      disabled={
+        isUpdating ||
+        !selectedStatus ||
+        selectedStatus === order.status
+      }
+      onClick={async () => {
+        try {
+          setIsUpdating(true);
+
+          await orderService.updateStatus(order.id, {
+            status: selectedStatus,
+            comment: comment.trim() || undefined,
+          });
+
+          setOrder((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: selectedStatus,
+                }
+              : prev
+          );
+
+          setComment("");
+
+          toast.success("Order status updated successfully.");
+        } catch (error) {
+          console.error("Failed to update order status:", error);
+          toast.error("Unable to update order status.");
+        } finally {
+          setIsUpdating(false);
+        }
+      }}
+      className="inline-flex items-center gap-2 bg-[#3E8F96] hover:bg-[#347a80]"
+    >
+      {isUpdating ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <Save className="size-4" />
+      )}
+
+      {isUpdating ? "Updating..." : "Update Status"}
+    </Button>
+  </div>
+</div>
 
       {/* Customer Details */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

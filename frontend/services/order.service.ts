@@ -28,10 +28,10 @@ export const orderService = {
   },
 
   async getAdminOrderById(id: number): Promise<Order> {
-  return apiClient<Order>(`${ORDER_ENDPOINT}/admin/${id}`, {
-    method: "GET",
-  });
-},
+    return apiClient<Order>(`${ORDER_ENDPOINT}/admin/${id}`, {
+      method: "GET",
+    });
+  },
 
   async getOrderById(id: number): Promise<Order> {
     return apiClient<Order>(`${ORDER_ENDPOINT}/${id}`, {
@@ -46,5 +46,18 @@ export const orderService = {
         method: "GET",
       }
     );
+  },
+
+  async updateStatus(
+    id: number,
+    data: {
+      status: string;
+      comment?: string;
+    }
+  ): Promise<void> {
+    await apiClient<void>(`${ORDER_ENDPOINT}/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
   },
 };

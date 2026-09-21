@@ -63,7 +63,7 @@ export function CheckoutAddress({
     };
 
     loadAddresses();
-  }, [onAddressSelect, selectedAddressId]);
+  }, [ selectedAddressId]);
 
   const handleInputChange = (
     field: keyof CreateAddressRequest,
