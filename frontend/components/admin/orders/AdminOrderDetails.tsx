@@ -220,18 +220,13 @@ export function AdminOrderDetails() {
             comment: comment.trim() || undefined,
           });
 
-          setOrder((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  status: selectedStatus,
-                }
-              : prev
-          );
+          const updatedOrder = await orderService.getAdminOrderById(order.id);
 
-          setComment("");
+setOrder(updatedOrder);
+setSelectedStatus(updatedOrder.status);
+setComment("");
 
-          toast.success("Order status updated successfully.");
+toast.success("Order status updated successfully.");
         } catch (error) {
           console.error("Failed to update order status:", error);
           toast.error("Unable to update order status.");

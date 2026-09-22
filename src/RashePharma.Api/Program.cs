@@ -11,12 +11,16 @@ using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
 using System.Text;
+using Stripe;
 
 // =========================================================
 // Create application builder
 // =========================================================
 
 var builder = WebApplication.CreateBuilder(args);
+
+StripeConfiguration.ApiKey =
+    builder.Configuration["Stripe:SecretKey"];
 
 // =========================================================
 // Load .env for local development only
@@ -35,7 +39,7 @@ if (builder.Environment.IsDevelopment())
             rootDirectory.FullName,
             ".env");
 
-        if (File.Exists(envFilePath))
+        if (System.IO.File.Exists(envFilePath))
         {
             Env.Load(envFilePath);
             break;
@@ -43,6 +47,32 @@ if (builder.Environment.IsDevelopment())
 
         rootDirectory = rootDirectory.Parent;
     }
+}
+
+// =========================================================
+// Stripe
+// =========================================================
+
+var stripeSecretKey =
+    Environment.GetEnvironmentVariable("Stripe__SecretKey");
+
+if (string.IsNullOrWhiteSpace(stripeSecretKey))
+{
+    throw new InvalidOperationException(
+        "Stripe__SecretKey is not configured.");
+}
+
+builder.Configuration["Stripe:SecretKey"] =
+    stripeSecretKey;
+
+// Webhook Secret
+var stripeWebhookSecret =
+    Environment.GetEnvironmentVariable("Stripe__WebhookSecret");
+
+if (!string.IsNullOrWhiteSpace(stripeWebhookSecret))
+{
+    builder.Configuration["Stripe:WebhookSecret"] =
+        stripeWebhookSecret;
 }
 
 // =========================================================
@@ -105,7 +135,9 @@ builder.Services.AddCors(options =>
         else if (builder.Environment.IsDevelopment())
         {
             policy
-                .WithOrigins("http://localhost:3000", "https://rasheepharma.vercel.app")
+                .WithOrigins(
+                    "http://localhost:3000",
+                    "https://rasheepharma.vercel.app")
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         }
@@ -146,15 +178,15 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // -----------------------------------------------------
 
     else
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(
-        options =>
-            options.UseNpgsql(
-                connectionString,
-                npgsqlOptions =>
-                    npgsqlOptions.MigrationsAssembly(
-                        "RashePharma.PostgresMigrations")));
-}
+    {
+        builder.Services.AddDbContext<ApplicationDbContext>(
+            options =>
+                options.UseNpgsql(
+                    connectionString,
+                    npgsqlOptions =>
+                        npgsqlOptions.MigrationsAssembly(
+                            "RashePharma.PostgresMigrations")));
+    }
 }
 
 // =========================================================
@@ -296,7 +328,7 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     IProductService,
-    ProductService>();
+    RashePharma.Application.Services.ProductService>();
 
 builder.Services.AddScoped<
     IProductVariantService,
@@ -335,6 +367,10 @@ builder.Services.AddScoped<
     OrderService>();
 
 builder.Services.AddScoped<
+    IPaymentService,
+    PaymentService>();
+
+builder.Services.AddScoped<
     IEnquiryService,
     EnquiryService>();
 
@@ -349,6 +385,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAdminService,
     AdminService>();
+
+builder.Services.AddScoped<
+    IPaymentRepository,
+    PaymentRepository>();
 
 // =========================================================
 // Build Application
@@ -386,7 +426,8 @@ if (!app.Environment.IsEnvironment("Testing"))
 // Development only
 // =========================================================
 
-if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
+if (app.Environment.IsDevelopment() ||
+    app.Environment.IsStaging())
 {
     app.MapOpenApi();
 

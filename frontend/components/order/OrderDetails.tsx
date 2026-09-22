@@ -1,19 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import {
   CheckCircle2,
   Clock3,
   Package,
   Truck,
+  CreditCard,
 } from "lucide-react";
 
 import type { Order } from "@/types/order";
+import { paymentService } from "@/services/paymentService";
 
 interface OrderDetailsProps {
   order: Order;
 }
 
 export function OrderDetails({ order }: OrderDetailsProps) {
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString("en-IN", {
       day: "2-digit",
@@ -44,6 +50,35 @@ export function OrderDetails({ order }: OrderDetailsProps) {
     return <Clock3 className="size-5" />;
   };
 
+  const handlePayment = async () => {
+    try {
+      setIsPaying(true);
+      setPaymentError("");
+
+      const { checkoutUrl } =
+        await paymentService.createCheckoutSession(order.id);
+
+      if (!checkoutUrl) {
+        throw new Error("Stripe checkout URL was not received.");
+      }
+
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error("Payment error:", error);
+
+      setPaymentError(
+        error instanceof Error
+          ? error.message
+          : "Unable to start payment. Please try again."
+      );
+
+      setIsPaying(false);
+    }
+  };
+
+  const isPending =
+    order.status.toLowerCase() === "pending";
+
   return (
     <div className="space-y-6">
       {/* Order Header */}
@@ -66,6 +101,40 @@ export function OrderDetails({ order }: OrderDetailsProps) {
             {order.status}
           </div>
         </div>
+
+        {/* Payment Section */}
+        {isPending && (
+          <div className="mt-5 border-t border-[#e5e8e7] pt-5">
+            <div className="flex flex-col gap-4 rounded-xl bg-[#FAFAFA] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-[#1B2A4A]">
+                  Payment Pending
+                </p>
+
+                <p className="mt-1 text-sm text-[#777]">
+                  Complete your payment to proceed with this order.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePayment}
+                disabled={isPaying}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F5821F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#e67512] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CreditCard className="size-4" />
+
+                {isPaying ? "Redirecting..." : "Pay Now"}
+              </button>
+            </div>
+
+            {paymentError && (
+              <p className="mt-3 text-sm font-medium text-red-600">
+                {paymentError}
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Order Items */}
@@ -158,18 +227,23 @@ export function OrderDetails({ order }: OrderDetailsProps) {
         <div className="mt-4 rounded-xl bg-[#FAFAFA] p-4">
           <p className="text-sm leading-6 text-[#555]">
             {order.shippingAddressLine1}
+
             {order.shippingAddressLine2 && (
               <>
                 <br />
                 {order.shippingAddressLine2}
               </>
             )}
+
             <br />
+
             {order.shippingCity}
             {order.shippingState &&
               `, ${order.shippingState}`}{" "}
             - {order.shippingPostalCode}
+
             <br />
+
             {order.shippingCountry}
           </p>
         </div>

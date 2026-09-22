@@ -38,6 +38,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrderStatusHistory> OrderStatusHistories
         => Set<OrderStatusHistory>();
 
+    public DbSet<Payment> Payments
+        => Set<Payment>();
+
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<EnquiryItem> EnquiryItems
@@ -194,6 +197,16 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         // =====================================================
+        // Order → Payment
+        // =====================================================
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Order)
+            .WithMany(o => o.Payments)
+            .HasForeignKey(p => p.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
         // User → Enquiry
         // =====================================================
 
@@ -337,6 +350,10 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<Order>()
             .Property(o => o.TotalAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Amount)
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<OrderItem>()

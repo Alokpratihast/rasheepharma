@@ -29,4 +29,4 @@ out/
 Thumbs.db
 .DS_Store
 # Debug / generated dumps
-full-source-debug.txt
+full-source-debug.txtstripe

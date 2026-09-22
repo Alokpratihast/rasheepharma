@@ -38,4 +38,7 @@ public class Order
 
     public ICollection<OrderStatusHistory> StatusHistory { get; set; }
         = new List<OrderStatusHistory>();
+
+    public ICollection<Payment> Payments { get; set; }
+    = new List<Payment>();
 }
