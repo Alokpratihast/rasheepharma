@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useRouter,
@@ -332,28 +333,22 @@ useEffect(() => {
                 LOGO
             ================================================== */}
 
-            <Link
-              href="/"
-              className="group flex shrink-0 items-center gap-2"
-              aria-label="RashePharma Home"
-            >
-              <div className="flex size-10 items-center justify-center rounded-xl bg-brand-dark text-lg font-bold text-white transition-transform duration-200 group-hover:scale-[1.03]">
-                R
-              </div>
-
-              <div className="hidden sm:block">
-                <div className="text-lg font-bold tracking-tight text-[#1B2A4A]">
-                  Rashe
-                  <span className="text-primary">
-                    Pharma
-                  </span>
-                </div>
-
-                <p className="text-[8px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Better Health. Global Reach.
-                </p>
-              </div>
-            </Link>
+           <Link
+  href="/"
+  className="group flex shrink-0 items-center"
+  aria-label="Rashe Lifesciences Home"
+>
+  <div className="relative h-10 w-auto shrink-0 transition-transform duration-200 group-hover:scale-[1.03] sm:h-12">
+    <Image
+      src="/images/Rashelifescience.png"
+      alt="Rashe Lifesciences Pvt Ltd."
+      width={220}
+      height={56}
+      priority
+      className="h-full w-auto object-contain"
+    />
+  </div>
+</Link>
 
             {/* =================================================
                 DESKTOP SEARCH
