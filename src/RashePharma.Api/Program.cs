@@ -161,32 +161,14 @@ if (!builder.Environment.IsEnvironment("Testing"))
     }
 
     // -----------------------------------------------------
-    // Development
-    // Local SQL Server
+    // SQL Server
+    // Local Development + Staging + Production
+    // Azure SQL compatible
     // -----------------------------------------------------
 
-    if (builder.Environment.IsDevelopment())
-    {
-        builder.Services.AddDbContext<ApplicationDbContext>(
-            options =>
-                options.UseSqlServer(connectionString));
-    }
-
-    // -----------------------------------------------------
-    // Staging / Production
-    // PostgreSQL / Neon
-    // -----------------------------------------------------
-
-    else
-    {
-        builder.Services.AddDbContext<ApplicationDbContext>(
-            options =>
-                options.UseNpgsql(
-                    connectionString,
-                    npgsqlOptions =>
-                        npgsqlOptions.MigrationsAssembly(
-                            "RashePharma.PostgresMigrations")));
-    }
+    builder.Services.AddDbContext<ApplicationDbContext>(
+        options =>
+            options.UseSqlServer(connectionString!));
 }
 
 // =========================================================
@@ -249,7 +231,7 @@ builder.Services
 
                 ClockSkew = TimeSpan.Zero
             };
-    });
+});
 
 // =========================================================
 // Authorization
@@ -414,9 +396,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     // Seed data after database schema is ready
     await RoleSeeder.SeedAsync(db);
 
-    await ProductCatalogSeeder.SeedAsync(db);
-
-    await ProductImageSeeder.SeedAsync(db);
+   
 
     await AdminSeeder.SeedAsync(db);
 }
