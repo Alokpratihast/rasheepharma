@@ -4,7 +4,6 @@
     <Project Path="src/RashePharma.Application/RashePharma.Application.csproj" />
     <Project Path="src/RashePharma.Domain/RashePharma.Domain.csproj" />
     <Project Path="src/RashePharma.Infrastructure/RashePharma.Infrastructure.csproj" />
-    <Project Path="src/RashePharma.PostgresMigrations/RashePharma.PostgresMigrations.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RashePharma.Tests/RashePharma.Tests.csproj" />
