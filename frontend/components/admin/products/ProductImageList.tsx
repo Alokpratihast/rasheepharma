@@ -2,19 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+
 import { productImageService } from "@/services/productImageService";
-import { getApiAssetUrl } from "@/lib/api/client";
+import {  getApiAssetUrl } from "@/lib/api/client";
 import type { ProductImage } from "@/types/product";
 
 interface ProductImageListProps {
   productId: number;
 }
 
+type ImageSource = "url" | "device";
+
 interface ImageFormState {
   imageUrl: string;
   altText: string;
   isPrimary: boolean;
   displayOrder: string;
+  imageSource: ImageSource;
+  file: File | null;
 }
 
 const initialForm: ImageFormState = {
@@ -22,6 +27,8 @@ const initialForm: ImageFormState = {
   altText: "",
   isPrimary: false,
   displayOrder: "0",
+  imageSource: "url",
+  file: null,
 };
 
 export function ProductImageList({
@@ -40,6 +47,9 @@ export function ProductImageList({
 
   const [form, setForm] =
     useState<ImageFormState>(initialForm);
+
+  const [selectedFilePreview, setSelectedFilePreview] =
+    useState<string | null>(null);
 
   const loadImages = async () => {
     try {
@@ -66,9 +76,26 @@ export function ProductImageList({
     loadImages();
   }, [productId]);
 
+  useEffect(() => {
+    if (!form.file) {
+      setSelectedFilePreview(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(form.file);
+
+    setSelectedFilePreview(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [form.file]);
+
   const openAddForm = () => {
     setEditingImage(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
     setError(null);
     setSuccess(null);
     setShowForm(true);
@@ -78,10 +105,12 @@ export function ProductImageList({
     setEditingImage(image);
 
     setForm({
-      imageUrl: image.imageUrl,
+      imageUrl: image.imageUrl ?? "",
       altText: image.altText ?? "",
-      isPrimary: image.isPrimary,
-      displayOrder: String(image.displayOrder),
+      isPrimary: image.isPrimary ?? false,
+      displayOrder: String(image.displayOrder ?? 0),
+      imageSource: "url",
+      file: null,
     });
 
     setError(null);
@@ -92,7 +121,65 @@ export function ProductImageList({
   const closeForm = () => {
     setShowForm(false);
     setEditingImage(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
+    setSelectedFilePreview(null);
+  };
+
+  const handleFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file =
+      event.target.files?.[0] ?? null;
+
+    if (!file) {
+      setForm((current) => ({
+        ...current,
+        file: null,
+      }));
+
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError(
+        "Please select a valid image file.",
+      );
+
+      event.target.value = "";
+
+      setForm((current) => ({
+        ...current,
+        file: null,
+      }));
+
+      return;
+    }
+
+    const maxFileSize = 5 * 1024 * 1024;
+
+    if (file.size > maxFileSize) {
+      setError(
+        "Image size must be 5 MB or less.",
+      );
+
+      event.target.value = "";
+
+      setForm((current) => ({
+        ...current,
+        file: null,
+      }));
+
+      return;
+    }
+
+    setError(null);
+
+    setForm((current) => ({
+      ...current,
+      file,
+    }));
   };
 
   const handleSubmit = async (
@@ -105,28 +192,39 @@ export function ProductImageList({
       setError(null);
       setSuccess(null);
 
-      if (!form.imageUrl.trim()) {
-        setError("Image URL is required.");
-        return;
-      }
-
-      const displayOrder = Number(form.displayOrder);
+      const displayOrder = Number(
+        form.displayOrder,
+      );
 
       if (
         Number.isNaN(displayOrder) ||
         displayOrder < 0
       ) {
-        setError("Display order must be 0 or greater.");
+        setError(
+          "Display order must be 0 or greater.",
+        );
         return;
       }
 
+      /*
+       * EDIT EXISTING IMAGE
+       *
+       * Existing edit flow continues to use Image URL.
+       */
       if (editingImage) {
+        if (!form.imageUrl.trim()) {
+          setError("Image URL is required.");
+          return;
+        }
+
         const updatedImage =
           await productImageService.update(
             editingImage.id,
             {
-              imageUrl: form.imageUrl.trim(),
-              altText: form.altText.trim() || null,
+              imageUrl:
+                form.imageUrl.trim(),
+              altText:
+                form.altText.trim() || null,
               isPrimary: form.isPrimary,
               displayOrder,
             },
@@ -140,23 +238,83 @@ export function ProductImageList({
           ),
         );
 
-        setSuccess("Image updated successfully.");
-      } else {
+        setSuccess(
+          "Image updated successfully.",
+        );
+
+        closeForm();
+
+        return;
+      }
+
+      /*
+       * ADD IMAGE FROM DEVICE
+       */
+      if (
+        form.imageSource === "device"
+      ) {
+        if (!form.file) {
+          setError(
+            "Please select an image file.",
+          );
+          return;
+        }
+
         const createdImage =
-          await productImageService.create(productId, {
-            imageUrl: form.imageUrl.trim(),
-            altText: form.altText.trim() || null,
-            isPrimary: form.isPrimary,
-            displayOrder,
-          });
+          await productImageService.upload(
+            productId,
+            {
+              file: form.file,
+              altText:
+                form.altText.trim() || null,
+              isPrimary: form.isPrimary,
+              displayOrder,
+            },
+          );
 
         setImages((currentImages) => [
           ...currentImages,
           createdImage,
         ]);
 
-        setSuccess("Image added successfully.");
+        setSuccess(
+          "Image uploaded successfully.",
+        );
+
+        closeForm();
+
+        return;
       }
+
+      /*
+       * ADD IMAGE FROM URL
+       */
+      if (!form.imageUrl.trim()) {
+        setError("Image URL is required.");
+        return;
+      }
+
+      const createdImage =
+        await productImageService.create(
+          productId,
+          {
+            imageUrl:
+              form.imageUrl.trim(),
+            altText:
+              form.altText.trim() || null,
+            isPrimary: form.isPrimary,
+            displayOrder,
+          },
+        );
+
+      setImages((currentImages) => [
+        ...currentImages,
+        createdImage,
+      ]);
+
+      setSuccess(
+        "Image added successfully.",
+      );
 
       closeForm();
     } catch (error) {
@@ -190,7 +348,9 @@ export function ProductImageList({
       setError(null);
       setSuccess(null);
 
-      await productImageService.delete(image.id);
+      await productImageService.delete(
+        image.id,
+      );
 
       setImages((currentImages) =>
         currentImages.filter(
@@ -198,7 +358,9 @@ export function ProductImageList({
         ),
       );
 
-      setSuccess("Image deleted successfully.");
+      setSuccess(
+        "Image deleted successfully.",
+      );
     } catch (error) {
       console.error(
         "Failed to delete product image:",
@@ -213,6 +375,40 @@ export function ProductImageList({
     }
   };
 
+  /*
+   * Returns the correct image URL.
+   *
+   * Device-uploaded images are stored in the
+   * private Azure Blob container. Therefore they
+   * must be loaded through the backend endpoint.
+   *
+   * Existing external/public URL images continue
+   * to use their original URL.
+   */
+  const getProductImageUrl = (
+  image: ProductImage,
+): string | null => {
+  const imageUrl = image.imageUrl ?? "";
+
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (
+    imageUrl.includes(
+      "rasheepharmastorage01.blob.core.windows.net",
+    )
+  ) {
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://localhost:5104/api";
+
+    return `${apiBaseUrl}/ProductImages/file/${image.id}`;
+  }
+
+  return getApiAssetUrl(imageUrl);
+};
+
   return (
     <section className="mt-8">
       <div className="mb-5 flex items-center justify-between">
@@ -222,7 +418,8 @@ export function ProductImageList({
           </h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            Manage product images and choose the primary image.
+            Manage product images and choose the
+            primary image.
           </p>
         </div>
 
@@ -262,25 +459,110 @@ export function ProductImageList({
             </h3>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Image URL
+          {!editingImage && (
+            <div className="mb-6">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Image Source
               </label>
 
-              <input
-                type="text"
-                value={form.imageUrl}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    imageUrl: event.target.value,
-                  }))
-                }
-                placeholder="/images/products/example.svg"
-                required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
-              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((current) => ({
+                      ...current,
+                      imageSource: "url",
+                      file: null,
+                    }))
+                  }
+                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium ${
+                    form.imageSource === "url"
+                      ? "border-[#1B2A4A] bg-[#1B2A4A] text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Image URL
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((current) => ({
+                      ...current,
+                      imageSource: "device",
+                      imageUrl: "",
+                    }))
+                  }
+                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium ${
+                    form.imageSource ===
+                    "device"
+                      ? "border-[#1B2A4A] bg-[#1B2A4A] text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Upload from Device
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              {form.imageSource ===
+              "url" ? (
+                <>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Image URL
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.imageUrl}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        imageUrl:
+                          event.target.value,
+                      }))
+                    }
+                    placeholder="/images/products/example.svg"
+                    required={
+                      form.imageSource ===
+                      "url"
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
+                  />
+                </>
+              ) : (
+                <>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Select Image
+                  </label>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={
+                      handleFileChange
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none file:mr-4 file:rounded-md file:border-0 file:bg-[#1B2A4A] file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[#142039]"
+                  />
+
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Supported image files
+                    only. Maximum size: 5 MB.
+                  </p>
+
+                  {form.file && (
+                    <p className="mt-2 text-sm text-gray-600">
+                      Selected:{" "}
+                      <span className="font-medium">
+                        {form.file.name}
+                      </span>
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             <div>
@@ -294,7 +576,8 @@ export function ProductImageList({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    altText: event.target.value,
+                    altText:
+                      event.target.value,
                   }))
                 }
                 placeholder="Product image description"
@@ -314,7 +597,8 @@ export function ProductImageList({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    displayOrder: event.target.value,
+                    displayOrder:
+                      event.target.value,
                   }))
                 }
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
@@ -330,7 +614,8 @@ export function ProductImageList({
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
-                  isPrimary: event.target.checked,
+                  isPrimary:
+                    event.target.checked,
                 }))
               }
               className="h-4 w-4"
@@ -344,26 +629,39 @@ export function ProductImageList({
             </label>
           </div>
 
-          {form.imageUrl && (
+          {(form.imageUrl ||
+            selectedFilePreview) && (
             <div className="mt-5">
               <p className="mb-2 text-sm font-medium text-gray-700">
                 Preview
               </p>
 
               <div className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                <Image
-                  src={
-                    getApiAssetUrl(form.imageUrl) ??
-                    form.imageUrl
-                  }
-                  alt={
-                    form.altText ||
-                    "Product image preview"
-                  }
-                  fill
-                  className="object-contain"
-                  sizes="160px"
-                />
+                {selectedFilePreview ? (
+                  <img
+                    src={selectedFilePreview}
+                    alt={
+                      form.altText ||
+                      "Product image preview"
+                    }
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <Image
+                    src={
+                      getApiAssetUrl(
+                        form.imageUrl,
+                      ) ?? form.imageUrl
+                    }
+                    alt={
+                      form.altText ||
+                      "Product image preview"
+                    }
+                    fill
+                    className="object-contain"
+                    sizes="160px"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -419,7 +717,7 @@ export function ProductImageList({
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {images.map((image) => {
             const imageUrl =
-              getApiAssetUrl(image.imageUrl);
+              getProductImageUrl(image);
 
             return (
               <div
@@ -428,17 +726,15 @@ export function ProductImageList({
               >
                 <div className="relative h-48 bg-gray-50">
                   {imageUrl && (
-                    <Image
-                      src={imageUrl}
-                      alt={
-                        image.altText ||
-                        "Product image"
-                      }
-                      fill
-                      className="object-contain p-4"
-                      sizes="(max-width: 640px) 100vw, 33vw"
-                    />
-                  )}
+  <img
+    src={imageUrl}
+    alt={
+      image.altText ||
+      "Product image"
+    }
+    className="h-full w-full object-contain p-4"
+  />
+)}
 
                   {image.isPrimary && (
                     <span className="absolute left-3 top-3 rounded-full bg-[#1B2A4A] px-3 py-1 text-xs font-medium text-white">

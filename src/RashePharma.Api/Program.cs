@@ -101,6 +101,18 @@ if (!string.IsNullOrWhiteSpace(connectionStringFromEnv))
         connectionStringFromEnv;
 }
 
+// Azure Storage Connection String
+var azureStorageConnectionString =
+    Environment.GetEnvironmentVariable(
+        "ConnectionStrings__AzureStorage");
+
+if (!string.IsNullOrWhiteSpace(azureStorageConnectionString))
+{
+    builder.Configuration[
+        "ConnectionStrings:AzureStorage"] =
+        azureStorageConnectionString;
+}
+
 // =========================================================
 // Controllers / API
 // =========================================================
@@ -320,6 +332,24 @@ builder.Services.AddScoped<
     IProductImageService,
     ProductImageService>();
 
+builder.Services.AddScoped<IImageStorageService>(sp =>
+{
+    var configuration =
+        sp.GetRequiredService<IConfiguration>();
+
+    var connectionString =
+        configuration.GetConnectionString("AzureStorage");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobImageStorageService(
+        connectionString);
+});
+
 builder.Services.AddScoped<
     ICategoryService,
     CategoryService>();
@@ -395,8 +425,6 @@ if (!app.Environment.IsEnvironment("Testing"))
 
     // Seed data after database schema is ready
     await RoleSeeder.SeedAsync(db);
-
-   
 
     await AdminSeeder.SeedAsync(db);
 }
