@@ -1,6 +1,5 @@
 import { getStoredToken } from "@/lib/auth/session";
 
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "https://localhost:7001/api";
@@ -74,8 +73,15 @@ export async function apiClient<T>(
 
   requestHeaders.set("Accept", "application/json");
 
+  /*
+   * Only set JSON Content-Type for non-FormData requests.
+   *
+   * For FormData, the browser must set:
+   * multipart/form-data; boundary=...
+   */
   if (
     requestOptions.body &&
+    !(requestOptions.body instanceof FormData) &&
     !requestHeaders.has("Content-Type")
   ) {
     requestHeaders.set(
@@ -86,12 +92,12 @@ export async function apiClient<T>(
 
   const authToken = token ?? getStoredToken();
 
-if (authToken) {
-  requestHeaders.set(
-    "Authorization",
-    `Bearer ${authToken}`,
-  );
-}
+  if (authToken) {
+    requestHeaders.set(
+      "Authorization",
+      `Bearer ${authToken}`,
+    );
+  }
 
   const response = await fetch(
     `${API_BASE_URL}${endpoint}`,
@@ -113,7 +119,10 @@ if (authToken) {
       typeof data.message === "string"
     ) {
       message = data.message;
-    } else if (typeof data === "string" && data) {
+    } else if (
+      typeof data === "string" &&
+      data
+    ) {
       message = data;
     }
 

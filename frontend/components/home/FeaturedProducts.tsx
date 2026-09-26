@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Pill } from "lucide-react";
 
@@ -50,11 +49,10 @@ export async function FeaturedProducts() {
                   {/* Product image */}
                   <div className="relative flex h-36 items-center justify-center bg-[#F2F2F2]">
                     {product.primaryImageUrl ? (
-                      <Image
+                      <img
                         src={getApiAssetUrl(product.primaryImageUrl)!}
                         alt={product.name}
-                        fill
-                        className="object-contain p-4 transition-transform duration-200 group-hover:scale-105"
+                        className="h-full w-full object-contain p-4 transition-transform duration-200 group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex size-16 items-center justify-center rounded-xl bg-white shadow-sm transition-transform duration-200 group-hover:scale-105">

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -116,15 +115,13 @@ export default async function ProductDetailPage({
 
             <div className="relative flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#F2F2F2]">
               {primaryImageUrl ? (
-                <Image
+                <img
                   src={primaryImageUrl}
                   alt={
                     primaryImage?.altText ??
                     product.name
                   }
-                  fill
-                  priority
-                  className="object-contain p-8"
+                  className="h-full w-full object-contain p-8"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center text-center">
@@ -216,8 +213,8 @@ export default async function ProductDetailPage({
               )}
 
               <ProductPurchaseActions
-  variants={product.variants}
-/>
+                variants={product.variants}
+              />
             </div>
           </div>
         </Container>

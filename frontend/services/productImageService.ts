@@ -15,6 +15,13 @@ interface ProductImageUpdateInput {
   displayOrder: number;
 }
 
+interface ProductImageUploadInput {
+  file: File;
+  altText: string | null;
+  isPrimary: boolean;
+  displayOrder: number;
+}
+
 const IMAGE_ENDPOINT = "/ProductImages";
 
 export const productImageService = {
@@ -41,6 +48,37 @@ export const productImageService = {
       {
         method: "POST",
         body: JSON.stringify(data),
+      },
+    );
+  },
+
+  async upload(
+    productId: number,
+    data: ProductImageUploadInput,
+  ): Promise<ProductImage> {
+    const formData = new FormData();
+
+    formData.append("file", data.file);
+
+    if (data.altText) {
+      formData.append("altText", data.altText);
+    }
+
+    formData.append(
+      "isPrimary",
+      String(data.isPrimary),
+    );
+
+    formData.append(
+      "displayOrder",
+      String(data.displayOrder),
+    );
+
+    return apiClient<ProductImage>(
+      `${IMAGE_ENDPOINT}/product/${productId}/upload`,
+      {
+        method: "POST",
+        body: formData,
       },
     );
   },

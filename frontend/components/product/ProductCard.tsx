@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Pill } from "lucide-react";
 
@@ -32,11 +31,10 @@ export function ProductCard({
         {/* Product image */}
         <div className="relative flex h-48 items-center justify-center bg-[#F2F2F2]">
           {productImageUrl ? (
-            <Image
+            <img
               src={productImageUrl}
               alt={name}
-              fill
-              className="object-contain p-6 transition-transform duration-200 group-hover:scale-105"
+              className="h-full w-full object-contain p-6 transition-transform duration-200 group-hover:scale-105"
             />
           ) : (
             <div className="flex size-20 items-center justify-center rounded-xl bg-white shadow-sm transition-transform duration-200 group-hover:scale-105">

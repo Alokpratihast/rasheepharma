@@ -10,11 +10,14 @@ namespace RashePharma.Api.Controllers;
 public class ProductImagesController : ControllerBase
 {
     private readonly IProductImageService _imageService;
+    private readonly IImageStorageService _imageStorageService;
 
     public ProductImagesController(
-        IProductImageService imageService)
+        IProductImageService imageService,
+        IImageStorageService imageStorageService)
     {
         _imageService = imageService;
+        _imageStorageService = imageStorageService;
     }
 
     // =========================
@@ -40,6 +43,38 @@ public class ProductImagesController : ControllerBase
             return NotFound();
 
         return Ok(image);
+    }
+
+    // =========================
+    // IMAGE FILE
+    // =========================
+
+    [HttpGet("file/{id:int}")]
+    public async Task<IActionResult> GetImageFile(int id)
+    {
+        var image = await _imageService.GetByIdAsync(id);
+
+        if (image == null)
+            return NotFound();
+
+        try
+        {
+            var result =
+                await _imageStorageService.DownloadAsync(
+                    image.ImageUrl);
+
+            return File(
+                result.Stream,
+                result.ContentType);
+        }
+        catch (Azure.RequestFailedException ex)
+            when (ex.Status == 404)
+        {
+            return NotFound(new
+            {
+                message = "Image file was not found in Azure Blob Storage."
+            });
+        }
     }
 
     // =========================
@@ -95,5 +130,47 @@ public class ProductImagesController : ControllerBase
             return NotFound();
 
         return NoContent();
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("product/{productId:int}/upload")]
+    public async Task<ActionResult<ProductImageDto>> Upload(
+        int productId,
+        IFormFile file,
+        [FromForm] string? altText,
+        [FromForm] bool isPrimary = false,
+        [FromForm] int displayOrder = 0)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Image file is required."
+                });
+            }
+
+            var image = await _imageService.UploadAsync(
+                productId,
+                file.OpenReadStream(),
+                file.FileName,
+                file.ContentType,
+                altText,
+                isPrimary,
+                displayOrder);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = image.Id },
+                image);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

@@ -55,7 +55,10 @@ public class ProductService : IProductService
 
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
-                .Select(i => i.ImageUrl)
+                .Select(i =>
+                    i.ImageUrl.Contains(".blob.core.windows.net/")
+                        ? $"/api/ProductImages/file/{i.Id}"
+                        : i.ImageUrl)
                 .FirstOrDefault(),
 
             IsActive = p.IsActive,
@@ -96,7 +99,10 @@ public class ProductService : IProductService
 
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
-                .Select(i => i.ImageUrl)
+                .Select(i =>
+                    i.ImageUrl.Contains(".blob.core.windows.net/")
+                        ? $"/api/ProductImages/file/{i.Id}"
+                        : i.ImageUrl)
                 .FirstOrDefault(),
 
             IsActive = p.IsActive,
@@ -268,7 +274,10 @@ public class ProductService : IProductService
                 .Select(i => new ProductImageDto
                 {
                     Id = i.Id,
-                    ImageUrl = i.ImageUrl,
+                    ImageUrl =
+                        i.ImageUrl.Contains(".blob.core.windows.net/")
+                            ? $"/api/ProductImages/file/{i.Id}"
+                            : i.ImageUrl,
                     AltText = i.AltText,
                     IsPrimary = i.IsPrimary,
                     DisplayOrder = i.DisplayOrder

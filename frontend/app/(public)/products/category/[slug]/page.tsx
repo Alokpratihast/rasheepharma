@@ -49,7 +49,7 @@ export default async function CategoryProductsPage({
 
   /* =================================================
      FILTER PRODUCTS BY CATEGORY
-     
+
      ProductList currently contains categoryName,
      so we match it with the DB category name.
   ================================================== */
@@ -57,7 +57,8 @@ export default async function CategoryProductsPage({
   const categoryProducts = products.filter(
     (product) =>
       product.isActive &&
-      product.categoryName.toLowerCase() === category.name.toLowerCase()
+      product.categoryName.toLowerCase() ===
+        category.name.toLowerCase()
   );
 
   /* =================================================
@@ -68,12 +69,16 @@ export default async function CategoryProductsPage({
     id: product.id,
     name: product.name,
     form: product.dosageForm || "Product",
-    composition: product.genericName || "Pharmaceutical product",
+    composition:
+      product.genericName || "Pharmaceutical product",
     packSize:
       product.startingPrice !== null
-        ? `Starting from ₹${product.startingPrice.toLocaleString("en-IN")}`
+        ? `Starting from ₹${product.startingPrice.toLocaleString(
+            "en-IN"
+          )}`
         : "Contact for details",
     slug: product.slug,
+    imageUrl: product.primaryImageUrl,
   }));
 
   return (
@@ -127,7 +132,9 @@ export default async function CategoryProductsPage({
             <span className="font-semibold text-[#1B2A4A]">
               {categoryProducts.length}
             </span>{" "}
-            {categoryProducts.length === 1 ? "product" : "products"}
+            {categoryProducts.length === 1
+              ? "product"
+              : "products"}
           </p>
 
           <Link

@@ -11,15 +11,18 @@ public class ProductImageService : IProductImageService
     private readonly IProductImageRepository _imageRepository;
     private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IImageStorageService _imageStorageService;
 
     public ProductImageService(
         IProductImageRepository imageRepository,
         IProductRepository productRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IImageStorageService imageStorageService)
     {
         _imageRepository = imageRepository;
         _productRepository = productRepository;
         _unitOfWork = unitOfWork;
+        _imageStorageService = imageStorageService;
     }
 
     public async Task<List<ProductImageDto>> GetByProductIdAsync(int productId)
@@ -50,8 +53,6 @@ public class ProductImageService : IProductImageService
             throw new KeyNotFoundException(
                 $"Product with ID {productId} was not found.");
 
-        // If this image is primary,
-        // make all existing images non-primary.
         if (dto.IsPrimary)
         {
             var existingImages =
@@ -88,8 +89,6 @@ public class ProductImageService : IProductImageService
         if (image == null)
             return null;
 
-        // If this image is being made primary,
-        // remove primary status from other images.
         if (dto.IsPrimary)
         {
             var existingImages =
@@ -129,6 +128,54 @@ public class ProductImageService : IProductImageService
         await _unitOfWork.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<ProductImageDto> UploadAsync(
+        int productId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
+        string? altText,
+        bool isPrimary,
+        int displayOrder)
+    {
+        var product = await _productRepository.GetByIdAsync(productId);
+
+        if (product == null)
+            throw new KeyNotFoundException(
+                $"Product with ID {productId} was not found.");
+
+        if (isPrimary)
+        {
+            var existingImages =
+                await _imageRepository
+                    .GetByProductIdAsync(productId);
+
+            foreach (var image in existingImages)
+            {
+                image.IsPrimary = false;
+            }
+        }
+
+        var imageUrl = await _imageStorageService.UploadAsync(
+            fileStream,
+            fileName,
+            contentType);
+
+        var imageEntity = new ProductImage
+        {
+            ProductId = productId,
+            ImageUrl = imageUrl,
+            AltText = altText,
+            IsPrimary = isPrimary,
+            DisplayOrder = displayOrder
+        };
+
+        await _imageRepository.AddAsync(imageEntity);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToDto(imageEntity);
     }
 
     private static ProductImageDto MapToDto(ProductImage image)

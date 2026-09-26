@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+
 import {
+  usePathname,
   useRouter,
   useSearchParams,
 } from "next/navigation";
+
 import {
   Search,
   ShoppingCart,
@@ -15,7 +18,12 @@ import {
   Pill,
   FolderTree,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { UserProfile } from "@/components/account/UserProfile";
 import { CategoriesMegaMenu } from "@/components/navigation/CategoriesMegaMenu";
@@ -29,6 +37,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 
 import type { ProductList } from "@/types/product";
 import type { Category } from "@/types/category";
+
 import { MobileMenu } from "@/components/navigation/MobileMenu";
 
 const navigation = [
@@ -45,14 +54,14 @@ const navigation = [
 export function Header() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth();
 
   const [mounted, setMounted] = useState(false);
-
-useEffect(() => {
-  setMounted(true);
-}, []);
 
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
@@ -78,6 +87,10 @@ useEffect(() => {
   const [mobileSearchFocused, setMobileSearchFocused] =
     useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   /*
    * =================================================
    * ENQUIRY BUTTON
@@ -95,26 +108,33 @@ useEffect(() => {
     setEnquiryOpen(true);
   };
 
+  /*
+   * =================================================
+   * OPEN ENQUIRY FROM QUERY PARAM
+   * ==================================================
+   */
 
   useEffect(() => {
-  const openEnquiry = searchParams.get("openEnquiry");
+    const openEnquiry =
+      searchParams.get("openEnquiry");
 
-  if (
-    openEnquiry === "1" &&
-    isAuthenticated &&
-    !authLoading
-  ) {
-    setEnquiryOpen(true);
+    if (
+      openEnquiry === "1" &&
+      isAuthenticated &&
+      !authLoading
+    ) {
+      setEnquiryOpen(true);
 
-    // Remove query parameter after opening modal
-    router.replace("/", { scroll: false });
-  }
-}, [
-  searchParams,
-  isAuthenticated,
-  authLoading,
-  router,
-]);
+      router.replace("/", {
+        scroll: false,
+      });
+    }
+  }, [
+    searchParams,
+    isAuthenticated,
+    authLoading,
+    router,
+  ]);
 
   /*
    * =================================================
@@ -125,11 +145,13 @@ useEffect(() => {
   useEffect(() => {
     async function loadSearchData() {
       try {
-        const [productData, categoryData] =
-          await Promise.all([
-            productService.getAll(),
-            categoryService.getAll(),
-          ]);
+        const [
+          productData,
+          categoryData,
+        ] = await Promise.all([
+          productService.getAll(),
+          categoryService.getAll(),
+        ]);
 
         setProducts(productData);
         setCategories(categoryData);
@@ -149,7 +171,8 @@ useEffect(() => {
    */
 
   const desktopSearchResults = useMemo(() => {
-    const query = desktopSearch.trim().toLowerCase();
+    const query =
+      desktopSearch.trim().toLowerCase();
 
     if (!query) {
       return {
@@ -181,12 +204,14 @@ useEffect(() => {
       .filter((category) => {
         return (
           category.isActive &&
-          (category.name
-            .toLowerCase()
-            .includes(query) ||
+          (
+            category.name
+              .toLowerCase()
+              .includes(query) ||
             category.slug
               .toLowerCase()
-              .includes(query))
+              .includes(query)
+          )
         );
       })
       .slice(0, 4);
@@ -195,7 +220,11 @@ useEffect(() => {
       products: matchingProducts,
       categories: matchingCategories,
     };
-  }, [desktopSearch, products, categories]);
+  }, [
+    desktopSearch,
+    products,
+    categories,
+  ]);
 
   /*
    * =================================================
@@ -204,7 +233,8 @@ useEffect(() => {
    */
 
   const mobileSearchResults = useMemo(() => {
-    const query = mobileSearch.trim().toLowerCase();
+    const query =
+      mobileSearch.trim().toLowerCase();
 
     if (!query) {
       return {
@@ -236,12 +266,14 @@ useEffect(() => {
       .filter((category) => {
         return (
           category.isActive &&
-          (category.name
-            .toLowerCase()
-            .includes(query) ||
+          (
+            category.name
+              .toLowerCase()
+              .includes(query) ||
             category.slug
               .toLowerCase()
-              .includes(query))
+              .includes(query)
+          )
         );
       })
       .slice(0, 4);
@@ -250,7 +282,11 @@ useEffect(() => {
       products: matchingProducts,
       categories: matchingCategories,
     };
-  }, [mobileSearch, products, categories]);
+  }, [
+    mobileSearch,
+    products,
+    categories,
+  ]);
 
   /*
    * =================================================
@@ -323,6 +359,16 @@ useEffect(() => {
     };
   }, [enquiryOpen]);
 
+  /*
+   * IMPORTANT:
+   * All hooks are above this point.
+   * Admin pages simply hide the public Header.
+   */
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-[#e7ebea] bg-white/95 backdrop-blur">
@@ -333,22 +379,22 @@ useEffect(() => {
                 LOGO
             ================================================== */}
 
-           <Link
-  href="/"
-  className="group flex shrink-0 items-center"
-  aria-label="Rashe Lifesciences Home"
->
-  <div className="relative h-10 w-auto shrink-0 transition-transform duration-200 group-hover:scale-[1.03] sm:h-12">
-    <Image
-      src="/images/Rashelifescience.png"
-      alt="Rashe Lifesciences Pvt Ltd."
-      width={220}
-      height={56}
-      priority
-      className="h-full w-auto object-contain"
-    />
-  </div>
-</Link>
+            <Link
+              href="/"
+              className="group flex shrink-0 items-center"
+              aria-label="Rashe Lifesciences Home"
+            >
+              <div className="relative h-14 w-auto shrink-0 transition-transform duration-200 group-hover:scale-[1.03]">
+                <Image
+                  src="/images/Rashelifescience.png"
+                  alt="Rashe Lifesciences Pvt Ltd."
+                  width={240}
+                  height={62}
+                  priority
+                  className="h-full w-auto object-contain"
+                />
+              </div>
+            </Link>
 
             {/* =================================================
                 DESKTOP SEARCH
@@ -494,14 +540,14 @@ useEffect(() => {
               ))}
 
               <Button
-  type="button"
-  size="sm"
-  onClick={handleEnquiryClick}
-  disabled={!mounted || authLoading}
-  className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
->
-  Enquire
-</Button>
+                type="button"
+                size="sm"
+                onClick={handleEnquiryClick}
+                disabled={!mounted || authLoading}
+                className="h-10 rounded-xl bg-[#F5821F] px-5 text-white shadow-sm transition-all hover:bg-[#df7115] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Enquire
+              </Button>
             </nav>
 
             {/* =================================================
@@ -714,7 +760,9 @@ useEffect(() => {
 
           {mobileMenuOpen && (
             <MobileMenu
-              onClose={() => setMobileMenuOpen(false)}
+              onClose={() =>
+                setMobileMenuOpen(false)
+              }
               onEnquire={handleEnquiryClick}
             />
           )}
@@ -760,7 +808,7 @@ useEffect(() => {
 
               {/* Form */}
 
-              <EnquiryForm/>
+              <EnquiryForm />
             </div>
           </div>
         </div>
