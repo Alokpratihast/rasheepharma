@@ -53,7 +53,7 @@ export function B2BSection() {
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link href="/b2b/enquiries">
+                <Link href="/b2b/enquiry">
                   <Button
                     size="lg"
                     className="h-11 rounded-lg bg-[#F5821F] px-6 text-white hover:bg-[#df7115]"
@@ -63,7 +63,7 @@ export function B2BSection() {
                   </Button>
                 </Link>
 
-                <Link href="/b2b/partner">
+                <Link href="/b2b/enquiry">
                   <Button
                     variant="outline"
                     size="lg"
