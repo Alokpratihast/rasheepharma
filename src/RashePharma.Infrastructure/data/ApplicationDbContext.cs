@@ -23,6 +23,9 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<PasswordResetToken> PasswordResetTokens
+    => Set<PasswordResetToken>();
+
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<Address> Addresses => Set<Address>();
@@ -316,6 +319,10 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.Email)
             .IsUnique();
 
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
         modelBuilder.Entity<Category>()
             .HasIndex(c => c.Slug)
             .IsUnique();
@@ -371,5 +378,16 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<QuotationItem>()
             .Property(qi => qi.TotalPrice)
             .HasPrecision(18, 2);
+
+
+        // =========================================================
+// User → PasswordResetToken
+// =========================================================
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.PasswordResetTokens)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);  
     }
 }

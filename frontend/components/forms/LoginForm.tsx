@@ -229,12 +229,12 @@ export function LoginForm({
             </span>
           </label>
 
-          <button
-            type="button"
-            className="text-xs font-medium text-[#3E8F96] hover:underline"
-          >
-            Forgot password?
-          </button>
+          <Link
+  href="/forgot-password"
+  className="text-xs font-medium text-[#3E8F96] hover:underline"
+>
+  Forgot password?
+</Link>
         </div>
 
         <div className="relative">

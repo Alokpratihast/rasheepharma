@@ -114,6 +114,75 @@ if (!string.IsNullOrWhiteSpace(azureStorageConnectionString))
 }
 
 // =========================================================
+// Frontend
+// =========================================================
+
+var frontendBaseUrl =
+    Environment.GetEnvironmentVariable(
+        "Frontend__BaseUrl");
+
+if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+{
+    builder.Configuration["Frontend:BaseUrl"] =
+        frontendBaseUrl;
+}
+
+// Brevo SMTP
+var brevoSmtpHost =
+    Environment.GetEnvironmentVariable("Brevo__SmtpHost");
+
+var brevoSmtpPort =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPort");
+
+var brevoSmtpUsername =
+    Environment.GetEnvironmentVariable("Brevo__SmtpUsername");
+
+var brevoSmtpPassword =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPassword");
+
+var brevoFromEmail =
+    Environment.GetEnvironmentVariable("Brevo__FromEmail");
+
+var brevoFromName =
+    Environment.GetEnvironmentVariable("Brevo__FromName");
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpHost))
+{
+    builder.Configuration["Brevo:SmtpHost"] =
+        brevoSmtpHost;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPort))
+{
+    builder.Configuration["Brevo:SmtpPort"] =
+        brevoSmtpPort;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpUsername))
+{
+    builder.Configuration["Brevo:SmtpUsername"] =
+        brevoSmtpUsername;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPassword))
+{
+    builder.Configuration["Brevo:SmtpPassword"] =
+        brevoSmtpPassword;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromEmail))
+{
+    builder.Configuration["Brevo:FromEmail"] =
+        brevoFromEmail;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromName))
+{
+    builder.Configuration["Brevo:FromName"] =
+        brevoFromName;
+}
+
+// =========================================================
 // Controllers / API
 // =========================================================
 
@@ -285,6 +354,10 @@ builder.Services.AddScoped<
     UserRepository>();
 
 builder.Services.AddScoped<
+    IPasswordResetTokenRepository,
+    PasswordResetTokenRepository>();
+
+builder.Services.AddScoped<
     IAddressRepository,
     AddressRepository>();
 
@@ -361,6 +434,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAuthService,
     AuthService>();
+
+builder.Services.AddScoped<
+    IEmailService,
+    EmailService>();
 
 builder.Services.AddScoped<
     IJwtTokenService,

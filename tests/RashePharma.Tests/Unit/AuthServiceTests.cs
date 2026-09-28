@@ -20,6 +20,8 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -35,11 +37,6 @@ public class AuthServiceTests
 
         User? capturedUser = null;
 
-        // First call:
-        // User does not exist.
-        //
-        // Second call:
-        // Return the user that was created by AddAsync().
         userRepository
             .SetupSequence(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync((User?)null)
@@ -63,6 +60,7 @@ public class AuthServiceTests
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -90,75 +88,13 @@ public class AuthServiceTests
             Times.Once);
     }
 
-
     [Fact]
-public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
-{
-    // Arrange
-    var userRepository = new Mock<IUserRepository>();
-    var unitOfWork = new Mock<IUnitOfWork>();
-    var jwtTokenService = CreateJwtTokenServiceMock();
-
-    var dto = new RegisterDto
-    {
-        FirstName = "Alok",
-        LastName = "Pratihast",
-        Email = "alok@example.com",
-        PhoneNumber = "9876543210",
-        Country = "India",
-        Password = "Password123"
-    };
-
-    User? capturedUser = null;
-
-    // First call = user does not exist.
-    // Second call = return the newly created user.
-    userRepository
-        .SetupSequence(r => r.GetByEmailAsync(dto.Email))
-        .ReturnsAsync((User?)null)
-        .ReturnsAsync(() => capturedUser);
-
-    userRepository
-        .Setup(r => r.AddAsync(It.IsAny<User>()))
-        .Callback<User>(user =>
-        {
-            capturedUser = user;
-            user.Id = 1;
-        })
-        .Returns(Task.CompletedTask);
-
-    var service = new AuthService(
-        userRepository.Object,
-        unitOfWork.Object,
-        jwtTokenService.Object);
-
-    // Act
-    await service.RegisterAsync(dto);
-
-    // Assert
-    Assert.NotNull(capturedUser);
-
-    // RoleId 1 = User
-    Assert.Equal(1, capturedUser!.RoleId);
-
-    // New users should be active
-    Assert.True(capturedUser.IsActive);
-
-    userRepository.Verify(
-        r => r.AddAsync(It.IsAny<User>()),
-        Times.Once);
-
-    unitOfWork.Verify(
-        u => u.SaveChangesAsync(),
-        Times.Once);
-}
-
-
-    [Fact]
-    public async Task RegisterAsync_ShouldHashPassword()
+    public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -174,8 +110,6 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         User? capturedUser = null;
 
-        // First call = user does not exist.
-        // Second call = return the newly created user.
         userRepository
             .SetupSequence(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync((User?)null)
@@ -186,7 +120,69 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
             .Callback<User>(user =>
             {
                 capturedUser = user;
+                user.Id = 1;
+            })
+            .Returns(Task.CompletedTask);
 
+        var service = new AuthService(
+            userRepository.Object,
+            passwordResetTokenRepository.Object,
+            unitOfWork.Object,
+            jwtTokenService.Object);
+
+        // Act
+        await service.RegisterAsync(dto);
+
+        // Assert
+        Assert.NotNull(capturedUser);
+
+        // RoleId 1 = User
+        Assert.Equal(1, capturedUser!.RoleId);
+
+        // New users should be active
+        Assert.True(capturedUser.IsActive);
+
+        userRepository.Verify(
+            r => r.AddAsync(It.IsAny<User>()),
+            Times.Once);
+
+        unitOfWork.Verify(
+            u => u.SaveChangesAsync(),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ShouldHashPassword()
+    {
+        // Arrange
+        var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var jwtTokenService = CreateJwtTokenServiceMock();
+
+        var dto = new RegisterDto
+        {
+            FirstName = "Alok",
+            LastName = "Pratihast",
+            Email = "alok@example.com",
+            PhoneNumber = "9876543210",
+            Country = "India",
+            Password = "Password123"
+        };
+
+        User? capturedUser = null;
+
+        userRepository
+            .SetupSequence(r => r.GetByEmailAsync(dto.Email))
+            .ReturnsAsync((User?)null)
+            .ReturnsAsync(() => capturedUser);
+
+        userRepository
+            .Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(user =>
+            {
+                capturedUser = user;
                 user.Id = 1;
 
                 user.Role = new Role
@@ -199,6 +195,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -217,16 +214,16 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
         // the original password.
         var passwordHasher = new PasswordHasher<User>();
 
-        var verificationResult = passwordHasher.VerifyHashedPassword(
-            capturedUser,
-            capturedUser.PasswordHash,
-            dto.Password);
+        var verificationResult =
+            passwordHasher.VerifyHashedPassword(
+                capturedUser,
+                capturedUser.PasswordHash,
+                dto.Password);
 
         Assert.Equal(
             PasswordVerificationResult.Success,
             verificationResult);
     }
-
 
     // =========================================================
     // LoginAsync Tests
@@ -237,6 +234,8 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -270,6 +269,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -289,12 +289,13 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
             Times.Once);
     }
 
-
     [Fact]
     public async Task LoginAsync_ShouldReturnNull_WhenUserDoesNotExist()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -310,6 +311,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -324,12 +326,13 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
             Times.Never);
     }
 
-
     [Fact]
     public async Task LoginAsync_ShouldReturnNull_WhenUserIsInactive()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -363,6 +366,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -377,12 +381,13 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
             Times.Never);
     }
 
-
     [Fact]
     public async Task LoginAsync_ShouldReturnNull_WhenPasswordIsIncorrect()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -416,6 +421,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -430,7 +436,6 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
             Times.Never);
     }
 
-
     // =========================================================
     // GetProfileAsync Tests
     // =========================================================
@@ -440,6 +445,8 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -460,6 +467,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -476,12 +484,13 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
         Assert.Equal("India", result.Country);
     }
 
-
     [Fact]
     public async Task GetProfileAsync_ShouldReturnNull_WhenUserDoesNotExist()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -491,6 +500,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -501,12 +511,13 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
         Assert.Null(result);
     }
 
-
     [Fact]
     public async Task GetProfileAsync_ShouldReturnCorrectUserData()
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+        var passwordResetTokenRepository =
+            new Mock<IPasswordResetTokenRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         var jwtTokenService = CreateJwtTokenServiceMock();
 
@@ -527,6 +538,7 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
 
         var service = new AuthService(
             userRepository.Object,
+            passwordResetTokenRepository.Object,
             unitOfWork.Object,
             jwtTokenService.Object);
 
@@ -542,7 +554,6 @@ public async Task RegisterAsync_ShouldCreateUserWithDefaultRoleAndActiveStatus()
         Assert.Equal(user.PhoneNumber, result.PhoneNumber);
         Assert.Equal(user.Country, result.Country);
     }
-
 
     // =========================================================
     // Helper
