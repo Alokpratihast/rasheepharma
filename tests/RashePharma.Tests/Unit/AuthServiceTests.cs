@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using RashePharma.Application.DTOs.Auth;
 using RashePharma.Application.Interfaces;
@@ -20,9 +21,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var dto = new RegisterDto
@@ -58,11 +62,11 @@ public class AuthServiceTests
             })
             .Returns(Task.CompletedTask);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.RegisterAsync(dto);
@@ -93,9 +97,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var dto = new RegisterDto
@@ -124,11 +131,11 @@ public class AuthServiceTests
             })
             .Returns(Task.CompletedTask);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         await service.RegisterAsync(dto);
@@ -156,9 +163,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var dto = new RegisterDto
@@ -193,11 +203,11 @@ public class AuthServiceTests
             })
             .Returns(Task.CompletedTask);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         await service.RegisterAsync(dto);
@@ -234,9 +244,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var password = "Password123";
@@ -267,11 +280,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync(user);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.LoginAsync(dto);
@@ -294,9 +307,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var dto = new LoginDto
@@ -309,11 +325,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync((User?)null);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.LoginAsync(dto);
@@ -331,9 +347,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var password = "Password123";
@@ -364,11 +383,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync(user);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.LoginAsync(dto);
@@ -386,9 +405,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var correctPassword = "Password123";
@@ -419,11 +441,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByEmailAsync(dto.Email))
             .ReturnsAsync(user);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.LoginAsync(dto);
@@ -445,9 +467,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var user = new User
@@ -465,11 +490,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByIdAsync(1))
             .ReturnsAsync(user);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.GetProfileAsync(1);
@@ -489,20 +514,23 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         userRepository
             .Setup(r => r.GetByIdAsync(999))
             .ReturnsAsync((User?)null);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.GetProfileAsync(999);
@@ -516,9 +544,12 @@ public class AuthServiceTests
     {
         // Arrange
         var userRepository = new Mock<IUserRepository>();
+
         var passwordResetTokenRepository =
             new Mock<IPasswordResetTokenRepository>();
+
         var unitOfWork = new Mock<IUnitOfWork>();
+
         var jwtTokenService = CreateJwtTokenServiceMock();
 
         var user = new User
@@ -536,11 +567,11 @@ public class AuthServiceTests
             .Setup(r => r.GetByIdAsync(5))
             .ReturnsAsync(user);
 
-        var service = new AuthService(
-            userRepository.Object,
-            passwordResetTokenRepository.Object,
-            unitOfWork.Object,
-            jwtTokenService.Object);
+        var service = CreateAuthService(
+            userRepository,
+            passwordResetTokenRepository,
+            unitOfWork,
+            jwtTokenService);
 
         // Act
         var result = await service.GetProfileAsync(5);
@@ -556,8 +587,26 @@ public class AuthServiceTests
     }
 
     // =========================================================
-    // Helper
+    // Helpers
     // =========================================================
+
+    private static AuthService CreateAuthService(
+        Mock<IUserRepository> userRepository,
+        Mock<IPasswordResetTokenRepository> passwordResetTokenRepository,
+        Mock<IUnitOfWork> unitOfWork,
+        Mock<IJwtTokenService> jwtTokenService)
+    {
+        var emailService = new Mock<IEmailService>();
+        var configuration = new Mock<IConfiguration>();
+
+        return new AuthService(
+            userRepository.Object,
+            passwordResetTokenRepository.Object,
+            unitOfWork.Object,
+            jwtTokenService.Object,
+            emailService.Object,
+            configuration.Object);
+    }
 
     private static Mock<IJwtTokenService> CreateJwtTokenServiceMock()
     {

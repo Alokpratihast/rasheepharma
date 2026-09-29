@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+
 using RashePharma.Application.DTOs.Partners;
 using RashePharma.Domain.Entities;
 using RashePharma.Infrastructure.Data;
+
 using RashePharma.Tests.Infrastructure;
 
 namespace RashePharma.Tests.Controllers;
@@ -19,6 +22,14 @@ public class PartnersControllerTests
     {
         _factory = factory;
         _client = factory.CreateClient();
+
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-UserId",
+            "1");
+
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-Role",
+            "Admin");
     }
 
     // ============================================================
@@ -111,8 +122,12 @@ public class PartnersControllerTests
         var userId = 3001;
 
         await CreateUserAsync(userId);
-
         await CreatePartnerRequestAsync(userId);
+
+        _client.DefaultRequestHeaders.Remove("X-Test-UserId");
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-UserId",
+            userId.ToString());
 
         var response =
             await _client.GetAsync(
@@ -137,6 +152,11 @@ public class PartnersControllerTests
 
         await CreateUserAsync(userId);
 
+        _client.DefaultRequestHeaders.Remove("X-Test-UserId");
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-UserId",
+            userId.ToString());
+
         var response =
             await _client.GetAsync(
                 $"/api/Partners/requests/user/{userId}");
@@ -156,6 +176,8 @@ public class PartnersControllerTests
     [Fact]
     public async Task CreateRequest_ShouldReturnOk_WhenValidRequestIsProvided()
     {
+        await CreateUserAsync(1);
+
         var dto = new PartnerRequestCreateDto
         {
             CompanyName = "ABC Pharma Pvt Ltd",
@@ -221,6 +243,8 @@ public class PartnersControllerTests
     [Fact]
     public async Task CreateRequest_ShouldReturnOk_WhenOptionalFieldsAreNull()
     {
+        await CreateUserAsync(1);
+
         var dto = new PartnerRequestCreateDto
         {
             CompanyName = "Simple Pharma",
@@ -418,8 +442,12 @@ public class PartnersControllerTests
         var userId = 3003;
 
         await CreateUserAsync(userId);
-
         await CreatePartnerAsync(userId);
+
+        _client.DefaultRequestHeaders.Remove("X-Test-UserId");
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-UserId",
+            userId.ToString());
 
         var response =
             await _client.GetAsync(
@@ -450,6 +478,11 @@ public class PartnersControllerTests
         var userId = 3004;
 
         await CreateUserAsync(userId);
+
+        _client.DefaultRequestHeaders.Remove("X-Test-UserId");
+        _client.DefaultRequestHeaders.Add(
+            "X-Test-UserId",
+            userId.ToString());
 
         var response =
             await _client.GetAsync(

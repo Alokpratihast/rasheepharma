@@ -44,6 +44,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments
         => Set<Payment>();
 
+    public DbSet<StripeWebhookEvent> StripeWebhookEvents
+    => Set<StripeWebhookEvent>();
+
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<EnquiryItem> EnquiryItems
@@ -335,6 +338,16 @@ public class ApplicationDbContext : DbContext
             .HasIndex(o => o.OrderNumber)
             .IsUnique();
 
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripeSessionId)
+            .IsUnique()
+            .HasFilter("[StripeSessionId] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripePaymentIntentId)
+            .IsUnique()
+            .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
         modelBuilder.Entity<Enquiry>()
             .HasIndex(e => e.EnquiryNumber)
             .IsUnique();
@@ -342,6 +355,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Quotation>()
             .HasIndex(q => q.QuoteNumber)
             .IsUnique();
+
+        modelBuilder.Entity<StripeWebhookEvent>()
+        .HasIndex(e => e.StripeEventId)
+        .IsUnique();    
 
         // =====================================================
         // Decimal Precision

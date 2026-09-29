@@ -14,11 +14,19 @@ public class ProductsControllerTests : IClassFixture<CustomWebApplicationFactory
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public ProductsControllerTests(CustomWebApplicationFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+   public ProductsControllerTests(CustomWebApplicationFactory factory)
+{
+    _factory = factory;
+    _client = factory.CreateClient();
+
+    _client.DefaultRequestHeaders.Add(
+        "X-Test-UserId",
+        "1");
+
+    _client.DefaultRequestHeaders.Add(
+        "X-Test-Role",
+        "Admin");
+}
 
     // ---------------------------------------------------------
     // Helper: Create a Category for Product tests

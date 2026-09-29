@@ -35,6 +35,15 @@ public class PaymentRepository : IPaymentRepository
                 p => p.StripeSessionId == stripeSessionId);
     }
 
+    public async Task<Payment?> GetByStripePaymentIntentIdAsync(
+    string stripePaymentIntentId)
+{
+    return await _context.Payments
+        .Include(p => p.Order)
+        .FirstOrDefaultAsync(
+            p => p.StripePaymentIntentId == stripePaymentIntentId);
+}
+
     public async Task UpdateAsync(Payment payment)
     {
         _context.Payments.Update(payment);

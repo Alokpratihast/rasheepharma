@@ -10,7 +10,7 @@ public class Payment
     // Payment Details
     public decimal Amount { get; set; }
 
-    public string Currency { get; set; } = "INR";
+    public string Currency { get; set; } = "USD";
 
     public string Status { get; set; } = "Pending";
 

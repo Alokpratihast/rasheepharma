@@ -14,11 +14,19 @@ public class CategoriesControllerTests : IClassFixture<CustomWebApplicationFacto
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public CategoriesControllerTests(CustomWebApplicationFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+   public CategoriesControllerTests(CustomWebApplicationFactory factory)
+{
+    _factory = factory;
+    _client = factory.CreateClient();
+
+    _client.DefaultRequestHeaders.Add(
+        "X-Test-UserId",
+        "1");
+
+    _client.DefaultRequestHeaders.Add(
+        "X-Test-Role",
+        "Admin");
+}
 
     private async Task<int> CreateCategoryAsync()
     {

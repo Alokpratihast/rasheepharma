@@ -150,7 +150,7 @@ export function CartItem({
               </p>
 
               <p className="mt-0.5 text-sm font-bold text-[#F5821F]">
-                ₹{item.totalPrice.toFixed(2)}
+                ${item.totalPrice.toFixed(2)}
               </p>
             </div>
           </div>

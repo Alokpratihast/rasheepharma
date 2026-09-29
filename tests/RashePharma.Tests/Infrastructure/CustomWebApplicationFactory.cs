@@ -27,6 +27,27 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
 
+        // ---------------------------------------------------------
+        // Test-only environment configuration
+        // ---------------------------------------------------------
+
+        Environment.SetEnvironmentVariable(
+            "Stripe__SecretKey",
+            "sk_test_fake_for_tests");
+
+        Environment.SetEnvironmentVariable(
+            "Stripe__WebhookSecret",
+            "whsec_test_payment_webhook_secret");
+
+        Environment.SetEnvironmentVariable(
+            "JWT__KEY",
+            "test-jwt-key-for-integration-tests-123456789");
+
+        Environment.SetEnvironmentVariable(
+            "Frontend__BaseUrl",
+            "http://localhost:3000");
+
+
         builder.ConfigureServices(services =>
         {
             // ---------------------------------------------------------
@@ -148,6 +169,26 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         if (disposing)
         {
             _connection?.Dispose();
+
+            // ---------------------------------------------------------
+            // Clear test-only environment variables
+            // ---------------------------------------------------------
+
+            Environment.SetEnvironmentVariable(
+                "Stripe__SecretKey",
+                null);
+
+            Environment.SetEnvironmentVariable(
+                "Stripe__WebhookSecret",
+                null);
+
+            Environment.SetEnvironmentVariable(
+                "JWT__KEY",
+                null);
+
+            Environment.SetEnvironmentVariable(
+                "Frontend__BaseUrl",
+                null);
         }
 
         base.Dispose(disposing);
@@ -180,16 +221,16 @@ public class TestAuthenticationHandler
         // ---------------------------------------------------------
 
         if (!Request.Headers.TryGetValue(
-                "X-Test-UserId",
-                out var userIdHeader))
+            "X-Test-UserId",
+            out var userIdHeader))
         {
             return Task.FromResult(
                 AuthenticateResult.NoResult());
         }
 
         if (!int.TryParse(
-                userIdHeader.ToString(),
-                out var userId))
+            userIdHeader.ToString(),
+            out var userId))
         {
             return Task.FromResult(
                 AuthenticateResult.Fail(
@@ -209,8 +250,8 @@ public class TestAuthenticationHandler
         // ---------------------------------------------------------
 
         if (Request.Headers.TryGetValue(
-                "X-Test-Role",
-                out var roleHeader))
+            "X-Test-Role",
+            out var roleHeader))
         {
             var role = roleHeader.ToString();
 

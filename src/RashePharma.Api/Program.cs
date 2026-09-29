@@ -10,6 +10,7 @@ using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
+using Microsoft.OpenApi;
 using System.Text;
 using Stripe;
 
@@ -19,8 +20,7 @@ using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
-StripeConfiguration.ApiKey =
-    builder.Configuration["Stripe:SecretKey"];
+
 
 // =========================================================
 // Load .env for local development only
@@ -64,6 +64,9 @@ if (string.IsNullOrWhiteSpace(stripeSecretKey))
 
 builder.Configuration["Stripe:SecretKey"] =
     stripeSecretKey;
+
+
+StripeConfiguration.ApiKey = stripeSecretKey;
 
 // Webhook Secret
 var stripeWebhookSecret =
@@ -190,7 +193,29 @@ builder.Services.AddControllers();
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description =
+                "Enter your JWT token. Example: Bearer {your-token}"
+        });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(
+                "Bearer",
+                document)] = []
+        });
+});
 
 // =========================================================
 // CORS
@@ -478,6 +503,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IPaymentRepository,
     PaymentRepository>();
+
+builder.Services.AddScoped<
+    IStripeWebhookEventRepository,
+    StripeWebhookEventRepository>();
 
 // =========================================================
 // Build Application

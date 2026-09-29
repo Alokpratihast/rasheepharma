@@ -630,7 +630,7 @@ public class QuotationsControllerTests
                 }
             }
         };
-
+        
         var response =
             await _client.PostAsJsonAsync(
                 "/api/Quotations",
@@ -672,7 +672,7 @@ public class QuotationsControllerTests
         };
 
         var client =
-            CreateAuthenticatedClient(userId);
+            CreateAuthenticatedClient(userId,"Admin");
 
         var response =
             await client.PostAsJsonAsync(
@@ -751,7 +751,7 @@ public class QuotationsControllerTests
         };
 
         var client =
-            CreateAuthenticatedClient(userId);
+            CreateAuthenticatedClient(userId,"Admin");
 
         var response =
             await client.PostAsJsonAsync(
@@ -768,38 +768,37 @@ public class QuotationsControllerTests
     // =========================================================
 
     [Fact]
-    public async Task UpdateStatus_ShouldReturnForbidden_WhenCustomerCallsIt()
+   public async Task UpdateStatus_ShouldReturnForbidden_WhenCustomerCallsIt()
+{
+    var userId = 2701;
+
+    await CreateUserAsync(userId);
+
+    var enquiry =
+        await CreateEnquiryAsync(userId);
+
+    var quotation =
+        await CreateQuotationAsync(
+            enquiry.Id,
+            userId);
+
+    var dto = new UpdateQuotationStatusDto
     {
-        var userId = 2701;
+        Status = "Sent"
+    };
 
-        await CreateUserAsync(userId);
+    var client =
+        CreateAuthenticatedClient(userId, "Customer");
 
-        var enquiry =
-            await CreateEnquiryAsync(userId);
+    var response =
+        await client.PatchAsJsonAsync(
+            $"/api/Quotations/{quotation.Id}/status",
+            dto);
 
-        var quotation =
-            await CreateQuotationAsync(
-                enquiry.Id,
-                userId);
-
-        var dto = new UpdateQuotationStatusDto
-        {
-            Status = "Sent"
-        };
-
-        var client =
-            CreateAuthenticatedClient(userId);
-
-        var response =
-            await client.PatchAsJsonAsync(
-                $"/api/Quotations/{quotation.Id}/status",
-                dto);
-
-        Assert.Equal(
-            HttpStatusCode.Forbidden,
-            response.StatusCode);
-    }
-
+    Assert.Equal(
+        HttpStatusCode.Forbidden,
+        response.StatusCode);
+}
     [Fact]
     public async Task UpdateStatus_ShouldReturnNoContent_WhenAdminCallsIt()
     {

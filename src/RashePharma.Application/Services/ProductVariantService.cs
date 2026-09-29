@@ -53,13 +53,22 @@ public class ProductVariantService : IProductVariantService
                 $"Product with ID {productId} was not found.");
         }
 
+        if (dto.Price < 0)
+        {
+            throw new InvalidOperationException(
+                "Product price cannot be negative.");
+        }
+
         var variant = new ProductVariant
         {
             ProductId = productId,
             Strength = dto.Strength,
             PackSize = dto.PackSize,
             Price = dto.Price,
-            Currency = dto.Currency,
+
+            // USD only
+            Currency = "USD",
+
             MOQ = dto.MOQ,
             UnitType = dto.UnitType,
             SKU = dto.SKU,
@@ -83,10 +92,19 @@ public class ProductVariantService : IProductVariantService
         if (variant == null)
             return null;
 
+        if (dto.Price < 0)
+        {
+            throw new InvalidOperationException(
+                "Product price cannot be negative.");
+        }
+
         variant.Strength = dto.Strength;
         variant.PackSize = dto.PackSize;
         variant.Price = dto.Price;
-        variant.Currency = dto.Currency;
+
+        // USD only
+        variant.Currency = "USD";
+
         variant.MOQ = dto.MOQ;
         variant.UnitType = dto.UnitType;
         variant.SKU = dto.SKU;
@@ -124,7 +142,7 @@ public class ProductVariantService : IProductVariantService
             Strength = variant.Strength,
             PackSize = variant.PackSize,
             Price = variant.Price,
-            Currency = variant.Currency,
+            Currency = "USD",
             MOQ = variant.MOQ,
             UnitType = variant.UnitType,
             SKU = variant.SKU,
