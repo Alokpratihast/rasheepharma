@@ -17,12 +17,14 @@ public class PaymentService : IPaymentService
     private readonly IStripeWebhookEventRepository _stripeWebhookEventRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
+    private readonly IEmailNotificationRepository _emailNotificationRepository;
 
     public PaymentService(
         IOrderRepository orderRepository,
         IPaymentRepository paymentRepository,
         ICartRepository cartRepository,
         IStripeWebhookEventRepository stripeWebhookEventRepository,
+        IEmailNotificationRepository emailNotificationRepository,
         IUnitOfWork unitOfWork,
         IConfiguration configuration)
     {
@@ -32,6 +34,7 @@ public class PaymentService : IPaymentService
         _stripeWebhookEventRepository = stripeWebhookEventRepository;
         _unitOfWork = unitOfWork;
         _configuration = configuration;
+        _emailNotificationRepository = emailNotificationRepository;
     }
 
     public async Task<string> CreateCheckoutSessionAsync(
@@ -251,6 +254,7 @@ public class PaymentService : IPaymentService
          * Order   -> remains Pending
          * Cart    -> remains untouched
          */
+
         if (stripeEvent.Type == "checkout.session.expired")
         {
             var session =
@@ -337,6 +341,7 @@ public class PaymentService : IPaymentService
          * Order   -> remains Pending
          * Cart    -> remains untouched
          */
+
         if (stripeEvent.Type == "checkout.session.async_payment_failed")
         {
             var session =
@@ -420,6 +425,7 @@ public class PaymentService : IPaymentService
          * We record the event for audit/idempotency purposes,
          * but do not modify payment or order state.
          */
+
         if (stripeEvent.Type != "checkout.session.completed")
         {
             var ignoredEvent = new StripeWebhookEvent
@@ -445,11 +451,13 @@ public class PaymentService : IPaymentService
          *
          * Successful Stripe payment.
          *
-         * Payment -> Completed
-         * Order   -> Paid
-         * History -> Paid
-         * Cart    -> Clear
+         * Payment       -> Completed
+         * Order         -> Paid
+         * History       -> Paid
+         * Cart          -> Clear
+         * Email Queue   -> Pending
          */
+
         var completedSession =
             stripeEvent.Data.Object as Stripe.Checkout.Session;
 
@@ -700,6 +708,18 @@ public class PaymentService : IPaymentService
 
             await _stripeWebhookEventRepository
                 .AddAsync(webhookEvent);
+
+            var emailNotification = new EmailNotification
+            {
+                OrderId = order.Id,
+                Type = "OrderInvoice",
+                Status = "Pending",
+                AttemptCount = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _emailNotificationRepository
+                .AddAsync(emailNotification);
 
             await _unitOfWork.SaveChangesAsync();
 

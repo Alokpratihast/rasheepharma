@@ -47,6 +47,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<StripeWebhookEvent> StripeWebhookEvents
     => Set<StripeWebhookEvent>();
 
+    public DbSet<EmailNotification> EmailNotifications
+    => Set<EmailNotification>();
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<EnquiryItem> EnquiryItems
@@ -212,6 +214,17 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(p => p.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+
+        // =====================================================
+        // Order → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Order)
+            .WithMany()
+            .HasForeignKey(n => n.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // =====================================================
         // User → Enquiry
         // =====================================================
@@ -347,6 +360,14 @@ public class ApplicationDbContext : DbContext
             .HasIndex(p => p.StripePaymentIntentId)
             .IsUnique()
             .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.OrderId,
+                n.Type
+            })
+            .IsUnique();
 
         modelBuilder.Entity<Enquiry>()
             .HasIndex(e => e.EnquiryNumber)

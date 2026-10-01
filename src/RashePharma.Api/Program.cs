@@ -12,6 +12,7 @@ using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
 using Microsoft.OpenApi;
 using System.Text;
+using QuestPDF.Infrastructure;
 using Stripe;
 
 // =========================================================
@@ -19,6 +20,8 @@ using Stripe;
 // =========================================================
 
 var builder = WebApplication.CreateBuilder(args);
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 
 
@@ -463,6 +466,23 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmailService,
     EmailService>();
+
+builder.Services.AddScoped<
+    IInvoiceService,
+    RashePharma.Infrastructure.Services.InvoiceService>();
+
+builder.Services.AddScoped<
+    IEmailNotificationRepository,
+    EmailNotificationRepository>();
+
+builder.Services.AddScoped<
+    IEmailNotificationService,
+    EmailNotificationService>();
+
+builder.Services.AddHostedService<
+    EmailNotificationWorker>();
+
+
 
 builder.Services.AddScoped<
     IJwtTokenService,
