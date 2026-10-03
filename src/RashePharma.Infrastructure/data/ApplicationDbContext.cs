@@ -357,6 +357,16 @@ public class ApplicationDbContext : DbContext
             .HasFilter("[StripeSessionId] IS NOT NULL");
 
         modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.CheckoutIdempotencyKey)
+            .IsUnique()
+            .HasFilter("[CheckoutIdempotencyKey] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.OrderId)
+            .IsUnique()
+            .HasFilter("[Status] IN ('Pending', 'Failed')");
+
+        modelBuilder.Entity<Payment>()
             .HasIndex(p => p.StripePaymentIntentId)
             .IsUnique()
             .HasFilter("[StripePaymentIntentId] IS NOT NULL");

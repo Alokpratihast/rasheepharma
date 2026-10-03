@@ -26,6 +26,8 @@ public class Payment
     // Failure Information
     public string? FailureReason { get; set; }
 
+    // Checkout Idempotency
+    public string? CheckoutIdempotencyKey { get; set; }
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

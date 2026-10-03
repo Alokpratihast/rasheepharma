@@ -4,11 +4,10 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Stripe;
 using Stripe.Checkout;
-
 namespace RashePharma.Application.Services;
-
 public class PaymentService : IPaymentService
 {
     private readonly IOrderRepository _orderRepository;
@@ -18,7 +17,6 @@ public class PaymentService : IPaymentService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
-
     public PaymentService(
         IOrderRepository orderRepository,
         IPaymentRepository paymentRepository,
@@ -36,60 +34,74 @@ public class PaymentService : IPaymentService
         _configuration = configuration;
         _emailNotificationRepository = emailNotificationRepository;
     }
-
     public async Task<string> CreateCheckoutSessionAsync(
-        int userId,
-        CreateCheckoutSessionRequest request)
+    int userId,
+    CreateCheckoutSessionRequest request)
+{
+    // =========================================================
+    // 1. Load the order
+    // =========================================================
+    var order = await _orderRepository
+        .GetByIdAsync(request.OrderId);
+    if (order == null)
     {
-        var order = await _orderRepository
-            .GetByIdAsync(request.OrderId);
-
-        if (order == null)
+        throw new InvalidOperationException(
+            "Order not found.");
+    }
+    // =========================================================
+    // 2. Security check
+    //    User can only pay for their own order
+    // =========================================================
+    if (order.UserId != userId)
+    {
+        throw new UnauthorizedAccessException(
+            "You are not authorized to pay for this order.");
+    }
+    // =========================================================
+    // 3. Order must still be pending
+    // =========================================================
+    if (order.Status != "Pending")
+    {
+        throw new InvalidOperationException(
+            "Only pending orders can be paid.");
+    }
+    // =========================================================
+    // 4. Only USD payments are supported
+    // =========================================================
+    if (!string.Equals(
+            order.Currency,
+            "USD",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Only USD payments are supported.");
+    }
+    // =========================================================
+    // 5. Minimum order validation
+    // =========================================================
+    if (order.TotalAmount < 200m)
+    {
+        throw new InvalidOperationException(
+            "Minimum order value is $200 USD.");
+    }
+    // =========================================================
+    // 6. Order must contain items
+    // =========================================================
+    if (order.Items == null || !order.Items.Any())
+    {
+        throw new InvalidOperationException(
+            "Order has no items.");
+    }
+    // =========================================================
+    // 7. Build Stripe line items from the server-side order
+    // =========================================================
+    var lineItems = order.Items.Select(item =>
+        new SessionLineItemOptions
         {
-            throw new InvalidOperationException(
-                "Order not found.");
-        }
-
-        if (order.UserId != userId)
-        {
-            throw new UnauthorizedAccessException(
-                "You are not authorized to pay for this order.");
-        }
-
-        if (order.Status != "Pending")
-        {
-            throw new InvalidOperationException(
-                "Only pending orders can be paid.");
-        }
-
-        if (!string.Equals(
-                order.Currency,
-                "USD",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                "Only USD payments are supported.");
-        }
-
-        if (order.TotalAmount < 200m)
-        {
-            throw new InvalidOperationException(
-                "Minimum order value is $200 USD.");
-        }
-
-        if (order.Items == null || !order.Items.Any())
-        {
-            throw new InvalidOperationException(
-                "Order has no items.");
-        }
-
-        var lineItems = order.Items.Select(item =>
-            new SessionLineItemOptions
-            {
-                PriceData = new SessionLineItemPriceDataOptions
+            PriceData =
+                new SessionLineItemPriceDataOptions
                 {
                     Currency = "usd",
-
                     ProductData =
                         new SessionLineItemPriceDataProductDataOptions
                         {
@@ -97,105 +109,228 @@ public class PaymentService : IPaymentService
                             Description =
                                 $"{item.Strength} - {item.PackSize}"
                         },
-
                     UnitAmount =
-                        checked((long)(item.UnitPrice * 100m))
+                        checked(
+                            (long)(item.UnitPrice * 100m))
                 },
+            Quantity = item.Quantity
+        }).ToList();
+    // =========================================================
+    // 8. Calculate the amount that will actually be sent to
+    //    Stripe.
+    //
+    //    This prevents client/order total manipulation.
+    // =========================================================
+    var calculatedStripeAmount =
+        lineItems.Sum(item =>
+            item.PriceData!.UnitAmount!.Value *
+            item.Quantity!.Value);
+    var expectedStripeAmount =
+        checked((long)(order.TotalAmount * 100m));
+    if (calculatedStripeAmount != expectedStripeAmount)
+    {
+        throw new InvalidOperationException(
+            "Order total does not match the checkout amount.");
+    }
+    // =========================================================
+    // 9. Frontend URL configuration
+    // =========================================================
+    var frontendBaseUrl =
+        _configuration["Frontend:BaseUrl"];
+    if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+    {
+        throw new InvalidOperationException(
+            "Frontend base URL is not configured.");
+    }
+    frontendBaseUrl =
+        frontendBaseUrl.TrimEnd('/');
+    // =========================================================
+    // 10. Find an existing active checkout/payment attempt.
+    // =========================================================
+    var existingPayment =
+        await _paymentRepository
+            .GetActiveCheckoutByOrderIdAsync(order.Id);
 
-                Quantity = item.Quantity
-            }).ToList();
+    Payment? payment = null;
 
-        var calculatedStripeAmount =
-            lineItems.Sum(item =>
-                item.PriceData!.UnitAmount!.Value *
-                item.Quantity!.Value);
+    if (existingPayment != null)
+    {
+        // =====================================================
+        // Existing payment found. Reuse it when possible.
+        // =====================================================
+        payment = existingPayment;
 
-        var expectedStripeAmount =
-            checked((long)(order.TotalAmount * 100m));
-
-        if (calculatedStripeAmount != expectedStripeAmount)
+        if (!string.IsNullOrWhiteSpace(payment.StripeSessionId))
         {
-            throw new InvalidOperationException(
-                "Order total does not match the checkout amount.");
+            var existingSessionService = new SessionService();
+
+            var existingSession =
+                await existingSessionService.GetAsync(
+                    payment.StripeSessionId);
+
+            // Reuse only an active/open Checkout Session.
+            if (existingSession.Status == "open" &&
+                !string.IsNullOrWhiteSpace(existingSession.Url))
+            {
+                return existingSession.Url;
+            }
+
+            // The old Checkout Session expired. Cancel the old
+            // payment attempt so a completely new attempt can be created.
+            if (existingSession.Status == "expired")
+            {
+                payment.Status = "Cancelled";
+                payment.FailureReason =
+                    "Stripe Checkout Session expired.";
+                payment.UpdatedAt = DateTime.UtcNow;
+
+                await _paymentRepository.UpdateAsync(payment);
+                await _unitOfWork.SaveChangesAsync();
+
+                // This forces creation of a NEW Payment below with a
+                // NEW Stripe idempotency key.
+                payment = null;
+            }
         }
 
-        var frontendBaseUrl =
-            _configuration["Frontend:BaseUrl"];
-
-        if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+        // Existing active payment has no usable Stripe Session.
+        // Retry using its SAME persisted idempotency key.
+        if (payment != null &&
+            string.IsNullOrWhiteSpace(payment.CheckoutIdempotencyKey))
         {
-            throw new InvalidOperationException(
-                "Frontend base URL is not configured.");
+            payment.CheckoutIdempotencyKey =
+                Guid.NewGuid().ToString("N");
+            payment.UpdatedAt = DateTime.UtcNow;
+
+            await _paymentRepository.UpdateAsync(payment);
+            await _unitOfWork.SaveChangesAsync();
         }
+    }
 
-        frontendBaseUrl =
-            frontendBaseUrl.TrimEnd('/');
-
-        var payment = new Payment
+    // =========================================================
+    // No usable active payment exists. Create a NEW payment attempt.
+    // A new attempt always receives a NEW Stripe idempotency key.
+    // =========================================================
+    if (payment == null)
+    {
+        payment = new Payment
         {
             OrderId = order.Id,
             Amount = order.TotalAmount,
             Currency = "USD",
             Status = "Pending",
             PaymentMethod = "Stripe",
+            CheckoutIdempotencyKey =
+                Guid.NewGuid().ToString("N"),
             CreatedAt = DateTime.UtcNow
         };
 
-        await _paymentRepository.AddAsync(payment);
-
-        await _unitOfWork.SaveChangesAsync();
-
         try
         {
-            var options = new SessionCreateOptions
-            {
-                Mode = "payment",
-
-                LineItems = lineItems,
-
-                SuccessUrl =
-                    $"{frontendBaseUrl}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-
-                CancelUrl =
-                    $"{frontendBaseUrl}/payment/cancel",
-
-                Metadata = new Dictionary<string, string>
-                {
-                    ["OrderId"] = order.Id.ToString(),
-                    ["OrderNumber"] = order.OrderNumber,
-                    ["PaymentId"] = payment.Id.ToString()
-                }
-            };
-
-            var service = new SessionService();
-
-            var session =
-                await service.CreateAsync(options);
-
-            payment.StripeSessionId = session.Id;
-            payment.UpdatedAt = DateTime.UtcNow;
-
-            await _paymentRepository.UpdateAsync(payment);
-
+            await _paymentRepository.AddAsync(payment);
             await _unitOfWork.SaveChangesAsync();
-
-            return session.Url;
         }
-        catch
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
         {
-            payment.Status = "Failed";
-            payment.FailureReason =
-                "Unable to create Stripe Checkout Session.";
-            payment.UpdatedAt = DateTime.UtcNow;
+            // Another request created the active payment at the same time.
+            var existingPaymentAfterRace =
+                await _paymentRepository
+                    .GetActiveCheckoutByOrderIdAsync(order.Id);
 
-            await _paymentRepository.UpdateAsync(payment);
+            if (existingPaymentAfterRace == null)
+            {
+                throw;
+            }
 
-            await _unitOfWork.SaveChangesAsync();
-
-            throw;
+            payment = existingPaymentAfterRace;
         }
     }
 
+    try
+    {
+        // =====================================================
+        // 11. Create Stripe Checkout options
+        // =====================================================
+        var options = new SessionCreateOptions
+        {
+            Mode = "payment",
+            LineItems = lineItems,
+            SuccessUrl =
+                $"{frontendBaseUrl}/payment/success" +
+                "?session_id={CHECKOUT_SESSION_ID}",
+            CancelUrl =
+                $"{frontendBaseUrl}/payment/cancel",
+            Metadata =
+                new Dictionary<string, string>
+                {
+                    ["OrderId"] =
+                        order.Id.ToString(),
+                    ["OrderNumber"] =
+                        order.OrderNumber,
+                    ["PaymentId"] =
+                        payment.Id.ToString()
+                }
+        };
+        // =====================================================
+        // 12. Stripe idempotency
+        //
+        //     If our server crashes after Stripe creates
+        //     the session but before we save StripeSessionId,
+        //     retrying with this SAME key tells Stripe:
+        //
+        //     "This is the same operation."
+        //
+        //     Stripe can then return the original result
+        //     instead of creating another Checkout Session.
+        // =====================================================
+        var stripeRequestOptions =
+            new RequestOptions
+            {
+                IdempotencyKey =
+                    payment.CheckoutIdempotencyKey
+            };
+        var service =
+            new SessionService();
+        var session =
+            await service.CreateAsync(
+                options,
+                stripeRequestOptions);
+        // =====================================================
+        // 13. Save Stripe's Checkout Session ID
+        // =====================================================
+        payment.StripeSessionId =
+            session.Id;
+        payment.Status = "Pending";
+        payment.UpdatedAt =
+            DateTime.UtcNow;
+        payment.FailureReason = null;
+        await _paymentRepository
+            .UpdateAsync(payment);
+        await _unitOfWork.SaveChangesAsync();
+        // =====================================================
+        // 14. Return Checkout URL to frontend
+        // =====================================================
+        return session.Url;
+    }
+    catch
+    {
+        // =====================================================
+        // 15. Stripe/API failure
+        //
+        // Keep the payment record so the same
+        // CheckoutIdempotencyKey can be reused on retry.
+        // =====================================================
+        payment.Status = "Failed";
+        payment.FailureReason =
+            "Unable to create Stripe Checkout Session.";
+        payment.UpdatedAt =
+            DateTime.UtcNow;
+        await _paymentRepository
+            .UpdateAsync(payment);
+        await _unitOfWork.SaveChangesAsync();
+        throw;
+    }
+}
     public async Task HandleWebhookAsync(
         string json,
         string stripeSignature)
@@ -203,15 +338,12 @@ public class PaymentService : IPaymentService
         var webhookSecret =
             Environment.GetEnvironmentVariable(
                 "Stripe__WebhookSecret");
-
         if (string.IsNullOrWhiteSpace(webhookSecret))
         {
             throw new InvalidOperationException(
                 "Stripe webhook secret is not configured.");
         }
-
         Stripe.Event stripeEvent;
-
         try
         {
             stripeEvent =
@@ -227,22 +359,18 @@ public class PaymentService : IPaymentService
                 "Invalid Stripe webhook signature.",
                 ex);
         }
-
         if (string.IsNullOrWhiteSpace(stripeEvent.Id))
         {
             throw new InvalidOperationException(
                 "Stripe webhook event ID is missing.");
         }
-
         var existingEvent =
             await _stripeWebhookEventRepository
                 .GetByStripeEventIdAsync(stripeEvent.Id);
-
         if (existingEvent != null)
         {
             return;
         }
-
         /*
          * ============================================================
          * CHECKOUT SESSION EXPIRED
@@ -254,18 +382,15 @@ public class PaymentService : IPaymentService
          * Order   -> remains Pending
          * Cart    -> remains untouched
          */
-
         if (stripeEvent.Type == "checkout.session.expired")
         {
             var session =
                 stripeEvent.Data.Object as Stripe.Checkout.Session;
-
             if (session == null)
             {
                 throw new InvalidOperationException(
                     "Stripe Checkout Session is missing.");
             }
-
             if (session.Metadata == null ||
                 !session.Metadata.TryGetValue(
                     "PaymentId",
@@ -277,35 +402,28 @@ public class PaymentService : IPaymentService
                 throw new InvalidOperationException(
                     "Stripe PaymentId metadata is invalid.");
             }
-
             var payment =
                 await _paymentRepository
                     .GetByIdAsync(paymentId);
-
             if (payment == null)
             {
                 throw new InvalidOperationException(
                     "Payment record not found.");
             }
-
             if (payment.Status == "Completed")
             {
                 return;
             }
-
             await using var transaction =
                 await _unitOfWork.BeginTransactionAsync();
-
             try
             {
                 payment.Status = "Cancelled";
                 payment.FailureReason =
                     "Stripe Checkout Session expired.";
                 payment.UpdatedAt = DateTime.UtcNow;
-
                 await _paymentRepository
                     .UpdateAsync(payment);
-
                 var webhookEvent = new StripeWebhookEvent
                 {
                     StripeEventId = stripeEvent.Id,
@@ -313,12 +431,9 @@ public class PaymentService : IPaymentService
                     CreatedAt = DateTime.UtcNow,
                     ProcessedAt = DateTime.UtcNow
                 };
-
                 await _stripeWebhookEventRepository
                     .AddAsync(webhookEvent);
-
                 await _unitOfWork.SaveChangesAsync();
-
                 await transaction.CommitAsync();
             }
             catch
@@ -326,10 +441,8 @@ public class PaymentService : IPaymentService
                 await transaction.RollbackAsync();
                 throw;
             }
-
             return;
         }
-
         /*
          * ============================================================
          * ASYNC PAYMENT FAILED
@@ -341,18 +454,15 @@ public class PaymentService : IPaymentService
          * Order   -> remains Pending
          * Cart    -> remains untouched
          */
-
         if (stripeEvent.Type == "checkout.session.async_payment_failed")
         {
             var session =
                 stripeEvent.Data.Object as Stripe.Checkout.Session;
-
             if (session == null)
             {
                 throw new InvalidOperationException(
                     "Stripe Checkout Session is missing.");
             }
-
             if (session.Metadata == null ||
                 !session.Metadata.TryGetValue(
                     "PaymentId",
@@ -364,35 +474,28 @@ public class PaymentService : IPaymentService
                 throw new InvalidOperationException(
                     "Stripe PaymentId metadata is invalid.");
             }
-
             var payment =
                 await _paymentRepository
                     .GetByIdAsync(paymentId);
-
             if (payment == null)
             {
                 throw new InvalidOperationException(
                     "Payment record not found.");
             }
-
             if (payment.Status == "Completed")
             {
                 return;
             }
-
             await using var transaction =
                 await _unitOfWork.BeginTransactionAsync();
-
             try
             {
                 payment.Status = "Failed";
                 payment.FailureReason =
                     "Stripe payment failed.";
                 payment.UpdatedAt = DateTime.UtcNow;
-
                 await _paymentRepository
                     .UpdateAsync(payment);
-
                 var webhookEvent = new StripeWebhookEvent
                 {
                     StripeEventId = stripeEvent.Id,
@@ -400,12 +503,9 @@ public class PaymentService : IPaymentService
                     CreatedAt = DateTime.UtcNow,
                     ProcessedAt = DateTime.UtcNow
                 };
-
                 await _stripeWebhookEventRepository
                     .AddAsync(webhookEvent);
-
                 await _unitOfWork.SaveChangesAsync();
-
                 await transaction.CommitAsync();
             }
             catch
@@ -413,10 +513,8 @@ public class PaymentService : IPaymentService
                 await transaction.RollbackAsync();
                 throw;
             }
-
             return;
         }
-
         /*
          * ============================================================
          * UNKNOWN / CURRENTLY UNSUPPORTED EVENT
@@ -425,7 +523,6 @@ public class PaymentService : IPaymentService
          * We record the event for audit/idempotency purposes,
          * but do not modify payment or order state.
          */
-
         if (stripeEvent.Type != "checkout.session.completed")
         {
             var ignoredEvent = new StripeWebhookEvent
@@ -435,15 +532,11 @@ public class PaymentService : IPaymentService
                 CreatedAt = DateTime.UtcNow,
                 ProcessedAt = DateTime.UtcNow
             };
-
             await _stripeWebhookEventRepository
                 .AddAsync(ignoredEvent);
-
             await _unitOfWork.SaveChangesAsync();
-
             return;
         }
-
         /*
          * ============================================================
          * CHECKOUT SESSION COMPLETED
@@ -457,22 +550,18 @@ public class PaymentService : IPaymentService
          * Cart          -> Clear
          * Email Queue   -> Pending
          */
-
         var completedSession =
             stripeEvent.Data.Object as Stripe.Checkout.Session;
-
         if (completedSession == null)
         {
             throw new InvalidOperationException(
                 "Stripe Checkout Session is missing.");
         }
-
         if (completedSession.Metadata == null)
         {
             throw new InvalidOperationException(
                 "Stripe Checkout Session metadata is missing.");
         }
-
         if (!completedSession.Metadata.TryGetValue(
                 "PaymentId",
                 out var completedPaymentIdString) ||
@@ -483,7 +572,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe PaymentId metadata is invalid.");
         }
-
         if (!completedSession.Metadata.TryGetValue(
                 "OrderId",
                 out var completedOrderIdString) ||
@@ -494,7 +582,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe OrderId metadata is invalid.");
         }
-
         if (!completedSession.Metadata.TryGetValue(
                 "OrderNumber",
                 out var completedOrderNumber))
@@ -502,13 +589,11 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe OrderNumber metadata is missing.");
         }
-
         if (string.IsNullOrWhiteSpace(completedSession.Id))
         {
             throw new InvalidOperationException(
                 "Stripe Session ID is missing.");
         }
-
         if (!string.Equals(
                 completedSession.Currency,
                 "usd",
@@ -517,7 +602,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe payment currency must be USD.");
         }
-
         if (!string.Equals(
                 completedSession.PaymentStatus,
                 "paid",
@@ -526,30 +610,25 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe payment has not been completed.");
         }
-
         if (string.IsNullOrWhiteSpace(
                 completedSession.PaymentIntentId))
         {
             throw new InvalidOperationException(
                 "Stripe PaymentIntent ID is missing.");
         }
-
         var completedPayment =
             await _paymentRepository
                 .GetByIdAsync(completedPaymentId);
-
         if (completedPayment == null)
         {
             throw new InvalidOperationException(
                 "Payment record not found.");
         }
-
         if (completedPayment.OrderId != completedOrderId)
         {
             throw new InvalidOperationException(
                 "Payment does not belong to the specified order.");
         }
-
         if (!string.Equals(
                 completedPayment.StripeSessionId,
                 completedSession.Id,
@@ -558,7 +637,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe Session does not match the payment record.");
         }
-
         if (!string.Equals(
                 completedPayment.Currency,
                 "USD",
@@ -567,7 +645,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Payment currency must be USD.");
         }
-
         if (completedPayment.Status == "Completed")
         {
             var alreadyCompletedEvent =
@@ -578,31 +655,24 @@ public class PaymentService : IPaymentService
                     CreatedAt = DateTime.UtcNow,
                     ProcessedAt = DateTime.UtcNow
                 };
-
             await _stripeWebhookEventRepository
                 .AddAsync(alreadyCompletedEvent);
-
             await _unitOfWork.SaveChangesAsync();
-
             return;
         }
-
         var order =
             await _orderRepository
                 .GetByIdAsync(completedPayment.OrderId);
-
         if (order == null)
         {
             throw new InvalidOperationException(
                 "Order associated with payment was not found.");
         }
-
         if (order.Id != completedOrderId)
         {
             throw new InvalidOperationException(
                 "Stripe order does not match the payment order.");
         }
-
         if (!string.Equals(
                 order.OrderNumber,
                 completedOrderNumber,
@@ -611,7 +681,6 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe order number does not match the order.");
         }
-
         if (!string.Equals(
                 order.Currency,
                 "USD",
@@ -620,28 +689,23 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Order currency must be USD.");
         }
-
         if (order.TotalAmount < 200m)
         {
             throw new InvalidOperationException(
                 "Order does not meet the minimum payment amount.");
         }
-
         if (!completedSession.AmountTotal.HasValue)
         {
             throw new InvalidOperationException(
                 "Stripe payment amount is missing.");
         }
-
         var expectedAmount =
             checked((long)(order.TotalAmount * 100m));
-
         if (completedSession.AmountTotal.Value != expectedAmount)
         {
             throw new InvalidOperationException(
                 "Stripe payment amount does not match the order total.");
         }
-
         if (completedPayment.StripePaymentIntentId != null &&
             !string.Equals(
                 completedPayment.StripePaymentIntentId,
@@ -651,10 +715,8 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException(
                 "Stripe PaymentIntent does not match the payment record.");
         }
-
         await using var completedTransaction =
             await _unitOfWork.BeginTransactionAsync();
-
         try
         {
             completedPayment.Status = "Completed";
@@ -665,17 +727,13 @@ public class PaymentService : IPaymentService
                 completedSession.CustomerId;
             completedPayment.UpdatedAt =
                 DateTime.UtcNow;
-
             await _paymentRepository
                 .UpdateAsync(completedPayment);
-
             order.Status = "Paid";
             order.UpdatedAt =
                 DateTime.UtcNow;
-
             await _orderRepository
                 .UpdateAsync(order);
-
             var statusHistory = new OrderStatusHistory
             {
                 OrderId = order.Id,
@@ -684,20 +742,16 @@ public class PaymentService : IPaymentService
                     "Payment completed successfully through Stripe.",
                 CreatedAt = DateTime.UtcNow
             };
-
             await _orderRepository
                 .AddStatusHistoryAsync(statusHistory);
-
             var cart =
                 await _cartRepository
                     .GetByUserIdAsync(order.UserId);
-
             if (cart != null)
             {
                 await _cartRepository
                     .ClearItemsAsync(cart.Id);
             }
-
             var webhookEvent = new StripeWebhookEvent
             {
                 StripeEventId = stripeEvent.Id,
@@ -705,10 +759,8 @@ public class PaymentService : IPaymentService
                 CreatedAt = DateTime.UtcNow,
                 ProcessedAt = DateTime.UtcNow
             };
-
             await _stripeWebhookEventRepository
                 .AddAsync(webhookEvent);
-
             var emailNotification = new EmailNotification
             {
                 OrderId = order.Id,
@@ -717,12 +769,9 @@ public class PaymentService : IPaymentService
                 AttemptCount = 0,
                 CreatedAt = DateTime.UtcNow
             };
-
             await _emailNotificationRepository
                 .AddAsync(emailNotification);
-
             await _unitOfWork.SaveChangesAsync();
-
             await completedTransaction.CommitAsync();
         }
         catch
