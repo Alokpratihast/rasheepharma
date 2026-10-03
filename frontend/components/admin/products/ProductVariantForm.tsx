@@ -26,7 +26,6 @@ export function ProductVariantForm({
   const [strength, setStrength] = useState("");
   const [packSize, setPackSize] = useState("");
   const [price, setPrice] = useState("");
-  const [currency, setCurrency] = useState("INR");
   const [moq, setMoq] = useState("");
   const [unitType, setUnitType] = useState("");
   const [sku, setSku] = useState("");
@@ -41,7 +40,6 @@ export function ProductVariantForm({
       setStrength(variant.strength ?? "");
       setPackSize(variant.packSize ?? "");
       setPrice(String(variant.price));
-      setCurrency(variant.currency ?? "INR");
       setMoq(variant.moq !== null ? String(variant.moq) : "");
       setUnitType(variant.unitType ?? "");
       setSku(variant.sku ?? "");
@@ -56,7 +54,6 @@ export function ProductVariantForm({
     setStrength("");
     setPackSize("");
     setPrice("");
-    setCurrency("INR");
     setMoq("");
     setUnitType("");
     setSku("");
@@ -87,7 +84,7 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: currency || null,
+          currency: "USD",
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -108,7 +105,7 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: currency || null,
+          currency: "USD",
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -199,7 +196,7 @@ export function ProductVariantForm({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Price
+            Price (USD)
           </label>
 
           <input
@@ -223,12 +220,9 @@ export function ProductVariantForm({
 
           <input
             type="text"
-            value={currency}
-            onChange={(event) =>
-              setCurrency(event.target.value)
-            }
-            placeholder="INR"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
+            value="USD"
+            readOnly
+            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 outline-none"
           />
         </div>
 

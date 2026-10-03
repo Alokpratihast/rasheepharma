@@ -10,7 +10,12 @@ public interface IPaymentRepository
 
     Task<Payment?> GetByStripeSessionIdAsync(string stripeSessionId);
 
-    Task UpdateAsync(Payment payment);
+    Task<Payment?> GetByStripePaymentIntentIdAsync(string stripePaymentIntentId);
 
-    
+    Task<Payment?> GetByCheckoutIdempotencyKeyAsync(
+        string checkoutIdempotencyKey);
+
+    Task<Payment?> GetActiveCheckoutByOrderIdAsync(int orderId);
+
+    Task UpdateAsync(Payment payment);
 }

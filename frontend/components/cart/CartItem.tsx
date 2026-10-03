@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 import type { CartItem as CartItemType } from "@/types/cart";
+import { getApiAssetUrl } from "@/lib/api/client";
 
 interface CartItemProps {
   item: CartItemType;
@@ -39,18 +39,19 @@ export function CartItem({
     );
   };
 
+  const imageUrl = getApiAssetUrl(item.imageUrl);
+
   return (
     <article className="border-b border-[#edf0ef] py-5 last:border-b-0">
       <div className="flex gap-4 sm:gap-5">
         {/* Product Image */}
         <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F5F7F7] sm:size-24">
-          {item.imageUrl ? (
-            <Image
-              src={item.imageUrl}
+          {imageUrl ? (
+            <img
+              src={imageUrl}
               alt={item.productName}
-              fill
-              sizes="96px"
-              className="object-contain p-2"
+              className="h-full w-full object-contain p-2"
+              loading="lazy"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium text-[#8A9391]">
@@ -71,7 +72,9 @@ export function CartItem({
                 <p className="mt-1 text-xs text-[#777]">
                   {item.strength && item.strength}
 
-                  {item.strength && item.packSize && " • "}
+                  {item.strength &&
+                    item.packSize &&
+                    " • "}
 
                   {item.packSize && item.packSize}
                 </p>
@@ -147,7 +150,7 @@ export function CartItem({
               </p>
 
               <p className="mt-0.5 text-sm font-bold text-[#F5821F]">
-                ₹{item.totalPrice.toFixed(2)}
+                ${item.totalPrice.toFixed(2)}
               </p>
             </div>
           </div>

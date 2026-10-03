@@ -2,7 +2,7 @@ import { getStoredToken } from "@/lib/auth/session";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://localhost:7001/api";
+  "http://localhost:5104/api";
 
 export function getApiAssetUrl(
   assetUrl: string | null | undefined,
@@ -99,10 +99,21 @@ export async function apiClient<T>(
     );
   }
 
+  const method = (
+    requestOptions.method ?? "GET"
+  ).toUpperCase();
+
   const response = await fetch(
     `${API_BASE_URL}${endpoint}`,
     {
       ...requestOptions,
+
+      // GET requests must always receive fresh API data.
+      // POST/PUT/PATCH/DELETE keep their normal behavior.
+      ...(method === "GET"
+        ? { cache: "no-store" as const }
+        : {}),
+
       headers: requestHeaders,
     },
   );

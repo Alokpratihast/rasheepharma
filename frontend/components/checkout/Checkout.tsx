@@ -10,6 +10,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 
 import { cartService } from "@/services/cart.service";
 import { orderService } from "@/services/order.service";
+import { paymentService } from "@/services/paymentService";
 
 import { CheckoutAddress } from "./CheckoutAddress";
 import { CheckoutSummary } from "./CheckoutSummary";
@@ -71,10 +72,14 @@ export function Checkout() {
   }, [authLoading, isAuthenticated, router]);
 
   /**
-   * Place order.
+   * Create order and start Stripe Checkout.
    *
-   * Backend only needs the selected addressId.
-   * Product prices and cart items are taken from the server-side cart.
+   * Backend remains the source of truth for:
+   * - Product prices
+   * - Stock
+   * - Order total
+   * - Minimum order value
+   * - Currency
    */
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
@@ -87,23 +92,41 @@ export function Checkout() {
       return;
     }
 
+    /**
+     * Frontend UX validation.
+     * Backend also validates the $200 minimum.
+     */
+    if (cart.totalAmount < 200) {
+      toast.error("Minimum order value is $200 USD.");
+      return;
+    }
+
     try {
       setIsPlacingOrder(true);
 
+      /**
+       * Create the order using the selected address.
+       * Final price, stock and total are calculated by the backend.
+       */
       const order = await orderService.createOrder({
         addressId: selectedAddressId,
       });
 
-      toast.success("Order placed successfully.");
+      /**
+       * Create Stripe Checkout Session for the newly created order.
+       */
+      const response =
+        await paymentService.createCheckoutSession(order.id);
 
-      router.push(
-        `/orders/${encodeURIComponent(order.orderNumber)}`
-      );
+      /**
+       * Redirect customer to Stripe Checkout.
+       */
+      window.location.assign(response.checkoutUrl);
     } catch (error) {
-      console.error("Failed to place order:", error);
+      console.error("Failed to start payment:", error);
 
       toast.error(
-        "Unable to place your order. Please try again."
+        "Unable to start payment. Please try again."
       );
     } finally {
       setIsPlacingOrder(false);

@@ -23,6 +23,9 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<PasswordResetToken> PasswordResetTokens
+    => Set<PasswordResetToken>();
+
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<Address> Addresses => Set<Address>();
@@ -41,6 +44,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments
         => Set<Payment>();
 
+    public DbSet<StripeWebhookEvent> StripeWebhookEvents
+    => Set<StripeWebhookEvent>();
+
+    public DbSet<EmailNotification> EmailNotifications
+    => Set<EmailNotification>();
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<EnquiryItem> EnquiryItems
@@ -206,6 +214,17 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(p => p.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+
+        // =====================================================
+        // Order → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Order)
+            .WithMany()
+            .HasForeignKey(n => n.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // =====================================================
         // User → Enquiry
         // =====================================================
@@ -316,6 +335,10 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.Email)
             .IsUnique();
 
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
         modelBuilder.Entity<Category>()
             .HasIndex(c => c.Slug)
             .IsUnique();
@@ -328,6 +351,34 @@ public class ApplicationDbContext : DbContext
             .HasIndex(o => o.OrderNumber)
             .IsUnique();
 
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripeSessionId)
+            .IsUnique()
+            .HasFilter("[StripeSessionId] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.CheckoutIdempotencyKey)
+            .IsUnique()
+            .HasFilter("[CheckoutIdempotencyKey] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.OrderId)
+            .IsUnique()
+            .HasFilter("[Status] IN ('Pending', 'Failed')");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripePaymentIntentId)
+            .IsUnique()
+            .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.OrderId,
+                n.Type
+            })
+            .IsUnique();
+
         modelBuilder.Entity<Enquiry>()
             .HasIndex(e => e.EnquiryNumber)
             .IsUnique();
@@ -335,6 +386,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Quotation>()
             .HasIndex(q => q.QuoteNumber)
             .IsUnique();
+
+        modelBuilder.Entity<StripeWebhookEvent>()
+        .HasIndex(e => e.StripeEventId)
+        .IsUnique();    
 
         // =====================================================
         // Decimal Precision
@@ -371,5 +426,16 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<QuotationItem>()
             .Property(qi => qi.TotalPrice)
             .HasPrecision(18, 2);
+
+
+        // =========================================================
+// User → PasswordResetToken
+// =========================================================
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.PasswordResetTokens)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);  
     }
 }

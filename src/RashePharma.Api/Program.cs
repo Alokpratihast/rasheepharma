@@ -10,7 +10,9 @@ using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
+using Microsoft.OpenApi;
 using System.Text;
+using QuestPDF.Infrastructure;
 using Stripe;
 
 // =========================================================
@@ -19,8 +21,9 @@ using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
-StripeConfiguration.ApiKey =
-    builder.Configuration["Stripe:SecretKey"];
+QuestPDF.Settings.License = LicenseType.Community;
+
+
 
 // =========================================================
 // Load .env for local development only
@@ -64,6 +67,9 @@ if (string.IsNullOrWhiteSpace(stripeSecretKey))
 
 builder.Configuration["Stripe:SecretKey"] =
     stripeSecretKey;
+
+
+StripeConfiguration.ApiKey = stripeSecretKey;
 
 // Webhook Secret
 var stripeWebhookSecret =
@@ -114,6 +120,75 @@ if (!string.IsNullOrWhiteSpace(azureStorageConnectionString))
 }
 
 // =========================================================
+// Frontend
+// =========================================================
+
+var frontendBaseUrl =
+    Environment.GetEnvironmentVariable(
+        "Frontend__BaseUrl");
+
+if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+{
+    builder.Configuration["Frontend:BaseUrl"] =
+        frontendBaseUrl;
+}
+
+// Brevo SMTP
+var brevoSmtpHost =
+    Environment.GetEnvironmentVariable("Brevo__SmtpHost");
+
+var brevoSmtpPort =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPort");
+
+var brevoSmtpUsername =
+    Environment.GetEnvironmentVariable("Brevo__SmtpUsername");
+
+var brevoSmtpPassword =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPassword");
+
+var brevoFromEmail =
+    Environment.GetEnvironmentVariable("Brevo__FromEmail");
+
+var brevoFromName =
+    Environment.GetEnvironmentVariable("Brevo__FromName");
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpHost))
+{
+    builder.Configuration["Brevo:SmtpHost"] =
+        brevoSmtpHost;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPort))
+{
+    builder.Configuration["Brevo:SmtpPort"] =
+        brevoSmtpPort;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpUsername))
+{
+    builder.Configuration["Brevo:SmtpUsername"] =
+        brevoSmtpUsername;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPassword))
+{
+    builder.Configuration["Brevo:SmtpPassword"] =
+        brevoSmtpPassword;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromEmail))
+{
+    builder.Configuration["Brevo:FromEmail"] =
+        brevoFromEmail;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromName))
+{
+    builder.Configuration["Brevo:FromName"] =
+        brevoFromName;
+}
+
+// =========================================================
 // Controllers / API
 // =========================================================
 
@@ -121,7 +196,29 @@ builder.Services.AddControllers();
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description =
+                "Enter your JWT token. Example: Bearer {your-token}"
+        });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(
+                "Bearer",
+                document)] = []
+        });
+});
 
 // =========================================================
 // CORS
@@ -285,6 +382,10 @@ builder.Services.AddScoped<
     UserRepository>();
 
 builder.Services.AddScoped<
+    IPasswordResetTokenRepository,
+    PasswordResetTokenRepository>();
+
+builder.Services.AddScoped<
     IAddressRepository,
     AddressRepository>();
 
@@ -363,6 +464,27 @@ builder.Services.AddScoped<
     AuthService>();
 
 builder.Services.AddScoped<
+    IEmailService,
+    EmailService>();
+
+builder.Services.AddScoped<
+    IInvoiceService,
+    RashePharma.Infrastructure.Services.InvoiceService>();
+
+builder.Services.AddScoped<
+    IEmailNotificationRepository,
+    EmailNotificationRepository>();
+
+builder.Services.AddScoped<
+    IEmailNotificationService,
+    EmailNotificationService>();
+
+builder.Services.AddHostedService<
+    EmailNotificationWorker>();
+
+
+
+builder.Services.AddScoped<
     IJwtTokenService,
     JwtTokenService>();
 
@@ -401,6 +523,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IPaymentRepository,
     PaymentRepository>();
+
+builder.Services.AddScoped<
+    IStripeWebhookEventRepository,
+    StripeWebhookEventRepository>();
 
 // =========================================================
 // Build Application
