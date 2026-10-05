@@ -269,7 +269,7 @@ export default async function ProductDetailPage({
 
                   <p className="mt-1 text-sm font-bold text-[#F5821F]">
                     {lowestPrice !== null
-                      ? `₹${lowestPrice.toLocaleString("en-IN")}`
+                      ? `$${lowestPrice.toLocaleString("en-US")}`
                       : "Contact"}
                   </p>
                 </div>
@@ -452,8 +452,8 @@ export default async function ProductDetailPage({
 
                         <p className="text-lg font-bold text-[#F5821F]">
                           {variant.price > 0
-                            ? `₹${variant.price.toLocaleString(
-                                "en-IN"
+                            ? `$${variant.price.toLocaleString(
+                                "en-US"
                               )}`
                             : "Contact"}
                         </p>

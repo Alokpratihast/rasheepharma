@@ -6,9 +6,8 @@ public class ProductVariantUpdateDto
 
     public string? PackSize { get; set; }
 
+    // Admin enters price in INR
     public decimal Price { get; set; }
-
-    public string  Currency { get; set; } = "USD";
 
     public int? MOQ { get; set; }
 

@@ -88,7 +88,6 @@ export interface ProductVariantCreateInput {
   strength: string | null;
   packSize: string | null;
   price: number;
-  currency: string | null;
   moq: number | null;
   unitType: string | null;
   sku: string | null;
@@ -100,7 +99,6 @@ export interface ProductVariantUpdateInput {
   strength: string | null;
   packSize: string | null;
   price: number;
-  currency: string | null;
   moq: number | null;
   unitType: string | null;
   sku: string | null;

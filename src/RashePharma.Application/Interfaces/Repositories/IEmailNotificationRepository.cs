@@ -8,6 +8,10 @@ public interface IEmailNotificationRepository
         int orderId,
         string type);
 
+    Task<EmailNotification?> GetByQuotationAndTypeAsync(
+        int quotationId,
+        string type);
+
     Task<List<EmailNotification>> GetPendingAsync(
         int batchSize);
 

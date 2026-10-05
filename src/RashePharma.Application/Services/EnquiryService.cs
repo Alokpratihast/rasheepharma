@@ -232,20 +232,33 @@ public class EnquiryService : IEnquiryService
     }
 
     private static EnquiryListDto MapToListDto(
-        Enquiry enquiry)
+    Enquiry enquiry)
+{
+    return new EnquiryListDto
     {
-        return new EnquiryListDto
-        {
-            Id = enquiry.Id,
-            EnquiryNumber = enquiry.EnquiryNumber,
-            CustomerName = enquiry.CustomerName,
-            Email = enquiry.Email,
-            Country = enquiry.Country,
-            BusinessType = enquiry.BusinessType,
-            Status = enquiry.Status,
-            CreatedAt = enquiry.CreatedAt
-        };
-    }
+        Id = enquiry.Id,
+        EnquiryNumber = enquiry.EnquiryNumber,
+        CustomerName = enquiry.CustomerName,
+        Email = enquiry.Email,
+        Country = enquiry.Country,
+        BusinessType = enquiry.BusinessType,
+        Status = enquiry.Status,
+        CreatedAt = enquiry.CreatedAt,
+
+        Items = enquiry.Items
+            .Select(item => new EnquiryItemDto
+            {
+                Id = item.Id,
+                ProductVariantId = item.ProductVariantId,
+                ProductName = item.ProductVariant.Product.Name,
+                Strength = item.ProductVariant.Strength,
+                PackSize = item.ProductVariant.PackSize,
+                Quantity = item.Quantity,
+                Message = item.Message
+            })
+            .ToList()
+    };
+}
 
     private static EnquiryDetailsDto MapToDetailsDto(
         Enquiry enquiry)

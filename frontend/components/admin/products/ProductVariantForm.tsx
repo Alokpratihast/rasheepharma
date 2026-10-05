@@ -39,8 +39,14 @@ export function ProductVariantForm({
     if (variant) {
       setStrength(variant.strength ?? "");
       setPackSize(variant.packSize ?? "");
-      setPrice(String(variant.price));
-      setMoq(variant.moq !== null ? String(variant.moq) : "");
+
+      // Existing DB price is already stored in USD.
+      // Admin will enter the new/update price in INR.
+      setPrice("");
+
+      setMoq(
+        variant.moq !== null ? String(variant.moq) : "",
+      );
       setUnitType(variant.unitType ?? "");
       setSku(variant.sku ?? "");
       setStockQuantity(String(variant.stockQuantity));
@@ -62,7 +68,9 @@ export function ProductVariantForm({
     setError(null);
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
 
     try {
@@ -70,7 +78,7 @@ export function ProductVariantForm({
       setError(null);
 
       if (!price || Number(price) < 0) {
-        setError("Please enter a valid price.");
+        setError("Please enter a valid price in INR.");
         return;
       }
 
@@ -84,7 +92,6 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: "USD",
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -105,7 +112,6 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: "USD",
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -196,7 +202,7 @@ export function ProductVariantForm({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Price (USD)
+            Price (INR)
           </label>
 
           <input
@@ -207,23 +213,15 @@ export function ProductVariantForm({
             onChange={(event) =>
               setPrice(event.target.value)
             }
-            placeholder="e.g. 25.00"
+            placeholder="e.g. 10000"
             required
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
           />
-        </div>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Currency
-          </label>
-
-          <input
-            type="text"
-            value="USD"
-            readOnly
-            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 outline-none"
-          />
+          <p className="mt-1.5 text-xs text-gray-500">
+            Enter the price in Indian Rupees. The system will
+            automatically convert it to USD.
+          </p>
         </div>
 
         <div>

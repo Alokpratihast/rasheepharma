@@ -225,8 +225,9 @@ export function ProductVariantList({
                     </td>
 
                     <td className="px-5 py-4 text-sm font-medium text-gray-900">
-                      {variant.currency || "INR"}{" "}
-                      {variant.price.toFixed(2)}
+                      {variant.currency === "USD"
+                      ? `$${variant.price.toFixed(2)}`
+                      : `₹${variant.price.toFixed(2)}`}
                     </td>
 
                     <td className="px-5 py-4 text-sm text-gray-600">

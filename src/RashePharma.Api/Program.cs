@@ -23,6 +23,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 QuestPDF.Settings.License = LicenseType.Community;
 
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
+
 
 
 // =========================================================

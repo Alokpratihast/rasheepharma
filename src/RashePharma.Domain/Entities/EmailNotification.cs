@@ -4,10 +4,21 @@ public class EmailNotification
 {
     public int Id { get; set; }
 
-    public int OrderId { get; set; }
+    // Used for OrderInvoice notifications.
+    // Null for quotation notifications.
+    public int? OrderId { get; set; }
 
+    // Used for Quotation notifications.
+    // Null for OrderInvoice notifications.
+    public int? QuotationId { get; set; }
+
+    // Examples:
+    // "OrderInvoice"
+    // "Quotation"
     public string Type { get; set; } = string.Empty;
 
+    // Pending -> Processing -> Sent
+    // Failed notifications can be retried by the worker.
     public string Status { get; set; } = "Pending";
 
     public int AttemptCount { get; set; } = 0;
@@ -20,6 +31,9 @@ public class EmailNotification
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation Property
-    public Order Order { get; set; } = null!;
+    // Navigation Properties
+
+    public Order? Order { get; set; }
+
+    public Quotation? Quotation { get; set; }
 }

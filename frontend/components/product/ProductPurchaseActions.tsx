@@ -169,7 +169,7 @@ export function ProductPurchaseActions({
                   </div>
 
                   <p className="text-sm font-bold text-[#F5821F]">
-                    ₹{variant.price.toLocaleString("en-IN")}
+                    ${variant.price.toLocaleString("en-IN")}
                   </p>
                 </div>
 
@@ -229,10 +229,10 @@ export function ProductPurchaseActions({
               </p>
 
               <p className="mt-1 text-xl font-bold text-[#F5821F]">
-                ₹
+                $
                 {(
                   selectedVariant.price * quantity
-                ).toLocaleString("en-IN")}
+                ).toLocaleString("en-US")}
               </p>
             </div>
           </div>

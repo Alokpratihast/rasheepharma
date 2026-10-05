@@ -17,4 +17,6 @@ public class EnquiryListDto
     public string Status { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+
+    public List<EnquiryItemDto> Items { get; set; } = new();
 }
