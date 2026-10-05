@@ -1,104 +1,70 @@
 import {
   Building2,
   Globe2,
-  HandCoins,
   Handshake,
   Landmark,
-  UserRound,
 } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
 
-const companyDetails = [
+/**
+ * Company facts strip. Sits on top of the hero's curved divider so the
+ * hero flows into the page instead of ending in a hard edge.
+ */
+const facts = [
   {
-    title: "Nature of Business",
-    value: "Manufacturers, Exporters, Wholesaler, Retailer, Trader",
-    icon: Handshake,
-  },
-  {
-    title: "Year of Establishment",
-    value: "2019",
     icon: Building2,
+    label: "Established",
+    value: "2019",
   },
   {
-    title: "Market Covered",
-    value: "Worldwide",
     icon: Globe2,
+    label: "Market covered",
+    value: "Worldwide",
   },
   {
-    title: "Name of Founder",
-    value: "Mr. Shekappa",
-    icon: UserRound,
+    icon: Handshake,
+    label: "Nature of business",
+    value: "Manufacturer, exporter, wholesaler, retailer and trader",
   },
   {
-    title: "GST No",
-    value: "29AAJCR5569D1ZY",
     icon: Landmark,
-  },
-  {
-    title: "Annual Turnover",
-    value: "Rs. 50 Lakh - 1 Crore",
-    icon: HandCoins,
+    label: "GST number",
+    value: "29AAJCR5569D1ZY",
   },
 ];
 
 export function TrustSection() {
   return (
-    <section className="bg-[#f7f7f7] py-14 sm:py-16">
+    <section className="relative z-10 -mt-12 pb-6 sm:-mt-16 lg:pb-10">
       <Container>
-        {/* =================================================
-            SECTION INTRO
-        ================================================== */}
+        <div className="rounded-3xl shadow-[0_24px_60px_rgba(7,63,50,0.16)]">
+          {/* gap-px over a border-coloured background draws the dividers */}
+          <dl className="grid gap-px overflow-hidden rounded-3xl bg-border sm:grid-cols-2 lg:grid-cols-4">
+            {facts.map((fact) => {
+              const Icon = fact.icon;
 
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-            About RashePharma
-          </p>
+              return (
+                <div
+                  key={fact.label}
+                  className="flex items-start gap-4 bg-white p-5 sm:p-6"
+                >
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary">
+                    <Icon aria-hidden="true" className="size-5" />
+                  </span>
 
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#1B2A4A] sm:text-3xl">
-            A Trusted Pharmaceutical Company
-          </h2>
-
-          <p className="mt-4 text-sm leading-6 text-[#595959] sm:text-base sm:leading-7">
-            Rashe Lifesciences is committed to supplying quality pharmaceutical
-            products with reliable service and long-term business partnerships.
-          </p>
-        </div>
-
-        {/* =================================================
-            COMPANY INFORMATION
-        ================================================== */}
-
-        <div className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-          {companyDetails.map((detail) => {
-            const Icon = detail.icon;
-
-            return (
-              <div
-                key={detail.title}
-                className="flex items-center gap-5"
-              >
-                {/* Icon */}
-                <div className="flex size-20 shrink-0 items-center justify-center rounded-full border border-[#d7d7d7] bg-white text-[#555] shadow-sm">
-                  <Icon
-                    aria-hidden="true"
-                    className="size-9 stroke-[1.5]"
-                  />
+                  <div className="min-w-0">
+                    <dt className="text-sm text-muted-foreground">
+                      {fact.label}
+                    </dt>
+                    <dd className="mt-1 break-words text-base font-semibold leading-6 text-brand-dark">
+                      {fact.value}
+                    </dd>
+                  </div>
                 </div>
-
-                {/* Content */}
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-[#1B2A4A]">
-                    {detail.title}
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-6 text-[#595959]">
-                    {detail.value}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </dl>
         </div>
       </Container>
     </section>

@@ -11,4 +11,10 @@ export const siteConfig = {
   email: "info@rasheepharma.com",
   emailHref: "mailto:info@rasheepharma.com",
   announcement: "Supplying healthcare partners worldwide",
+  addressLabel: "Head office",
+  address: [
+    "15th Main Rd, 3rd Stage, 4th Block,",
+    "Sahakar Nagar, Byatarayanapura,",
+    "Bengaluru, Karnataka 560092",
+  ],
 } as const;

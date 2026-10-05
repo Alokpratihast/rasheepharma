@@ -1,55 +1,28 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-import {
-  ArrowUpRight,
-  Mail,
-  MapPin,
-  Phone,
-} from "lucide-react";
+import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
+import { siteConfig } from "@/lib/site";
 
+/** Only routes that exist in the app. */
 const footerLinks = {
   Explore: [
-    {
-      label: "Products",
-      href: "/products",
-    },
-    {
-      label: "Categories",
-      href: "/categories",
-    },
-    {
-      label: "About Us",
-      href: "/about",
-    },
+    { label: "Products", href: "/products" },
+    { label: "Categories", href: "/categories" },
+    { label: "About us", href: "/about" },
   ],
   Business: [
-    {
-      label: "B2B Enquiry",
-      href: "/b2b/enquiries",
-    },
-    {
-      label: "Become a Partner",
-      href: "/b2b/partner",
-    },
-    {
-      label: "Contact Us",
-      href: "/contact",
-    },
+    { label: "B2B enquiry", href: "/b2b/enquiry" },
+    { label: "Contact us", href: "/contact" },
   ],
-  Company: [
-    {
-      label: "Privacy Policy",
-      href: "/privacy",
-    },
-    {
-      label: "Terms & Conditions",
-      href: "/terms",
-    },
+  Account: [
+    { label: "Cart", href: "/cart" },
+    { label: "My orders", href: "/orders" },
+    { label: "Profile", href: "/profile" },
   ],
 };
 
@@ -61,118 +34,99 @@ export function Footer() {
   }
 
   return (
-    <footer className="bg-[#1B2A4A] text-white">
-      <Container>
-        <div className="grid gap-10 py-12 sm:py-14 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-          {/* =================================================
-              COMPANY
-          ================================================== */}
+    <footer className="relative isolate overflow-hidden bg-brand-dark text-white">
+      {/* Soft glow, same family as the hero */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-32 -top-32 -z-10 size-96 rounded-full bg-primary/30 blur-[110px]"
+      />
 
+      <Container>
+        <div className="grid gap-12 py-14 sm:py-16 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          {/* Company */}
           <div className="max-w-md">
             <Link
               href="/"
-              className="inline-flex items-center gap-3"
+              aria-label="Rashe Lifesciences home"
+              className="inline-flex rounded-xl bg-white px-4 py-2.5"
             >
-              <div className="flex size-11 items-center justify-center rounded-lg bg-[#3E8F96] text-xl font-bold text-white">
-                R
-              </div>
-
-              <div>
-                <div className="text-xl font-bold tracking-tight">
-                  Rashe<span className="text-[#5DCAA5]">Pharma</span>
-                </div>
-
-                <p className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.16em] text-white/50">
-                  Healthcare Solutions
-                </p>
-              </div>
+              <Image
+                src="/images/Rashelifescience.png"
+                alt="Rashe Lifesciences Pvt Ltd."
+                width={180}
+                height={60}
+                className="h-10 w-auto object-contain"
+              />
             </Link>
 
-            <p className="mt-5 max-w-sm text-sm leading-6 text-white/60">
-              Delivering quality pharmaceutical products and building
-              trusted healthcare partnerships across global markets.
+            <p className="mt-6 max-w-sm text-sm leading-7 text-white/70">
+              Quality pharmaceutical products and trusted healthcare
+              partnerships across global markets.
             </p>
 
-            {/* Contact details */}
-            <div className="mt-6 space-y-3">
-              <div className="flex items-start gap-3">
-                <MapPin className="mt-0.5 size-4 shrink-0 text-[#5DCAA5]" />
+            <ul className="mt-7 space-y-4 text-sm text-white/75">
+              <li className="flex items-start gap-3">
+                <MapPin
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-emerald-300"
+                />
+                <address className="not-italic leading-6">
+                  {siteConfig.addressLabel}
+                  {siteConfig.address.map((line) => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </address>
+              </li>
 
-                <p className="text-sm leading-6 text-white/70">
-                  Head Office
-                  <br />
-                  15th Main Rd, 3rd Stage, 4th Block,
-                  <br />
-                  Sahakar Nagar, Byatarayanapura,
-                  <br />
-                  Bengaluru, Karnataka 560092
-                </p>
-              </div>
+              <li>
+                <a
+                  href={siteConfig.emailHref}
+                  className="flex items-center gap-3 transition-colors hover:text-white"
+                >
+                  <Mail
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-emerald-300"
+                  />
+                  {siteConfig.email}
+                </a>
+              </li>
 
-              <a
-                href="mailto:info@rasheepharma.com"
-                className="flex items-center gap-3 text-sm text-white/70 transition-colors hover:text-white"
-              >
-                <Mail className="size-4 shrink-0 text-[#5DCAA5]" />
-                info@rasheepharma.com
-              </a>
-
-              <a
-                href="tel:+918000000000"
-                className="flex items-center gap-3 text-sm text-white/70 transition-colors hover:text-white"
-              >
-                <Phone className="size-4 shrink-0 text-[#5DCAA5]" />
-                Contact our team
-              </a>
-            </div>
+              <li>
+                <a
+                  href={siteConfig.phoneHref}
+                  className="flex items-center gap-3 transition-colors hover:text-white"
+                >
+                  <Phone
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-emerald-300"
+                  />
+                  {siteConfig.phone}
+                </a>
+              </li>
+            </ul>
           </div>
 
-          {/* =================================================
-              FOOTER LINKS
-          ================================================== */}
-
-          <FooterColumn
-            title="Explore"
-            links={footerLinks.Explore}
-          />
-
-          <FooterColumn
-            title="Business"
-            links={footerLinks.Business}
-          />
-
-          <FooterColumn
-            title="Company"
-            links={footerLinks.Company}
-          />
+          <FooterColumn title="Explore" links={footerLinks.Explore} />
+          <FooterColumn title="Business" links={footerLinks.Business} />
+          <FooterColumn title="Account" links={footerLinks.Account} />
         </div>
 
-        {/* ===================================================
-            BOTTOM BAR
-        ==================================================== */}
-
-        <div className="flex flex-col gap-4 border-t border-white/10 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+        {/* Bottom bar */}
+        <div className="flex flex-col gap-4 border-t border-white/10 py-6 text-sm text-white/55 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {new Date().getFullYear()} RashePharma. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} {siteConfig.name}. All
+            rights reserved.
           </p>
 
-          <div className="flex items-center gap-5">
-            <Link
-              href="/contact"
-              className="transition-colors hover:text-white"
-            >
-              Contact
-            </Link>
-
-            <Link
-              href="/b2b/enquiries"
-              className="inline-flex items-center gap-1 transition-colors hover:text-white"
-            >
-              Request a Quote
-              <ArrowUpRight className="size-3" />
-            </Link>
-          </div>
+          <Link
+            href="/b2b/enquiry"
+            className="inline-flex items-center gap-1 font-medium text-white/80 transition-colors hover:text-emerald-300"
+          >
+            Request a quote
+            <ArrowUpRight aria-hidden="true" className="size-4" />
+          </Link>
         </div>
       </Container>
     </footer>
@@ -181,33 +135,26 @@ export function Footer() {
 
 interface FooterColumnProps {
   title: string;
-  links: {
-    label: string;
-    href: string;
-  }[];
+  links: { label: string; href: string }[];
 }
 
-function FooterColumn({
-  title,
-  links,
-}: FooterColumnProps) {
+function FooterColumn({ title, links }: FooterColumnProps) {
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-white">
-        {title}
-      </h3>
+    <nav aria-label={title}>
+      <h3 className="text-sm font-semibold text-white">{title}</h3>
 
-      <nav className="mt-4 flex flex-col gap-3">
+      <ul className="mt-5 flex flex-col gap-3">
         {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm text-white/55 transition-colors hover:text-[#5DCAA5]"
-          >
-            {link.label}
-          </Link>
+          <li key={link.href + link.label}>
+            <Link
+              href={link.href}
+              className="text-sm text-white/65 transition-colors hover:text-emerald-300"
+            >
+              {link.label}
+            </Link>
+          </li>
         ))}
-      </nav>
-    </div>
+      </ul>
+    </nav>
   );
 }
