@@ -236,6 +236,16 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         // =====================================================
+        // Enquiry → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Enquiry)
+            .WithMany(e => e.EmailNotifications)
+            .HasForeignKey(n => n.EnquiryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // =====================================================
         // User → Enquiry
         // =====================================================
 
@@ -395,6 +405,16 @@ public class ApplicationDbContext : DbContext
             })
             .IsUnique()
             .HasFilter("[OrderId] IS NOT NULL");
+
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.EnquiryId,
+                n.Type
+            })
+            .IsUnique()
+            .HasFilter("[EnquiryId] IS NOT NULL");
 
         // Prevent duplicate Quotation notifications
         // e.g. only one Quotation notification per quotation.

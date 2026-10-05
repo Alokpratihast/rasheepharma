@@ -10,15 +10,20 @@ public class EnquiryService : IEnquiryService
 {
     private readonly IEnquiryRepository _enquiryRepository;
     private readonly IProductVariantRepository _variantRepository;
+    private readonly IEmailNotificationRepository _emailNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
+
+    private const string EnquiryEmailNotificationType = "Enquiry";
 
     public EnquiryService(
         IEnquiryRepository enquiryRepository,
         IProductVariantRepository variantRepository,
+        IEmailNotificationRepository emailNotificationRepository,
         IUnitOfWork unitOfWork)
     {
         _enquiryRepository = enquiryRepository;
         _variantRepository = variantRepository;
+        _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -102,12 +107,17 @@ public class EnquiryService : IEnquiryService
     }
 
     public async Task<EnquiryDetailsDto> CreateAsync(
-        CreateEnquiryDto dto,
-        int? userId)
-    {
-        if (dto == null)
-            throw new ArgumentNullException(nameof(dto));
+    CreateEnquiryDto dto,
+    int? userId)
+{
+    if (dto == null)
+        throw new ArgumentNullException(nameof(dto));
 
+    await using var transaction =
+        await _unitOfWork.BeginTransactionAsync();
+
+    try
+    {
         var enquiry = new Enquiry
         {
             UserId = userId,
@@ -122,7 +132,6 @@ public class EnquiryService : IEnquiryService
         };
 
         // Enquiry items are optional.
-        // An enquiry can be created without selecting products.
         foreach (var item in dto.Items)
         {
             if (item.Quantity <= 0)
@@ -167,9 +176,27 @@ public class EnquiryService : IEnquiryService
             });
         }
 
+        // Save enquiry.
         await _enquiryRepository.AddAsync(enquiry);
 
+        // Create pending email notification.
+        var emailNotification = new EmailNotification
+        {
+            Enquiry = enquiry,
+            Type = "Enquiry",
+            Status = "Pending",
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _emailNotificationRepository
+            .AddAsync(emailNotification);
+
+        // Save both enquiry + notification.
         await _unitOfWork.SaveChangesAsync();
+
+        // Commit both together.
+        await transaction.CommitAsync();
 
         var createdEnquiry =
             await _enquiryRepository.GetByIdAsync(enquiry.Id);
@@ -182,6 +209,12 @@ public class EnquiryService : IEnquiryService
 
         return MapToDetailsDto(createdEnquiry);
     }
+    catch
+    {
+        await transaction.RollbackAsync();
+        throw;
+    }
+}
 
     public async Task<bool> UpdateStatusAsync(
         int id,
@@ -232,33 +265,33 @@ public class EnquiryService : IEnquiryService
     }
 
     private static EnquiryListDto MapToListDto(
-    Enquiry enquiry)
-{
-    return new EnquiryListDto
+        Enquiry enquiry)
     {
-        Id = enquiry.Id,
-        EnquiryNumber = enquiry.EnquiryNumber,
-        CustomerName = enquiry.CustomerName,
-        Email = enquiry.Email,
-        Country = enquiry.Country,
-        BusinessType = enquiry.BusinessType,
-        Status = enquiry.Status,
-        CreatedAt = enquiry.CreatedAt,
+        return new EnquiryListDto
+        {
+            Id = enquiry.Id,
+            EnquiryNumber = enquiry.EnquiryNumber,
+            CustomerName = enquiry.CustomerName,
+            Email = enquiry.Email,
+            Country = enquiry.Country,
+            BusinessType = enquiry.BusinessType,
+            Status = enquiry.Status,
+            CreatedAt = enquiry.CreatedAt,
 
-        Items = enquiry.Items
-            .Select(item => new EnquiryItemDto
-            {
-                Id = item.Id,
-                ProductVariantId = item.ProductVariantId,
-                ProductName = item.ProductVariant.Product.Name,
-                Strength = item.ProductVariant.Strength,
-                PackSize = item.ProductVariant.PackSize,
-                Quantity = item.Quantity,
-                Message = item.Message
-            })
-            .ToList()
-    };
-}
+            Items = enquiry.Items
+                .Select(item => new EnquiryItemDto
+                {
+                    Id = item.Id,
+                    ProductVariantId = item.ProductVariantId,
+                    ProductName = item.ProductVariant.Product.Name,
+                    Strength = item.ProductVariant.Strength,
+                    PackSize = item.ProductVariant.PackSize,
+                    Quantity = item.Quantity,
+                    Message = item.Message
+                })
+                .ToList()
+        };
+    }
 
     private static EnquiryDetailsDto MapToDetailsDto(
         Enquiry enquiry)

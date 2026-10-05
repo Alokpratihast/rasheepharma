@@ -7,7 +7,7 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
-
+using Microsoft.Extensions.Configuration;
 namespace RashePharma.Infrastructure.Services;
 
 public class EmailNotificationService : IEmailNotificationService
@@ -16,34 +16,42 @@ public class EmailNotificationService : IEmailNotificationService
 
     private const string OrderInvoiceType = "OrderInvoice";
     private const string QuotationType = "Quotation";
+    private const string EnquiryType = "Enquiry";
 
     private readonly IEmailNotificationRepository _notificationRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IUserRepository _userRepository;
     private readonly IQuotationRepository _quotationRepository;
+    private readonly IEnquiryRepository _enquiryRepository;
     private readonly IInvoiceService _invoiceService;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmailNotificationService> _logger;
+
+    private readonly IConfiguration _configuration;
 
     public EmailNotificationService(
         IEmailNotificationRepository notificationRepository,
         IOrderRepository orderRepository,
         IUserRepository userRepository,
         IQuotationRepository quotationRepository,
+        IEnquiryRepository enquiryRepository,
         IInvoiceService invoiceService,
         IEmailService emailService,
         IUnitOfWork unitOfWork,
-        ILogger<EmailNotificationService> logger)
+        ILogger<EmailNotificationService> logger,
+IConfiguration configuration)
     {
         _notificationRepository = notificationRepository;
         _orderRepository = orderRepository;
         _userRepository = userRepository;
         _quotationRepository = quotationRepository;
+        _enquiryRepository = enquiryRepository;
         _invoiceService = invoiceService;
         _emailService = emailService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task ProcessPendingNotificationsAsync(
@@ -83,11 +91,12 @@ public class EmailNotificationService : IEmailNotificationService
             if (notification.AttemptCount > MaxAttempts)
             {
                 _logger.LogWarning(
-                    "Skipping email notification {NotificationId} because maximum attempts were exceeded. Type: {Type}, OrderId: {OrderId}, QuotationId: {QuotationId}",
+                    "Skipping email notification {NotificationId} because maximum attempts were exceeded. Type: {Type}, OrderId: {OrderId}, QuotationId: {QuotationId}, EnquiryId: {EnquiryId}",
                     notification.Id,
                     notification.Type,
                     notification.OrderId,
-                    notification.QuotationId);
+                    notification.QuotationId,
+                    notification.EnquiryId);
 
                 return;
             }
@@ -110,6 +119,15 @@ public class EmailNotificationService : IEmailNotificationService
                 return;
             }
 
+            if (string.Equals(
+                    notification.Type,
+                    EnquiryType,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                await ProcessEnquiryAsync(notification);
+                return;
+            }
+
             throw new InvalidOperationException(
                 $"Unsupported email notification type: {notification.Type}");
         }
@@ -125,11 +143,12 @@ public class EmailNotificationService : IEmailNotificationService
 
             _logger.LogError(
                 ex,
-                "Failed to process email notification. NotificationId: {NotificationId}, Type: {Type}, OrderId: {OrderId}, QuotationId: {QuotationId}, Attempt: {Attempt}",
+                "Failed to process email notification. NotificationId: {NotificationId}, Type: {Type}, OrderId: {OrderId}, QuotationId: {QuotationId}, EnquiryId: {EnquiryId}, Attempt: {Attempt}",
                 notification.Id,
                 notification.Type,
                 notification.OrderId,
                 notification.QuotationId,
+                notification.EnquiryId,
                 notification.AttemptCount);
         }
     }
@@ -334,6 +353,11 @@ public class EmailNotificationService : IEmailNotificationService
                         "N2",
                         CultureInfo.GetCultureInfo("en-US"));
 
+                var quantity =
+                    item.Quantity.ToString(
+                        "N0",
+                        CultureInfo.GetCultureInfo("en-US"));
+
                 return $"""
                     <div style="margin-bottom: 20px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
 
@@ -349,7 +373,7 @@ public class EmailNotificationService : IEmailNotificationService
 
                         <p style="margin: 0 0 8px 0;">
                             <strong>Quantity:</strong>
-                            {item.Quantity:N0}
+                            {quantity}
                         </p>
 
                         <p style="margin: 0 0 8px 0;">
@@ -449,5 +473,211 @@ public class EmailNotificationService : IEmailNotificationService
             notification.Id,
             quotation.Id,
             quotation.QuoteNumber);
+    }
+
+    private async Task ProcessEnquiryAsync(
+        EmailNotification notification)
+    {
+        if (!notification.EnquiryId.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"EnquiryId is required for notification {notification.Id}.");
+        }
+
+        var enquiryId = notification.EnquiryId.Value;
+
+        var enquiry =
+            await _enquiryRepository.GetByIdAsync(enquiryId);
+
+        if (enquiry == null)
+        {
+            throw new InvalidOperationException(
+                $"Enquiry {enquiryId} was not found.");
+        }
+
+        var customerEmail =
+            enquiry.Email?.Trim();
+
+        if (string.IsNullOrWhiteSpace(customerEmail))
+        {
+            throw new InvalidOperationException(
+                $"Customer email is missing for enquiry {enquiry.EnquiryNumber}.");
+        }
+
+        var customerName =
+            enquiry.CustomerName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(customerName))
+        {
+            customerName = "Customer";
+        }
+
+        customerName =
+            WebUtility.HtmlEncode(customerName);
+
+        var enquiryNumber =
+            WebUtility.HtmlEncode(
+                enquiry.EnquiryNumber);
+
+        var country =
+            WebUtility.HtmlEncode(
+                enquiry.Country);
+
+        var businessType =
+            WebUtility.HtmlEncode(
+                enquiry.BusinessType ?? "-");
+
+        var phoneNumber =
+            WebUtility.HtmlEncode(
+                enquiry.PhoneNumber ?? "-");
+
+        var message =
+            string.IsNullOrWhiteSpace(enquiry.Message)
+                ? "-"
+                : WebUtility.HtmlEncode(enquiry.Message);
+
+        var itemDetails = string.Join(
+            "",
+            enquiry.Items.Select(item =>
+            {
+                var productName =
+                    WebUtility.HtmlEncode(
+                        item.ProductVariant.Product.Name);
+
+                var strength =
+                    WebUtility.HtmlEncode(
+                        item.ProductVariant.Strength ?? "-");
+
+                var packSize =
+                    WebUtility.HtmlEncode(
+                        item.ProductVariant.PackSize ?? "-");
+
+                var quantity =
+                    item.Quantity.ToString(
+                        "N0",
+                        CultureInfo.GetCultureInfo("en-US"));
+
+                var itemMessage =
+                    string.IsNullOrWhiteSpace(item.Message)
+                        ? "-"
+                        : WebUtility.HtmlEncode(item.Message);
+
+                return $"""
+                    <div style="margin-bottom: 16px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+
+                        <p style="margin: 0 0 8px 0;">
+                            <strong>Product:</strong>
+                            {productName}
+                        </p>
+
+                        <p style="margin: 0 0 8px 0;">
+                            <strong>Strength / Pack:</strong>
+                            {strength} - {packSize}
+                        </p>
+
+                        <p style="margin: 0 0 8px 0;">
+                            <strong>Quantity:</strong>
+                            {quantity}
+                        </p>
+
+                        <p style="margin: 0;">
+                            <strong>Item Message:</strong>
+                            {itemMessage}
+                        </p>
+
+                    </div>
+                    """;
+            }));
+
+        if (string.IsNullOrWhiteSpace(itemDetails))
+        {
+            itemDetails = "<p>No products were selected.</p>";
+        }
+
+        var subject =
+            $"Rashe Pharma - New Enquiry {enquiry.EnquiryNumber}";
+
+        var htmlBody = $"""
+            <p>Hello Rashe Pharma Team,</p>
+
+            <p>
+                A new enquiry has been submitted through the website.
+            </p>
+
+            <h3>Customer Details</h3>
+
+            <p>
+                <strong>Enquiry Number:</strong> {enquiryNumber}<br />
+                <strong>Name:</strong> {customerName}<br />
+                <strong>Email:</strong> {WebUtility.HtmlEncode(customerEmail)}<br />
+                <strong>Phone:</strong> {phoneNumber}<br />
+                <strong>Country:</strong> {country}<br />
+                <strong>Business Type:</strong> {businessType}
+            </p>
+
+            <h3>Enquiry Message</h3>
+
+            <p>
+                {message}
+            </p>
+
+            <h3>Products</h3>
+
+            {itemDetails}
+
+            <p>
+                Please review this enquiry and contact the customer
+                as required.
+            </p>
+
+            <p>
+                Regards,<br />
+                Rashe Pharma Website
+            </p>
+            """;
+
+        /*
+         * IMPORTANT:
+         * Replace this with the Rashe Pharma team's receiving email
+         * from configuration if you already have one.
+         */
+        var recipientEmail =
+    _configuration["Email:EnquiryRecipient"];
+
+if (string.IsNullOrWhiteSpace(recipientEmail))
+{
+    throw new InvalidOperationException(
+        "Enquiry recipient email is not configured.");
+}
+
+var recipientName = "Rashe Pharma Team";
+
+        _logger.LogInformation(
+            "Sending enquiry email. NotificationId: {NotificationId}, EnquiryId: {EnquiryId}, EnquiryNumber: {EnquiryNumber}, Attempt: {Attempt}",
+            notification.Id,
+            enquiry.Id,
+            enquiry.EnquiryNumber,
+            notification.AttemptCount);
+
+        await _emailService.SendAsync(
+            recipientEmail,
+            recipientName,
+            subject,
+            htmlBody);
+
+        notification.Status = "Sent";
+        notification.SentAt = DateTime.UtcNow;
+        notification.ErrorMessage = null;
+
+        await _notificationRepository
+            .UpdateAsync(notification);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Enquiry email sent successfully. NotificationId: {NotificationId}, EnquiryId: {EnquiryId}, EnquiryNumber: {EnquiryNumber}",
+            notification.Id,
+            enquiry.Id,
+            enquiry.EnquiryNumber);
     }
 }
