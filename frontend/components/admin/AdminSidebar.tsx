@@ -15,6 +15,7 @@ import {
   Users,
   Globe,
   Handshake,
+  Upload,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -32,6 +33,12 @@ const menuItems = [
     href: "/admin/products",
     icon: Package,
   },
+
+  {
+  label: "Bulk Upload",
+  href: "/admin/bulk-upload",
+  icon: Upload,
+},
   {
     label: "Categories",
     href: "/admin/categories",
