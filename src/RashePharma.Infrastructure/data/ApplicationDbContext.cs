@@ -44,6 +44,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments
         => Set<Payment>();
 
+    public DbSet<BulkUploadFile> BulkUploadFiles
+    => Set<BulkUploadFile>();
+
     public DbSet<StripeWebhookEvent> StripeWebhookEvents
     => Set<StripeWebhookEvent>();
 
@@ -68,8 +71,16 @@ public class ApplicationDbContext : DbContext
     public DbSet<WebsiteContent> WebsiteContents
         => Set<WebsiteContent>();
 
+    public DbSet<BulkUploadJob> BulkUploadJobs
+    => Set<BulkUploadJob>();
+
+    public DbSet<BulkUploadError> BulkUploadErrors
+    => Set<BulkUploadError>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
+    
+    
     {
         base.OnModelCreating(modelBuilder);
 
@@ -113,6 +124,18 @@ public class ApplicationDbContext : DbContext
             .WithMany(p => p.Images)
             .HasForeignKey(i => i.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
+
+        // =====================================================
+        // BulkUploadJob → BulkUploadError
+        // =====================================================
+
+        modelBuilder.Entity<BulkUploadError>()
+            .HasOne(e => e.BulkUploadJob)
+            .WithMany(j=> j.Errors)
+            .HasForeignKey(e => e.BulkUploadJobId)
+            .OnDelete(DeleteBehavior.Cascade);  
 
         // =====================================================
         // Role → User
@@ -346,6 +369,16 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey<Partner>(
                 p => p.PartnerRequestId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // =====================================================
+        // BulkUploadJob → BulkUploadFile
+        // =====================================================
+
+        modelBuilder.Entity<BulkUploadFile>()
+            .HasOne(f => f.BulkUploadJob)
+            .WithMany(j => j.Files)
+            .HasForeignKey(f => f.BulkUploadJobId)
+            .OnDelete(DeleteBehavior.Cascade);  
 
         // =====================================================
         // Unique Indexes

@@ -13,6 +13,7 @@ using RashePharma.Infrastructure.Services;
 using Microsoft.OpenApi;
 using System.Text;
 using QuestPDF.Infrastructure;
+using RashePharma.Infrastructure.Workers;
 using Stripe;
 
 // =========================================================
@@ -421,6 +422,15 @@ builder.Services.AddScoped<
     IWebsiteContentRepository,
     WebsiteContentRepository>();
 
+builder.Services.AddScoped<
+    IBulkUploadRepository,
+    BulkUploadRepository>();
+
+builder.Services.AddScoped<
+    IBulkUploadService,
+    BulkUploadService>();
+
+
 // ---------------------------------------------------------
 // Services
 // ---------------------------------------------------------
@@ -455,6 +465,30 @@ builder.Services.AddScoped<IImageStorageService>(sp =>
         connectionString);
 });
 
+builder.Services.AddScoped<IBulkUploadStorageService>(sp =>
+{
+    var configuration =
+        sp.GetRequiredService<IConfiguration>();
+
+    var connectionString =
+        configuration.GetConnectionString("AzureStorage");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobBulkUploadStorageService(
+        connectionString);
+});
+
+builder.Services.AddScoped<
+    IBulkUploadExcelParser,
+    ClosedXmlBulkUploadExcelParser>();
+
+    
+
 builder.Services.AddScoped<
     ICategoryService,
     CategoryService>();
@@ -485,6 +519,8 @@ builder.Services.AddScoped<
 
 builder.Services.AddHostedService<
     EmailNotificationWorker>();
+
+builder.Services.AddHostedService<BulkUploadWorker>();
 
 
 

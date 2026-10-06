@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RashePharma.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using RashePharma.Infrastructure.Data;
 namespace RashePharma.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261005125440_AddBulkUpload")]
+    partial class AddBulkUpload
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -107,49 +110,6 @@ namespace RashePharma.Infrastructure.Migrations
                     b.HasIndex("BulkUploadJobId");
 
                     b.ToTable("BulkUploadErrors");
-                });
-
-            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadFile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("BlobName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("BulkUploadJobId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ContentType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BulkUploadJobId");
-
-                    b.ToTable("BulkUploadFiles");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadJob", b =>
@@ -1177,17 +1137,6 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("BulkUploadJob");
                 });
 
-            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadFile", b =>
-                {
-                    b.HasOne("RashePharma.Domain.Entities.BulkUploadJob", "BulkUploadJob")
-                        .WithMany("Files")
-                        .HasForeignKey("BulkUploadJobId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BulkUploadJob");
-                });
-
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.User", "User")
@@ -1455,8 +1404,6 @@ namespace RashePharma.Infrastructure.Migrations
             modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadJob", b =>
                 {
                     b.Navigation("Errors");
-
-                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
