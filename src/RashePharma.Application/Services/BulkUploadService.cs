@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
@@ -22,6 +24,7 @@ public class BulkUploadService : IBulkUploadService
     private readonly IImageStorageService _imageStorageService;
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
+    private readonly ILogger<BulkUploadService> _logger;
 
     public BulkUploadService(
         IBulkUploadRepository bulkUploadRepository,
@@ -33,7 +36,8 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadStorageService bulkUploadStorageService,
         IImageStorageService imageStorageService,
         IBulkUploadExcelParser excelParser,
-        IExchangeRateService exchangeRateService)
+        IExchangeRateService exchangeRateService,
+        ILogger<BulkUploadService> logger)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -45,6 +49,7 @@ public class BulkUploadService : IBulkUploadService
         _imageStorageService = imageStorageService;
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
+        _logger = logger;
     }
 
     public async Task<int> CreateJobAsync(
@@ -155,6 +160,23 @@ public class BulkUploadService : IBulkUploadService
                 $"Bulk upload job with ID {jobId} was not found.");
         }
 
+        // Diagnostic logging
+        _logger.LogInformation(
+            "DEBUG BulkUpload Job {JobId}: Files loaded = {FileCount}",
+            job.Id,
+            job.Files.Count);
+
+        foreach (var file in job.Files)
+        {
+            _logger.LogInformation(
+                "DEBUG BulkUpload Job {JobId}: FileType={FileType}, OriginalFileName={FileName}, BlobName={BlobName}, FileUrl={FileUrl}",
+                job.Id,
+                file.FileType,
+                file.OriginalFileName,
+                file.BlobName,
+                file.FileUrl);
+        }
+
         if (job.Status == BulkUploadStatus.Completed ||
             job.Status == BulkUploadStatus.CompletedWithErrors)
         {
@@ -248,6 +270,11 @@ public class BulkUploadService : IBulkUploadService
             job.Status = BulkUploadStatus.Failed;
             job.ErrorMessage = ex.Message;
             job.CompletedAt = DateTime.UtcNow;
+
+            _logger.LogError(
+                ex,
+                "Bulk upload job {JobId} failed during processing.",
+                job.Id);
 
             await _bulkUploadRepository.UpdateJobAsync(
                 job,
