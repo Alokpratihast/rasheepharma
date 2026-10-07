@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { ArrowUpRight, Pill } from "lucide-react";
+import { ArrowRight, Pill } from "lucide-react";
 
 import { getApiAssetUrl } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   name: string;
   form: string;
   composition: string;
+  /** Price line, e.g. "Starting from ₹120" or "Contact for details". */
   packSize: string;
   slug: string;
   imageUrl?: string | null;
-  /** Optional: shown next to pack size when provided (home page). */
+  categoryName?: string;
+  /** "grid" (default) or horizontal "list" layout. */
+  view?: "grid" | "list";
   moq?: number | null;
 }
 
@@ -21,83 +25,93 @@ export function ProductCard({
   packSize,
   slug,
   imageUrl,
+  categoryName,
   moq,
+  view = "grid",
 }: ProductCardProps) {
   const productImageUrl = getApiAssetUrl(imageUrl);
+  const isList = view === "list";
+  const hasPrice = packSize.toLowerCase().startsWith("starting");
 
   return (
     <Link
       href={`/products/${slug}`}
-      className="group block h-full rounded-2xl"
+      className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
     >
-      <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-white transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/40 group-hover:shadow-[0_18px_44px_rgba(8,127,91,0.14)]">
-        {/* Image */}
-        <div className="relative flex h-44 items-center justify-center bg-gradient-to-b from-primary-light/70 to-white">
+      <article
+        className={cn(
+          "h-full overflow-hidden rounded-3xl border border-border bg-card transition-all duration-300",
+          "hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_24px_50px_rgba(8,127,91,0.14)]",
+          isList && "flex flex-col sm:flex-row",
+        )}
+      >
+        {/* ---------- IMAGE ---------- */}
+        <div
+          className={cn(
+            "relative flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-primary-light via-muted to-background",
+            isList ? "h-48 sm:h-auto sm:w-56" : "h-52",
+          )}
+        >
+          <div
+            aria-hidden="true"
+            className="absolute -right-8 -top-8 size-32 rounded-full bg-primary/10 blur-2xl transition-transform duration-500 group-hover:scale-150"
+          />
+
           {productImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={productImageUrl}
               alt={name}
               loading="lazy"
-              className="h-full w-full object-contain p-6 transition-transform duration-300 group-hover:scale-105"
+              className="relative h-full w-full object-contain p-7 transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
-            <div className="flex size-20 items-center justify-center rounded-2xl bg-white shadow-sm transition-transform duration-300 group-hover:scale-105">
-              <Pill
-                aria-hidden="true"
-                className="size-9 text-primary"
-              />
+            <div className="relative flex size-20 items-center justify-center rounded-2xl bg-background shadow-md transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110">
+              <Pill aria-hidden="true" className="size-9 text-primary" />
             </div>
           )}
 
-          {form && (
-            <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-primary ring-1 ring-primary/15 backdrop-blur">
-              {form}
-            </span>
-          )}
+          <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary shadow-sm backdrop-blur">
+            {form}
+          </span>
         </div>
 
-        {/* Details */}
-        <div className="flex flex-1 flex-col p-4 sm:p-5">
-          <h3 className="line-clamp-2 text-[15px] font-semibold leading-5 text-brand-dark transition-colors group-hover:text-primary">
-            {name}
-          </h3>
+        {/* ---------- DETAILS ---------- */}
+        <div className="flex min-w-0 flex-1 flex-col p-5">
+          {categoryName && (
+            <p className="mb-1.5 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+              {categoryName}
+            </p>
+          )}
 
-          <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">
+          <h2 className="line-clamp-2 text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
+            {name}
+          </h2>
+
+          <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-muted-foreground">
             {composition}
           </p>
 
-          <div className="mt-auto pt-4">
-            <div className="flex items-end justify-between gap-3 border-t border-dashed border-border pt-4">
-              <dl className="flex gap-5 text-sm">
-                <div>
-                  <dt className="text-xs text-muted-foreground">
-                    Pack size
-                  </dt>
-                  <dd className="mt-0.5 font-medium text-foreground">
-                    {packSize || "-"}
-                  </dd>
-                </div>
-
-                {moq !== null && moq !== undefined && (
-                  <div>
-                    <dt className="text-xs text-muted-foreground">
-                      MOQ
-                    </dt>
-                    <dd className="mt-0.5 font-medium text-foreground">
-                      {moq}
-                    </dd>
-                  </div>
+          <div className="mt-auto flex items-end justify-between gap-3 border-t border-dashed border-border pt-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Price
+              </p>
+              <p
+                className={cn(
+                  "mt-0.5 truncate text-sm",
+                  hasPrice
+                    ? "font-bold text-foreground"
+                    : "font-medium text-muted-foreground",
                 )}
-              </dl>
-
-              <span
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white"
               >
-                <ArrowUpRight className="size-4" />
-              </span>
+                {packSize}
+              </p>
             </div>
+
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+              <ArrowRight className="size-[18px] transition-transform duration-300 group-hover:translate-x-0.5" />
+            </span>
           </div>
         </div>
       </article>
