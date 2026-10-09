@@ -1,8 +1,17 @@
-import { getStoredToken } from "@/lib/auth/session";
 
-const API_BASE_URL =
+import {
+  clearStoredAuth,
+  getStoredAuth,
+  getStoredToken,
+  setStoredAuth,
+} from "@/lib/auth/session";
+
+import type { AuthResponse } from "@/types/auth";
+
+const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:5104/api";
+  "http://localhost:5104/api"
+).replace(/\/+$/, "");
 
 export function getApiAssetUrl(
   assetUrl: string | null | undefined,
@@ -37,7 +46,6 @@ export class ApiError extends Error {
     details?: unknown,
   ) {
     super(message);
-
     this.name = "ApiError";
     this.status = status;
     this.details = details;
@@ -59,6 +67,102 @@ async function parseResponse(
   return text || null;
 }
 
+function getErrorMessage(data: unknown): string {
+  if (
+    data &&
+    typeof data === "object" &&
+    "message" in data &&
+    typeof data.message === "string"
+  ) {
+    return data.message;
+  }
+
+  if (typeof data === "string" && data) {
+    return data;
+  }
+
+  return "Something went wrong.";
+}
+
+/*
+ * Share one refresh request across concurrent API failures.
+ */
+let refreshPromise: Promise<string | null> | null = null;
+
+function notifySessionExpired(): void {
+  clearStoredAuth();
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new Event("auth:session-expired"),
+    );
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/Auth/refresh`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        },
+      );
+
+      const data = await parseResponse(response);
+
+      if (
+        !response.ok ||
+        !data ||
+        typeof data !== "object" ||
+        !("token" in data) ||
+        typeof data.token !== "string" ||
+        !data.token
+      ) {
+        notifySessionExpired();
+        return null;
+      }
+
+      const currentAuth = getStoredAuth();
+
+      if (currentAuth) {
+        /*
+         * Preserve the current user and replace only
+         * the access token.
+         */
+        setStoredAuth({
+          ...currentAuth.user,
+          token: data.token,
+        });
+      } else {
+        /*
+         * The backend refresh endpoint should return
+         * the normal AuthResponse DTO.
+         */
+        setStoredAuth(data as AuthResponse);
+      }
+
+      return data.token;
+    } catch {
+      notifySessionExpired();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: ApiRequestOptions = {},
@@ -73,12 +177,6 @@ export async function apiClient<T>(
 
   requestHeaders.set("Accept", "application/json");
 
-  /*
-   * Only set JSON Content-Type for non-FormData requests.
-   *
-   * For FormData, the browser must set:
-   * multipart/form-data; boundary=...
-   */
   if (
     requestOptions.body &&
     !(requestOptions.body instanceof FormData) &&
@@ -103,42 +201,57 @@ export async function apiClient<T>(
     requestOptions.method ?? "GET"
   ).toUpperCase();
 
-  const response = await fetch(
+  const fetchOptions: RequestInit = {
+    ...requestOptions,
+    credentials: "include",
+    ...(method === "GET"
+      ? { cache: "no-store" as const }
+      : {}),
+    headers: requestHeaders,
+  };
+
+  let response = await fetch(
     `${API_BASE_URL}${endpoint}`,
-    {
-      ...requestOptions,
-
-      // GET requests must always receive fresh API data.
-      // POST/PUT/PATCH/DELETE keep their normal behavior.
-      ...(method === "GET"
-        ? { cache: "no-store" as const }
-        : {}),
-
-      headers: requestHeaders,
-    },
+    fetchOptions,
   );
+
+  /*
+   * Do not attempt refresh for login, registration,
+   * or refresh endpoint failures.
+   */
+  const isAuthEndpoint =
+    /\/Auth\/(login|register|refresh)\/?$/i.test(endpoint);
+
+  /*
+   * Retry at most once. The retry is a direct fetch,
+   * so another 401 cannot start a refresh loop.
+   */
+  if (response.status === 401 && authToken && !isAuthEndpoint) {
+    const newToken = await refreshAccessToken();
+
+    if (newToken) {
+      const retryHeaders = new Headers(requestHeaders);
+
+      retryHeaders.set(
+        "Authorization",
+        `Bearer ${newToken}`,
+      );
+
+      response = await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+          ...fetchOptions,
+          headers: retryHeaders,
+        },
+      );
+    }
+  }
 
   const data = await parseResponse(response);
 
   if (!response.ok) {
-    let message = "Something went wrong.";
-
-    if (
-      data &&
-      typeof data === "object" &&
-      "message" in data &&
-      typeof data.message === "string"
-    ) {
-      message = data.message;
-    } else if (
-      typeof data === "string" &&
-      data
-    ) {
-      message = data;
-    }
-
     throw new ApiError(
-      message,
+      getErrorMessage(data),
       response.status,
       data,
     );

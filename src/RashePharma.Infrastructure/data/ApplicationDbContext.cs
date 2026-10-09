@@ -26,6 +26,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens
     => Set<PasswordResetToken>();
 
+    public DbSet<RefreshToken> RefreshTokens
+    => Set<RefreshToken>();
+
+    public DbSet<RevokedAccessToken> RevokedAccessTokens
+    => Set<RevokedAccessToken>();
+
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<Address> Addresses => Set<Address>();
@@ -380,6 +386,38 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(f => f.BulkUploadJobId)
             .OnDelete(DeleteBehavior.Cascade);  
 
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.RefreshTokens)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RefreshToken>()
+            .Property(t => t.RowVersion)
+            .IsRowVersion();
+
+        // =====================================================
+        // RevokedAccessToken
+        // =====================================================
+
+        modelBuilder.Entity<RevokedAccessToken>(entity =>
+        {
+            entity.HasKey(t => t.Jti);
+
+            entity.Property(t => t.Jti)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(t => t.ExpiresAtUtc)
+                .IsRequired();
+
+            entity.Property(t => t.RevokedAtUtc)
+                .IsRequired();
+
+            entity.HasIndex(t => t.ExpiresAtUtc);
+        });
+
+
         // =====================================================
         // Unique Indexes
         // =====================================================
@@ -387,6 +425,13 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenFamilyId);
 
         modelBuilder.Entity<PasswordResetToken>()
             .HasIndex(t => t.TokenHash)
@@ -423,6 +468,8 @@ public class ApplicationDbContext : DbContext
             .HasIndex(p => p.StripePaymentIntentId)
             .IsUnique()
             .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+        
 
         // =====================================================
         // Email Notification Unique Indexes

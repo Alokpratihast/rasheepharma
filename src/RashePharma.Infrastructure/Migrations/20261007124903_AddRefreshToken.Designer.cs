@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RashePharma.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using RashePharma.Infrastructure.Data;
 namespace RashePharma.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007124903_AddRefreshToken")]
+    partial class AddRefreshToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1039,12 +1042,6 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<Guid>("TokenFamilyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1065,25 +1062,6 @@ namespace RashePharma.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
-                });
-
-            modelBuilder.Entity("RashePharma.Domain.Entities.RevokedAccessToken", b =>
-                {
-                    b.Property<string>("Jti")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("RevokedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Jti");
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.ToTable("RevokedAccessTokens");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Role", b =>

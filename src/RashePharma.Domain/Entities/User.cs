@@ -37,4 +37,7 @@ public class User
     = new List<Order>();
     public ICollection<Enquiry> Enquiries { get; set; }
     = new List<Enquiry>();
+
+    public ICollection<RefreshToken> RefreshTokens { get; set; }
+    = new List<RefreshToken>();
 }

@@ -28,7 +28,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (response: AuthResponse) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<
@@ -105,6 +105,28 @@ export function AuthProvider({
     restoreSession();
   }, []);
 
+
+  
+  useEffect(() => {
+    function handleSessionExpired() {
+      clearStoredAuth();
+      setUser(null);
+      setToken(null);
+    }
+
+    window.addEventListener(
+      "auth:session-expired",
+      handleSessionExpired,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "auth:session-expired",
+        handleSessionExpired,
+      );
+    };
+  }, []);
+
   /* =================================================
      LOGIN
   ================================================== */
@@ -132,12 +154,19 @@ export function AuthProvider({
      LOGOUT
   ================================================== */
 
-  function logout() {
-    clearStoredAuth();
-
-    setUser(null);
-    setToken(null);
+ 
+  async function logout() {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Backend logout failed:", error);
+    } finally {
+      clearStoredAuth();
+      setUser(null);
+      setToken(null);
+    }
   }
+
 
   /* =================================================
      CONTEXT VALUE

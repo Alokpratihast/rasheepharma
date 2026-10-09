@@ -1,21 +1,28 @@
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.DTOs.Auth;
 using RashePharma.Application.Interfaces.Services;
 using System.Security.Claims;
-
+using RashePharma.Infrastructure.Services;
+using System.IdentityModel.Tokens.Jwt;
 namespace RashePharma.Api.Controllers;
+using Microsoft.AspNetCore.Hosting;
+
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-
-    public AuthController(IAuthService authService)
-    {
-        _authService = authService;
-    }
+    private readonly AccessTokenRevocationService _accessTokenRevocationService;
+   public AuthController(
+    IAuthService authService,
+    AccessTokenRevocationService accessTokenRevocationService)
+{
+    _authService = authService;
+    _accessTokenRevocationService = accessTokenRevocationService;
+}
 
     // =========================================================
     // Register
@@ -27,10 +34,12 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var response =
+            var result =
                 await _authService.RegisterAsync(dto);
 
-            return Ok(response);
+            SetRefreshTokenCookie(result.RefreshToken);
+
+            return Ok(result.Response);
         }
         catch (InvalidOperationException ex)
         {
@@ -49,17 +58,50 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<AuthResponseDto>> Login(
         LoginDto dto)
     {
-        var response =
+        var result =
             await _authService.LoginAsync(dto);
 
-        if (response == null)
+        if (result == null)
         {
             return Unauthorized(
                 "Invalid email or password.");
         }
 
-        return Ok(response);
+        SetRefreshTokenCookie(result.RefreshToken);
+
+        return Ok(result.Response);
     }
+
+    // =========================================================
+    // Refresh Token Cookie
+    // =========================================================
+
+   private void SetRefreshTokenCookie(string refreshToken)
+{
+    var isDevelopment =
+        HttpContext.RequestServices
+            .GetRequiredService<IWebHostEnvironment>()
+            .IsDevelopment();
+
+    Response.Cookies.Append(
+        "refreshToken",
+        refreshToken,
+        new CookieOptions
+        {
+            HttpOnly = true,
+
+            // Local HTTP development needs Secure=false.
+            // Production must use Secure=true.
+            Secure = !isDevelopment,
+
+            SameSite = SameSiteMode.Lax,
+
+            Expires =
+                DateTimeOffset.UtcNow.AddDays(30),
+
+            Path = "/api/Auth"
+        });
+}
 
     // =========================================================
     // Forgot Password
@@ -147,4 +189,93 @@ public class AuthController : ControllerBase
 
         return Ok(profile);
     }
+
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponseDto>> Refresh()
+    {
+        var refreshToken =
+            Request.Cookies["refreshToken"];
+
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return Unauthorized();
+        }
+
+        var result =
+            await _authService.RefreshAsync(
+                refreshToken);
+
+        if (result == null)
+        {
+            Response.Cookies.Delete(
+                "refreshToken",
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Path = "/api/Auth"
+                });
+
+            return Unauthorized();
+        }
+
+        SetRefreshTokenCookie(
+            result.RefreshToken);
+
+        return Ok(result.Response);
+}
+
+
+    
+
+[HttpPost("logout")]
+public async Task<IActionResult> Logout()
+{
+    // Revoke the refresh-token family.
+    var refreshToken = Request.Cookies["refreshToken"];
+
+    if (!string.IsNullOrWhiteSpace(refreshToken))
+    {
+        await _authService.LogoutAsync(refreshToken);
+    }
+
+    // Revoke the current access JWT, if a valid
+    // authenticated JWT is available on this request.
+    var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+
+    var expClaim = User.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+
+    if (!string.IsNullOrWhiteSpace(jti) &&
+        long.TryParse(expClaim, out var exp))
+    {
+        var expiresAtUtc =
+            DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
+
+        await _accessTokenRevocationService.RevokeAsync(
+            jti,
+            expiresAtUtc,
+            HttpContext.RequestAborted);
+    }
+
+    // Delete the refresh-token cookie.
+    var isDevelopment = HttpContext.RequestServices
+        .GetRequiredService<IWebHostEnvironment>()
+        .IsDevelopment();
+
+    Response.Cookies.Delete(
+        "refreshToken",
+        new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !isDevelopment,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/Auth"
+        });
+
+    return Ok(new { message = "Logged out successfully." });
+}
+
+
 }

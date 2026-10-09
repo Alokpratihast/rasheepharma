@@ -20,28 +20,36 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly PasswordHasher<User> _passwordHasher;
 
-    public AuthService(
-        IUserRepository userRepository,
-        IPasswordResetTokenRepository passwordResetTokenRepository,
-        IUnitOfWork unitOfWork,
-        IJwtTokenService jwtTokenService,
-        IEmailService emailService,
-        IConfiguration configuration)
-    {
-        _userRepository = userRepository;
-        _passwordResetTokenRepository = passwordResetTokenRepository;
-        _unitOfWork = unitOfWork;
-        _jwtTokenService = jwtTokenService;
-        _emailService = emailService;
-        _configuration = configuration;
-        _passwordHasher = new PasswordHasher<User>();
-    }
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IRefreshTokenService _refreshTokenService;
+
+   public AuthService(
+    IUserRepository userRepository,
+    IPasswordResetTokenRepository passwordResetTokenRepository,
+    IUnitOfWork unitOfWork,
+    IJwtTokenService jwtTokenService,
+    IEmailService emailService,
+    IConfiguration configuration,
+    IRefreshTokenRepository refreshTokenRepository,
+    IRefreshTokenService refreshTokenService)
+{
+    _userRepository = userRepository;
+    _passwordResetTokenRepository = passwordResetTokenRepository;
+    _unitOfWork = unitOfWork;
+    _jwtTokenService = jwtTokenService;
+    _emailService = emailService;
+    _configuration = configuration;
+    _refreshTokenRepository = refreshTokenRepository;
+    _refreshTokenService = refreshTokenService;
+
+    _passwordHasher = new PasswordHasher<User>();
+}
 
     // =========================================================
     // Register
     // =========================================================
 
-    public async Task<AuthResponseDto> RegisterAsync(
+    public async Task<AuthResultDto> RegisterAsync(
         RegisterDto dto)
     {
         var existingUser =
@@ -89,26 +97,47 @@ public class AuthService : IAuthService
         }
 
         var token =
-            _jwtTokenService.GenerateToken(savedUser);
+                _jwtTokenService.GenerateToken(savedUser);
 
-        return new AuthResponseDto
+        var refreshToken =
+        _refreshTokenService.GenerateRefreshToken();
+
+        var refreshTokenHash =
+            _refreshTokenService.HashRefreshToken(refreshToken);
+
+        var refreshTokenEntity = new RefreshToken
         {
             UserId = savedUser.Id,
-            FirstName = savedUser.FirstName,
-            LastName = savedUser.LastName,
-            Email = savedUser.Email,
-            PhoneNumber = savedUser.PhoneNumber,
-            Country = savedUser.Country,
-            Role = savedUser.Role?.Name ?? "User",
-            Token = token
+            TokenHash = refreshTokenHash,
+            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            TokenFamilyId = Guid.NewGuid()
         };
+
+await _refreshTokenRepository.AddAsync(refreshTokenEntity);
+
+        return new AuthResultDto
+{
+    Response = new AuthResponseDto
+    {
+        UserId = savedUser.Id,
+        FirstName = savedUser.FirstName,
+        LastName = savedUser.LastName,
+        Email = savedUser.Email,
+        PhoneNumber = savedUser.PhoneNumber,
+        Country = savedUser.Country,
+        Role = savedUser.Role?.Name ?? "User",
+        Token = token
+    },
+
+    RefreshToken = refreshToken
+};
     }
 
     // =========================================================
     // Login
     // =========================================================
 
-    public async Task<AuthResponseDto?> LoginAsync(
+    public async Task<AuthResultDto?> LoginAsync(
         LoginDto dto)
     {
         var user =
@@ -134,17 +163,37 @@ public class AuthService : IAuthService
         var token =
             _jwtTokenService.GenerateToken(user);
 
-        return new AuthResponseDto
+        var refreshToken = _refreshTokenService.GenerateRefreshToken();
+
+        var refreshTokenHash =
+            _refreshTokenService.HashRefreshToken(refreshToken);
+
+        var refreshTokenEntity = new RefreshToken
         {
             UserId = user.Id,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            PhoneNumber = user.PhoneNumber,
-            Country = user.Country,
-            Role = user.Role?.Name ?? "User",
-            Token = token
+            TokenHash = refreshTokenHash,
+            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            TokenFamilyId = Guid.NewGuid()
         };
+
+        await _refreshTokenRepository.AddAsync(refreshTokenEntity);
+
+        return new AuthResultDto
+{
+    Response = new AuthResponseDto
+    {
+        UserId = user.Id,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
+        Email = user.Email,
+        PhoneNumber = user.PhoneNumber,
+        Country = user.Country,
+        Role = user.Role?.Name ?? "User",
+        Token = token
+    },
+
+    RefreshToken = refreshToken
+};
     }
 
     // =========================================================
@@ -344,9 +393,136 @@ public class AuthService : IAuthService
         return true;
     }
 
-    // =========================================================
-    // Current User Profile
-    // =========================================================
+
+    public async Task<AuthResultDto?> RefreshAsync(
+    string refreshToken)
+{
+    if (string.IsNullOrWhiteSpace(refreshToken))
+    {
+        return null;
+    }
+
+    var refreshTokenHash =
+        _refreshTokenService.HashRefreshToken(
+            refreshToken);
+
+    var storedToken =
+        await _refreshTokenRepository
+            .FindByTokenHashAsync(refreshTokenHash);
+
+    if (storedToken == null)
+    {
+        return null;
+    }
+
+    // Refresh token has expired.
+    if (storedToken.ExpiresAt <= DateTime.UtcNow)
+    {
+        return null;
+    }
+
+    // Token was already revoked/rotated.
+    // This may indicate refresh-token reuse.
+    if (storedToken.RevokedAt.HasValue)
+    {
+        await _refreshTokenRepository
+            .RevokeFamilyAsync(
+                storedToken.TokenFamilyId);
+
+        return null;
+    }
+
+    var user =
+        await _userRepository.GetByIdAsync(
+            storedToken.UserId);
+
+    if (user == null || !user.IsActive)
+    {
+        return null;
+    }
+
+    var accessToken =
+        _jwtTokenService.GenerateToken(user);
+
+    var newRefreshToken =
+        _refreshTokenService.GenerateRefreshToken();
+
+    var newRefreshTokenHash =
+        _refreshTokenService.HashRefreshToken(
+            newRefreshToken);
+
+    var newRefreshTokenEntity = new RefreshToken
+    {
+        UserId = user.Id,
+        TokenHash = newRefreshTokenHash,
+        ExpiresAt = DateTime.UtcNow.AddDays(30),
+        TokenFamilyId = storedToken.TokenFamilyId
+    };
+
+    // Atomically:
+    // 1. Revoke current refresh token
+    // 2. Store the replacement token
+    // 3. Commit both operations in one transaction
+    var rotated =
+        await _refreshTokenRepository.RotateAsync(
+            storedToken,
+            newRefreshTokenEntity);
+
+    // Another request already rotated this token.
+    if (!rotated)
+    {
+        await _refreshTokenRepository
+            .RevokeFamilyAsync(
+                storedToken.TokenFamilyId);
+
+        return null;
+    }
+
+    return new AuthResultDto
+    {
+        Response = new AuthResponseDto
+        {
+            UserId = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Country = user.Country,
+            Role = user.Role?.Name ?? "User",
+            Token = accessToken
+        },
+
+        RefreshToken = newRefreshToken
+    };
+}
+
+    
+    public async Task LogoutAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var refreshTokenHash =
+            _refreshTokenService.HashRefreshToken(refreshToken);
+
+        var storedToken =
+            await _refreshTokenRepository
+                .FindByTokenHashAsync(refreshTokenHash);
+
+        if (storedToken == null)
+        {
+            return;
+        }
+
+        await _refreshTokenRepository
+            .RevokeFamilyAsync(storedToken.TokenFamilyId);
+    }
+
+        // =========================================================
+        // Current User Profile
+        // =========================================================
 
     public async Task<UserProfileDto?> GetProfileAsync(
         int userId)

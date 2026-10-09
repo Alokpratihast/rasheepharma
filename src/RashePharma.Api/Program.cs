@@ -249,7 +249,8 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         }
         else if (builder.Environment.IsDevelopment())
         {
@@ -258,7 +259,8 @@ builder.Services.AddCors(options =>
                     "http://localhost:3000",
                     "https://rasheepharma.vercel.app")
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         }
     });
 });
@@ -324,6 +326,7 @@ if (string.IsNullOrWhiteSpace(jwtAudience))
         "JWT Audience is not configured.");
 }
 
+
 builder.Services
     .AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)
@@ -339,18 +342,61 @@ builder.Services
                         Encoding.UTF8.GetBytes(jwtKey)),
 
                 ValidateIssuer = true,
-
                 ValidIssuer = jwtIssuer,
 
                 ValidateAudience = true,
-
                 ValidAudience = jwtAudience,
 
                 ValidateLifetime = true,
-
                 ClockSkew = TimeSpan.Zero
             };
-});
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var cookieToken =
+                    context.Request.Cookies["access_token"];
+
+                if (!string.IsNullOrWhiteSpace(cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?
+                    .FindFirst(
+                        System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)
+                    ?.Value;
+
+                if (string.IsNullOrWhiteSpace(jti))
+                {
+                    context.Fail("JWT ID is missing.");
+                    return;
+                }
+
+                var revocationService = context.HttpContext
+                    .RequestServices
+                    .GetRequiredService<AccessTokenRevocationService>();
+
+                var isRevoked =
+                    await revocationService.IsRevokedAsync(
+                        jti,
+                        context.HttpContext.RequestAborted);
+
+                if (isRevoked)
+                {
+                    context.Fail(
+                        "Access token has been revoked.");
+                }
+            }
+        };
+    });
+
 
 // =========================================================
 // Authorization
@@ -358,6 +404,12 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+//=======================================================
+// Dependency Injection for RefreshTokenRepository
+//======================================================
+
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 // =========================================================
 // Dependency Injection
 // =========================================================
@@ -507,6 +559,9 @@ builder.Services.AddScoped<
     AuthService>();
 
 builder.Services.AddScoped<
+    AccessTokenRevocationService>();
+
+builder.Services.AddScoped<
     IEmailService,
     EmailService>();
 
@@ -526,6 +581,9 @@ builder.Services.AddHostedService<
     EmailNotificationWorker>();
 
 builder.Services.AddHostedService<BulkUploadWorker>();
+
+builder.Services.AddHostedService<
+    RevokedAccessTokenCleanupService>();
 
 
 

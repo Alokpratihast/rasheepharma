@@ -48,13 +48,14 @@ public class JwtTokenService : IJwtTokenService
         }
 
         var expiresMinutesValue =
-            jwtSettings["ExpiresMinutes"] ?? "60";
+            jwtSettings["ExpiresMinutes"] ?? "10";
 
         if (!int.TryParse(
-                expiresMinutesValue,
-                out var expiresMinutes))
+            expiresMinutesValue,
+            out var expiresMinutes) ||
+            expiresMinutes <= 0)
         {
-            expiresMinutes = 60;
+            expiresMinutes = 10;
         }
 
         var claims = new List<Claim>
@@ -73,7 +74,11 @@ public class JwtTokenService : IJwtTokenService
 
             new Claim(
                 ClaimTypes.Role,
-                user.Role.Name)
+                user.Role.Name),
+
+            new Claim(
+                JwtRegisteredClaimNames.Jti,
+                Guid.NewGuid().ToString())
         };
 
         var securityKey = new SymmetricSecurityKey(
