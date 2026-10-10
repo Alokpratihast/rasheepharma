@@ -227,6 +227,7 @@ public class CartService : ICartService
             .Select(item => new CartItemDto
             {
                 Id = item.Id,
+
                 ProductVariantId =
                     item.ProductVariantId,
 
@@ -246,7 +247,18 @@ public class CartService : ICartService
                     item.UnitPrice,
 
                 TotalPrice =
-                    item.UnitPrice * item.Quantity
+                    item.UnitPrice * item.Quantity,
+
+                // Get the primary product image.
+                ImageUrl =
+    item.ProductVariant.Product.Images
+        .Where(image => image.IsPrimary)
+        .OrderBy(image => image.DisplayOrder)
+        .Select(image =>
+            image.ImageUrl.Contains(".blob.core.windows.net/")
+                ? $"/api/ProductImages/file/{image.Id}"
+                : image.ImageUrl)
+        .FirstOrDefault()
             })
             .ToList();
 

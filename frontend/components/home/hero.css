@@ -1,0 +1,53 @@
+/* Hero animations - imported by HeroSection.tsx */
+
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes hero-float-alt {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-10px) rotate(-1.5deg); }
+}
+@keyframes hero-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(36px, -28px) scale(1.12); }
+}
+@keyframes hero-shine {
+  to { background-position: 200% center; }
+}
+@keyframes hero-spin {
+  to { transform: rotate(360deg); }
+}
+
+.hero-float     { animation: hero-float 6s ease-in-out infinite; }
+.hero-float-b   { animation: hero-float 7.5s ease-in-out -2s infinite; }
+.hero-float-c   { animation: hero-float 8s ease-in-out -4s infinite; }
+.hero-float-alt { animation: hero-float-alt 7s ease-in-out infinite; }
+.hero-drift     { animation: hero-drift 16s ease-in-out infinite; }
+.hero-drift-b   { animation: hero-drift 20s ease-in-out -7s infinite; }
+.hero-spin      { animation: hero-spin 28s linear infinite; }
+
+.hero-grad {
+  background: linear-gradient(90deg, #5eead4, #a7f3d0, #5eead4);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hero-shine 6s linear infinite;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 35%, #000, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle at 50% 35%, #000, transparent 72%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-float, .hero-float-b, .hero-float-c, .hero-float-alt,
+  .hero-drift, .hero-drift-b, .hero-spin, .hero-grad {
+    animation: none !important;
+  }
+}

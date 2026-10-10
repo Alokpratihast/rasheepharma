@@ -10,8 +10,12 @@ using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
+using Microsoft.OpenApi;
 using System.Text;
+using QuestPDF.Infrastructure;
+using RashePharma.Infrastructure.Workers;
 using Stripe;
+using System.Threading.RateLimiting;
 
 // =========================================================
 // Create application builder
@@ -19,8 +23,18 @@ using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
-StripeConfiguration.ApiKey =
-    builder.Configuration["Stripe:SecretKey"];
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
+});
+
+QuestPDF.Settings.License = LicenseType.Community;
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
+
+
 
 // =========================================================
 // Load .env for local development only
@@ -64,6 +78,9 @@ if (string.IsNullOrWhiteSpace(stripeSecretKey))
 
 builder.Configuration["Stripe:SecretKey"] =
     stripeSecretKey;
+
+
+StripeConfiguration.ApiKey = stripeSecretKey;
 
 // Webhook Secret
 var stripeWebhookSecret =
@@ -114,27 +131,196 @@ if (!string.IsNullOrWhiteSpace(azureStorageConnectionString))
 }
 
 // =========================================================
+// Frontend
+// =========================================================
+
+var frontendBaseUrl =
+    Environment.GetEnvironmentVariable(
+        "Frontend__BaseUrl");
+
+if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+{
+    builder.Configuration["Frontend:BaseUrl"] =
+        frontendBaseUrl;
+}
+
+// Brevo SMTP
+var brevoSmtpHost =
+    Environment.GetEnvironmentVariable("Brevo__SmtpHost");
+
+var brevoSmtpPort =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPort");
+
+var brevoSmtpUsername =
+    Environment.GetEnvironmentVariable("Brevo__SmtpUsername");
+
+var brevoSmtpPassword =
+    Environment.GetEnvironmentVariable("Brevo__SmtpPassword");
+
+var brevoFromEmail =
+    Environment.GetEnvironmentVariable("Brevo__FromEmail");
+
+var brevoFromName =
+    Environment.GetEnvironmentVariable("Brevo__FromName");
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpHost))
+{
+    builder.Configuration["Brevo:SmtpHost"] =
+        brevoSmtpHost;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPort))
+{
+    builder.Configuration["Brevo:SmtpPort"] =
+        brevoSmtpPort;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpUsername))
+{
+    builder.Configuration["Brevo:SmtpUsername"] =
+        brevoSmtpUsername;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoSmtpPassword))
+{
+    builder.Configuration["Brevo:SmtpPassword"] =
+        brevoSmtpPassword;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromEmail))
+{
+    builder.Configuration["Brevo:FromEmail"] =
+        brevoFromEmail;
+}
+
+if (!string.IsNullOrWhiteSpace(brevoFromName))
+{
+    builder.Configuration["Brevo:FromName"] =
+        brevoFromName;
+}
+
+// =========================================================
 // Controllers / API
 // =========================================================
 
 builder.Services.AddControllers();
 
+// Apply endpoint-specific throttles to slow credential guessing and password-reset abuse.
+// Limits are partitioned by the network peer address; do not trust forwarded headers unless
+// the proxy that sets them is explicitly configured as trusted.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("auth-login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-register", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-recovery", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-refresh", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
 builder.Services.AddOpenApi();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description =
+                "Enter your JWT token. Example: Bearer {your-token}"
+        });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(
+                "Bearer",
+                document)] = []
+        });
+});
 
 // =========================================================
 // CORS
 // =========================================================
 
+var allowedFrontendOrigins =
+    builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>();
+
+if (!builder.Environment.IsDevelopment() &&
+    !builder.Environment.IsEnvironment("Testing"))
+{
+    if (allowedFrontendOrigins == null || allowedFrontendOrigins.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "Cors:AllowedOrigins must list the exact frontend origins in staging and production.");
+    }
+
+    foreach (var origin in allowedFrontendOrigins)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsedOrigin) ||
+            parsedOrigin.Scheme != Uri.UriSchemeHttps ||
+            parsedOrigin.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(parsedOrigin.Query) ||
+            !string.IsNullOrEmpty(parsedOrigin.Fragment) ||
+            !string.IsNullOrEmpty(parsedOrigin.UserInfo))
+        {
+            throw new InvalidOperationException(
+                $"Cors:AllowedOrigins entry '{origin}' must be an HTTPS origin without a path, query, or credentials.");
+        }
+    }
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        var allowedOrigins =
-            builder.Configuration
-                .GetSection("Cors:AllowedOrigins")
-                .Get<string[]>();
+        var allowedOrigins = allowedFrontendOrigins;
 
         if (allowedOrigins != null &&
             allowedOrigins.Length > 0)
@@ -142,7 +328,8 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         }
         else if (builder.Environment.IsDevelopment())
         {
@@ -151,7 +338,8 @@ builder.Services.AddCors(options =>
                     "http://localhost:3000",
                     "https://rasheepharma.vercel.app")
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         }
     });
 });
@@ -217,6 +405,7 @@ if (string.IsNullOrWhiteSpace(jwtAudience))
         "JWT Audience is not configured.");
 }
 
+
 builder.Services
     .AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)
@@ -232,18 +421,50 @@ builder.Services
                         Encoding.UTF8.GetBytes(jwtKey)),
 
                 ValidateIssuer = true,
-
                 ValidIssuer = jwtIssuer,
 
                 ValidateAudience = true,
-
                 ValidAudience = jwtAudience,
 
                 ValidateLifetime = true,
-
                 ClockSkew = TimeSpan.Zero
             };
-});
+
+        options.Events = new JwtBearerEvents
+        {
+
+            // Access tokens are accepted only in explicit Authorization headers; cookies are refresh-only.
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?
+                    .FindFirst(
+                        System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)
+                    ?.Value;
+
+                if (string.IsNullOrWhiteSpace(jti))
+                {
+                    context.Fail("JWT ID is missing.");
+                    return;
+                }
+
+                var revocationService = context.HttpContext
+                    .RequestServices
+                    .GetRequiredService<AccessTokenRevocationService>();
+
+                var isRevoked =
+                    await revocationService.IsRevokedAsync(
+                        jti,
+                        context.HttpContext.RequestAborted);
+
+                if (isRevoked)
+                {
+                    context.Fail(
+                        "Access token has been revoked.");
+                }
+            }
+        };
+    });
+
 
 // =========================================================
 // Authorization
@@ -251,6 +472,12 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+//=======================================================
+// Dependency Injection for RefreshTokenRepository
+//======================================================
+
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 // =========================================================
 // Dependency Injection
 // =========================================================
@@ -285,6 +512,10 @@ builder.Services.AddScoped<
     UserRepository>();
 
 builder.Services.AddScoped<
+    IPasswordResetTokenRepository,
+    PasswordResetTokenRepository>();
+
+builder.Services.AddScoped<
     IAddressRepository,
     AddressRepository>();
 
@@ -315,6 +546,15 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IWebsiteContentRepository,
     WebsiteContentRepository>();
+
+builder.Services.AddScoped<
+    IBulkUploadRepository,
+    BulkUploadRepository>();
+
+builder.Services.AddScoped<
+    IBulkUploadService,
+    BulkUploadService>();
+
 
 // ---------------------------------------------------------
 // Services
@@ -350,6 +590,30 @@ builder.Services.AddScoped<IImageStorageService>(sp =>
         connectionString);
 });
 
+builder.Services.AddScoped<IBulkUploadStorageService>(sp =>
+{
+    var configuration =
+        sp.GetRequiredService<IConfiguration>();
+
+    var connectionString =
+        configuration.GetConnectionString("AzureStorage");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobBulkUploadStorageService(
+        connectionString);
+});
+
+builder.Services.AddScoped<
+    IBulkUploadExcelParser,
+    ClosedXmlBulkUploadExcelParser>();
+
+    
+
 builder.Services.AddScoped<
     ICategoryService,
     CategoryService>();
@@ -361,6 +625,35 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAuthService,
     AuthService>();
+
+builder.Services.AddScoped<
+    AccessTokenRevocationService>();
+
+builder.Services.AddScoped<
+    IEmailService,
+    EmailService>();
+
+builder.Services.AddScoped<
+    IInvoiceService,
+    RashePharma.Infrastructure.Services.InvoiceService>();
+
+builder.Services.AddScoped<
+    IEmailNotificationRepository,
+    EmailNotificationRepository>();
+
+builder.Services.AddScoped<
+    IEmailNotificationService,
+    EmailNotificationService>();
+
+builder.Services.AddHostedService<
+    EmailNotificationWorker>();
+
+builder.Services.AddHostedService<BulkUploadWorker>();
+
+builder.Services.AddHostedService<
+    RevokedAccessTokenCleanupService>();
+
+
 
 builder.Services.AddScoped<
     IJwtTokenService,
@@ -401,6 +694,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IPaymentRepository,
     PaymentRepository>();
+
+builder.Services.AddScoped<
+    IStripeWebhookEventRepository,
+    StripeWebhookEventRepository>();
 
 // =========================================================
 // Build Application
@@ -452,7 +749,11 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
+app.UseRouting();
+
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 

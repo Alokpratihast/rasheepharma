@@ -45,4 +45,12 @@ export const authService = {
       },
     );
   },
+
+  
+  async logout(): Promise<void> {
+    await apiClient<void>(`${AUTH_ENDPOINT}/logout`, {
+      method: "POST",
+    });
+  },
+
 };

@@ -10,7 +10,7 @@ public class Payment
     // Payment Details
     public decimal Amount { get; set; }
 
-    public string Currency { get; set; } = "INR";
+    public string Currency { get; set; } = "USD";
 
     public string Status { get; set; } = "Pending";
 
@@ -26,6 +26,8 @@ public class Payment
     // Failure Information
     public string? FailureReason { get; set; }
 
+    // Checkout Idempotency
+    public string? CheckoutIdempotencyKey { get; set; }
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -1,11 +1,8 @@
-import {
-  Globe2,
-  Handshake,
-  PackageCheck,
-  Building2,
-} from "lucide-react";
+import { Building2, Globe2, Handshake, PackageCheck } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
+import { Reveal } from "@/components/about/Reveal";
+import { SectionHeading } from "@/components/about/SectionHeading";
 
 const highlights = [
   {
@@ -36,47 +33,43 @@ const highlights = [
 
 export function BusinessHighlights() {
   return (
-    <section className="bg-white py-14 sm:py-20">
+    <section className="border-t border-border bg-muted/40 py-16 sm:py-24">
       <Container>
-        {/* Header */}
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-            Business Highlights
-          </p>
+        <Reveal>
+          <SectionHeading
+            align="center"
+            eyebrow="Business Highlights"
+            title="Built around products, partnerships and reliability"
+            description="Our business approach is centered on serving pharmaceutical requirements with dependable products, responsive communication and long-term partnerships."
+          />
+        </Reveal>
 
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#1B2A4A] sm:text-4xl">
-            Built around products, partnerships and reliability
-          </h2>
-
-          <p className="mt-4 text-sm leading-7 text-[#595959] sm:text-base">
-            Our business approach is centered on serving pharmaceutical
-            requirements with dependable products, responsive communication
-            and long-term partnerships.
-          </p>
-        </div>
-
-        {/* Highlights */}
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {highlights.map((highlight) => {
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {highlights.map((highlight, index) => {
             const Icon = highlight.icon;
-
             return (
-              <article
-                key={highlight.title}
-                className="rounded-2xl border border-[#e4e9e7] bg-[#fafcfc] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
-              >
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#EAF5F3]">
-                  <Icon className="size-5 text-[#3E8F96]" />
-                </div>
-
-                <h3 className="mt-4 text-sm font-semibold text-[#1B2A4A]">
-                  {highlight.title}
-                </h3>
-
-                <p className="mt-2 text-xs leading-5 text-[#666]">
-                  {highlight.description}
-                </p>
-              </article>
+              <Reveal key={highlight.title} delay={index * 100}>
+                <article className="group relative h-full overflow-hidden rounded-3xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_28px_56px_rgba(8,127,91,0.16)]">
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary to-teal-400 transition-transform duration-500 group-hover:scale-x-100"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-light text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Icon className="size-6" />
+                    </span>
+                    <span className="text-3xl font-extrabold text-primary/15">
+                      0{index + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold leading-snug text-foreground">
+                    {highlight.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {highlight.description}
+                  </p>
+                </article>
+              </Reveal>
             );
           })}
         </div>

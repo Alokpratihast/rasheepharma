@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 import type { CartItem as CartItemType } from "@/types/cart";
+import { getApiAssetUrl } from "@/lib/api/client";
 
 interface CartItemProps {
   item: CartItemType;
@@ -39,16 +40,19 @@ export function CartItem({
     );
   };
 
+  const imageUrl = getApiAssetUrl(item.imageUrl);
+
   return (
     <article className="border-b border-[#edf0ef] py-5 last:border-b-0">
       <div className="flex gap-4 sm:gap-5">
         {/* Product Image */}
         <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F5F7F7] sm:size-24">
-          {item.imageUrl ? (
+          {imageUrl ? (
             <Image
-              src={item.imageUrl}
+              src={imageUrl}
               alt={item.productName}
               fill
+              unoptimized
               sizes="96px"
               className="object-contain p-2"
             />
@@ -71,7 +75,9 @@ export function CartItem({
                 <p className="mt-1 text-xs text-[#777]">
                   {item.strength && item.strength}
 
-                  {item.strength && item.packSize && " • "}
+                  {item.strength &&
+                    item.packSize &&
+                    " • "}
 
                   {item.packSize && item.packSize}
                 </p>
@@ -147,7 +153,7 @@ export function CartItem({
               </p>
 
               <p className="mt-0.5 text-sm font-bold text-[#F5821F]">
-                ₹{item.totalPrice.toFixed(2)}
+                ${item.totalPrice.toFixed(2)}
               </p>
             </div>
           </div>

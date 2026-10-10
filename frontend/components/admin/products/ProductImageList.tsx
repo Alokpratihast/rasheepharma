@@ -35,7 +35,7 @@ export function ProductImageList({
   productId,
 }: ProductImageListProps) {
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -51,45 +51,44 @@ export function ProductImageList({
   const [selectedFilePreview, setSelectedFilePreview] =
     useState<string | null>(null);
 
-  const loadImages = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data =
-        await productImageService.getByProductId(productId);
-
-      setImages(data);
-    } catch (error) {
-      console.error(
-        "Failed to load product images:",
-        error,
-      );
-
-      setError("Failed to load product images.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadedProductId !== productId;
 
   useEffect(() => {
-    loadImages();
+    let isActive = true;
+
+    const loadImages = async () => {
+      try {
+        const data =
+          await productImageService.getByProductId(productId);
+        if (!isActive) return;
+        setImages(data);
+        setError(null);
+      } catch (error) {
+        if (!isActive) return;
+        console.error(
+          "Failed to load product images:",
+          error,
+        );
+        setError("Failed to load product images.");
+      } finally {
+        if (isActive) setLoadedProductId(productId);
+      }
+    };
+
+    void loadImages();
+
+    return () => {
+      isActive = false;
+    };
   }, [productId]);
 
   useEffect(() => {
-    if (!form.file) {
-      setSelectedFilePreview(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(form.file);
-
-    setSelectedFilePreview(objectUrl);
-
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (selectedFilePreview) {
+        URL.revokeObjectURL(selectedFilePreview);
+      }
     };
-  }, [form.file]);
+  }, [selectedFilePreview]);
 
   const openAddForm = () => {
     setEditingImage(null);
@@ -134,6 +133,7 @@ export function ProductImageList({
       event.target.files?.[0] ?? null;
 
     if (!file) {
+      setSelectedFilePreview(null);
       setForm((current) => ({
         ...current,
         file: null,
@@ -148,6 +148,7 @@ export function ProductImageList({
       );
 
       event.target.value = "";
+      setSelectedFilePreview(null);
 
       setForm((current) => ({
         ...current,
@@ -175,6 +176,7 @@ export function ProductImageList({
     }
 
     setError(null);
+    setSelectedFilePreview(URL.createObjectURL(file));
 
     setForm((current) => ({
       ...current,
@@ -638,13 +640,13 @@ export function ProductImageList({
 
               <div className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                 {selectedFilePreview ? (
-                  <img
+                  <Image
                     src={selectedFilePreview}
-                    alt={
-                      form.altText ||
-                      "Product image preview"
-                    }
-                    className="h-full w-full object-contain"
+                    alt={form.altText || "Product image preview"}
+                    fill
+                    unoptimized
+                    sizes="160px"
+                    className="object-contain"
                   />
                 ) : (
                   <Image
@@ -726,15 +728,15 @@ export function ProductImageList({
               >
                 <div className="relative h-48 bg-gray-50">
                   {imageUrl && (
-  <img
-    src={imageUrl}
-    alt={
-      image.altText ||
-      "Product image"
-    }
-    className="h-full w-full object-contain p-4"
-  />
-)}
+                    <Image
+                      src={imageUrl}
+                      alt={image.altText || "Product image"}
+                      fill
+                      unoptimized
+                      sizes="(max-width: 1024px) 100vw, 33vw"
+                      className="object-contain p-4"
+                    />
+                  )}
 
                   {image.isPrimary && (
                     <span className="absolute left-3 top-3 rounded-full bg-[#1B2A4A] px-3 py-1 text-xs font-medium text-white">

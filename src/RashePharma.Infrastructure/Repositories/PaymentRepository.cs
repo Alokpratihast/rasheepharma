@@ -35,10 +35,40 @@ public class PaymentRepository : IPaymentRepository
                 p => p.StripeSessionId == stripeSessionId);
     }
 
+    public async Task<Payment?> GetByStripePaymentIntentIdAsync(
+    string stripePaymentIntentId)
+{
+    return await _context.Payments
+        .Include(p => p.Order)
+        .FirstOrDefaultAsync(
+            p => p.StripePaymentIntentId == stripePaymentIntentId);
+}
+
+public async Task<Payment?> GetByCheckoutIdempotencyKeyAsync(
+    string checkoutIdempotencyKey)
+{
+    return await _context.Payments
+        .Include(p => p.Order)
+        .FirstOrDefaultAsync(
+            p => p.CheckoutIdempotencyKey == checkoutIdempotencyKey);
+}
+
     public async Task UpdateAsync(Payment payment)
     {
         _context.Payments.Update(payment);
 
         await Task.CompletedTask;
     }
+
+    public async Task<Payment?> GetActiveCheckoutByOrderIdAsync(
+    int orderId)
+{
+    return await _context.Payments
+        .Include(p => p.Order)
+        .Where(p =>
+            p.OrderId == orderId &&
+            (p.Status == "Pending" || p.Status == "Failed"))
+        .OrderByDescending(p => p.CreatedAt)
+        .FirstOrDefaultAsync();
+}
 }

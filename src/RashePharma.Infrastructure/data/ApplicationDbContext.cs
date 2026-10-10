@@ -23,6 +23,15 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<PasswordResetToken> PasswordResetTokens
+    => Set<PasswordResetToken>();
+
+    public DbSet<RefreshToken> RefreshTokens
+    => Set<RefreshToken>();
+
+    public DbSet<RevokedAccessToken> RevokedAccessTokens
+    => Set<RevokedAccessToken>();
+
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<Address> Addresses => Set<Address>();
@@ -41,6 +50,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments
         => Set<Payment>();
 
+    public DbSet<BulkUploadFile> BulkUploadFiles
+    => Set<BulkUploadFile>();
+
+    public DbSet<StripeWebhookEvent> StripeWebhookEvents
+    => Set<StripeWebhookEvent>();
+
+    public DbSet<EmailNotification> EmailNotifications
+    => Set<EmailNotification>();
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<EnquiryItem> EnquiryItems
@@ -60,8 +77,16 @@ public class ApplicationDbContext : DbContext
     public DbSet<WebsiteContent> WebsiteContents
         => Set<WebsiteContent>();
 
+    public DbSet<BulkUploadJob> BulkUploadJobs
+    => Set<BulkUploadJob>();
+
+    public DbSet<BulkUploadError> BulkUploadErrors
+    => Set<BulkUploadError>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
+    
+    
     {
         base.OnModelCreating(modelBuilder);
 
@@ -105,6 +130,18 @@ public class ApplicationDbContext : DbContext
             .WithMany(p => p.Images)
             .HasForeignKey(i => i.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
+
+        // =====================================================
+        // BulkUploadJob → BulkUploadError
+        // =====================================================
+
+        modelBuilder.Entity<BulkUploadError>()
+            .HasOne(e => e.BulkUploadJob)
+            .WithMany(j=> j.Errors)
+            .HasForeignKey(e => e.BulkUploadJobId)
+            .OnDelete(DeleteBehavior.Cascade);  
 
         // =====================================================
         // Role → User
@@ -205,6 +242,37 @@ public class ApplicationDbContext : DbContext
             .WithMany(o => o.Payments)
             .HasForeignKey(p => p.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
+        // =====================================================
+        // Order → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Order)
+            .WithMany()
+            .HasForeignKey(n => n.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // =====================================================
+        // Quotation → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Quotation)
+            .WithMany()
+            .HasForeignKey(n => n.QuotationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // =====================================================
+        // Enquiry → EmailNotification
+        // =====================================================
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasOne(n => n.Enquiry)
+            .WithMany(e => e.EmailNotifications)
+            .HasForeignKey(n => n.EnquiryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // =====================================================
         // User → Enquiry
@@ -309,11 +377,64 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.SetNull);
 
         // =====================================================
+        // BulkUploadJob → BulkUploadFile
+        // =====================================================
+
+        modelBuilder.Entity<BulkUploadFile>()
+            .HasOne(f => f.BulkUploadJob)
+            .WithMany(j => j.Files)
+            .HasForeignKey(f => f.BulkUploadJobId)
+            .OnDelete(DeleteBehavior.Cascade);  
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.RefreshTokens)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RefreshToken>()
+            .Property(t => t.RowVersion)
+            .IsRowVersion();
+
+        // =====================================================
+        // RevokedAccessToken
+        // =====================================================
+
+        modelBuilder.Entity<RevokedAccessToken>(entity =>
+        {
+            entity.HasKey(t => t.Jti);
+
+            entity.Property(t => t.Jti)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(t => t.ExpiresAtUtc)
+                .IsRequired();
+
+            entity.Property(t => t.RevokedAtUtc)
+                .IsRequired();
+
+            entity.HasIndex(t => t.ExpiresAtUtc);
+        });
+
+
+        // =====================================================
         // Unique Indexes
         // =====================================================
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenFamilyId);
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(t => t.TokenHash)
             .IsUnique();
 
         modelBuilder.Entity<Category>()
@@ -328,6 +449,64 @@ public class ApplicationDbContext : DbContext
             .HasIndex(o => o.OrderNumber)
             .IsUnique();
 
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripeSessionId)
+            .IsUnique()
+            .HasFilter("[StripeSessionId] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.CheckoutIdempotencyKey)
+            .IsUnique()
+            .HasFilter("[CheckoutIdempotencyKey] IS NOT NULL");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.OrderId)
+            .IsUnique()
+            .HasFilter("[Status] IN ('Pending', 'Failed')");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.StripePaymentIntentId)
+            .IsUnique()
+            .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+        
+
+        // =====================================================
+        // Email Notification Unique Indexes
+        // =====================================================
+
+        // Prevent duplicate Order notifications
+        // e.g. only one OrderInvoice notification per order.
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.OrderId,
+                n.Type
+            })
+            .IsUnique()
+            .HasFilter("[OrderId] IS NOT NULL");
+
+
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.EnquiryId,
+                n.Type
+            })
+            .IsUnique()
+            .HasFilter("[EnquiryId] IS NOT NULL");
+
+        // Prevent duplicate Quotation notifications
+        // e.g. only one Quotation notification per quotation.
+        modelBuilder.Entity<EmailNotification>()
+            .HasIndex(n => new
+            {
+                n.QuotationId,
+                n.Type
+            })
+            .IsUnique()
+            .HasFilter("[QuotationId] IS NOT NULL");
+
         modelBuilder.Entity<Enquiry>()
             .HasIndex(e => e.EnquiryNumber)
             .IsUnique();
@@ -335,6 +514,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Quotation>()
             .HasIndex(q => q.QuoteNumber)
             .IsUnique();
+
+        modelBuilder.Entity<StripeWebhookEvent>()
+        .HasIndex(e => e.StripeEventId)
+        .IsUnique();    
 
         // =====================================================
         // Decimal Precision
@@ -371,5 +554,16 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<QuotationItem>()
             .Property(qi => qi.TotalPrice)
             .HasPrecision(18, 2);
+
+
+        // =========================================================
+// User → PasswordResetToken
+// =========================================================
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.PasswordResetTokens)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);  
     }
 }
