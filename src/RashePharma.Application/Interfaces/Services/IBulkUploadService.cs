@@ -12,6 +12,14 @@ public interface IBulkUploadService
         IReadOnlyCollection<BulkUploadFileInput> files,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<BulkUploadUploadTarget>> CreateUploadTargetsAsync(
+        IReadOnlyCollection<BulkUploadFileDescriptor> files,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CreateJobFromStagedFilesAsync(
+        IReadOnlyCollection<BulkUploadStagedFileInput> files,
+        CancellationToken cancellationToken = default);
+
     Task ProcessAsync(
         int jobId,
         CancellationToken cancellationToken = default);

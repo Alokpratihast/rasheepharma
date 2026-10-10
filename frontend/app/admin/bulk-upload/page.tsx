@@ -30,6 +30,7 @@ export default function BulkUploadPage() {
     useState<BulkUploadStatus | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isLoadingStatus, setIsLoadingStatus] =
     useState(false);
 
@@ -94,13 +95,11 @@ export default function BulkUploadPage() {
       return;
     }
 
-    const isExcel =
-      file.name.toLowerCase().endsWith(".xlsx") ||
-      file.name.toLowerCase().endsWith(".xls");
+    const isExcel = file.name.toLowerCase().endsWith(".xlsx");
 
     if (!isExcel) {
       setError(
-        "Please select a valid Excel file (.xlsx or .xls).",
+        "Please select a valid Excel file (.xlsx).",
       );
       setExcelFile(null);
       return;
@@ -145,13 +144,11 @@ export default function BulkUploadPage() {
     }
 
     try {
+      setUploadProgress(0);
       setIsUploading(true);
 
       const response =
-        await bulkUploadService.upload(
-          excelFile,
-          imageFiles,
-        );
+        await bulkUploadService.upload(excelFile, imageFiles, setUploadProgress);
 
       setJobId(response.jobId);
 
@@ -244,13 +241,13 @@ export default function BulkUploadPage() {
               </span>
 
               <span className="mt-1 text-xs text-gray-500">
-                .xlsx or .xls
+                .xlsx only
               </span>
 
               <input
                 id="excel-file"
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx"
                 onChange={handleExcelChange}
                 className="hidden"
                 disabled={isUploading}
@@ -423,7 +420,7 @@ export default function BulkUploadPage() {
               )}
 
               {isUploading
-                ? "Uploading..."
+                ? `Uploading to secure storage... ${uploadProgress}%`
                 : "Upload Products"}
             </button>
           </div>

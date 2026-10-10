@@ -13,6 +13,10 @@ public class BulkUploadService : IBulkUploadService
     private const string ExcelFileType = "Excel";
     private const string ImageFileType = "Image";
     private const string UsdCurrency = "USD";
+    private const long MaxExcelFileSize = 50L * 1024 * 1024;
+    private const long MaxImageFileSize = 1024L * 1024 * 1024;
+    private const long MaxBatchSize = 10L * 1024 * 1024 * 1024;
+    private const int MaxImageCount = 500;
 
     private readonly IBulkUploadRepository _bulkUploadRepository;
     private readonly IProductRepository _productRepository;
@@ -146,6 +150,190 @@ public class BulkUploadService : IBulkUploadService
         return job.Id;
     }
 
+
+    /// <summary>
+    /// Validates an admin's upload manifest and creates one narrowly scoped
+    /// SAS URL per file. Large file bytes never pass through this API process.
+    /// </summary>
+    public async Task<IReadOnlyList<BulkUploadUploadTarget>> CreateUploadTargetsAsync(
+        IReadOnlyCollection<BulkUploadFileDescriptor> files,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = ValidateManifest(files);
+        await _bulkUploadStorageService.EnsureContainerExistsAsync(cancellationToken);
+        var targets = new List<BulkUploadUploadTarget>(normalized.Count);
+
+        foreach (var file in normalized)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = await _bulkUploadStorageService.CreateUploadTargetAsync(
+                file.FileName,
+                cancellationToken);
+
+            targets.Add(new BulkUploadUploadTarget(
+                file.FileName,
+                file.FileType,
+                file.FileSize,
+                target.BlobName,
+                target.UploadUrl));
+        }
+
+        return targets;
+    }
+
+    /// <summary>
+    /// Verifies every staged blob before persisting a Pending job. The worker
+    /// only claims Pending jobs, so incomplete uploads cannot be processed.
+    /// </summary>
+    public async Task<int> CreateJobFromStagedFilesAsync(
+        IReadOnlyCollection<BulkUploadStagedFileInput> files,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = ValidateManifest(files);
+
+        foreach (var file in normalized)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var exists = await _bulkUploadStorageService.VerifyStagedFileAsync(
+                file.BlobName,
+                file.FileSize,
+                cancellationToken);
+
+            if (!exists)
+            {
+                throw new InvalidOperationException(
+                    $"Uploaded file '{file.FileName}' is missing or its size does not match the upload manifest.");
+            }
+        }
+
+        var excelFile = normalized.Single(file => file.FileType == ExcelFileType);
+        var job = new BulkUploadJob
+        {
+            FileName = excelFile.FileName,
+            Status = BulkUploadStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        foreach (var file in normalized)
+        {
+            job.Files.Add(new BulkUploadFile
+            {
+                OriginalFileName = file.FileName,
+                BlobName = file.BlobName,
+                FileUrl = _bulkUploadStorageService.GetStagedFileUrl(file.BlobName),
+                FileType = file.FileType,
+                ContentType = file.ContentType,
+                FileSize = file.FileSize
+            });
+        }
+
+        // Persist job and its complete file list in one SaveChanges call.
+        // Otherwise the worker could claim Pending between two database writes.
+        await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
+        await _unitOfWork.SaveChangesAsync();
+        return job.Id;
+    }
+
+    private static List<BulkUploadStagedFileInput> ValidateManifest<T>(
+        IReadOnlyCollection<T> files)
+    {
+        if (files == null || files.Count == 0 || files.Count > MaxImageCount + 1)
+        {
+            throw new InvalidOperationException(
+                $"Upload one .xlsx workbook and no more than {MaxImageCount} images.");
+        }
+
+        var normalized = files.Select(file => file switch
+        {
+            BulkUploadFileDescriptor descriptor => new BulkUploadStagedFileInput(
+                descriptor.FileName,
+                descriptor.ContentType,
+                descriptor.FileSize,
+                descriptor.FileType,
+                string.Empty),
+            BulkUploadStagedFileInput staged => staged,
+
+            _ => throw new InvalidOperationException("Unsupported upload manifest entry.")
+        }).ToList();
+
+        if (normalized.Count(file => file.FileType == ExcelFileType) != 1 ||
+            normalized.Any(file => file.FileType is not (ExcelFileType or ImageFileType)))
+        {
+            throw new InvalidOperationException(
+                "The upload must contain exactly one Excel file; remaining files must be images.");
+        }
+
+        var excel = normalized.Single(file => file.FileType == ExcelFileType);
+        if (!string.Equals(Path.GetExtension(excel.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase) ||
+            excel.FileSize <= 0 || excel.FileSize > MaxExcelFileSize)
+        {
+            throw new InvalidOperationException(
+                "The workbook must be a non-empty .xlsx file no larger than 50 MiB because the current workbook parser loads it into memory.");
+        }
+
+        var images = normalized.Where(file => file.FileType == ImageFileType).ToList();
+        if (images.Count > MaxImageCount)
+        {
+            throw new InvalidOperationException($"A maximum of {MaxImageCount} images is allowed per job.");
+        }
+
+        var duplicateNames = images
+            .GroupBy(file => file.FileName, StringComparer.OrdinalIgnoreCase)
+            .Any(group => group.Count() > 1);
+        if (duplicateNames)
+        {
+            throw new InvalidOperationException(
+                "Image file names must be unique within a bulk upload because the workbook references images by file name.");
+        }
+
+        foreach (var image in images)
+        {
+            var expectedContentType = image.FileName is null
+                ? null
+                : Path.GetExtension(image.FileName).ToLowerInvariant() switch
+                {
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".png" => "image/png",
+                    ".webp" => "image/webp",
+                    ".gif" => "image/gif",
+                    _ => null
+                };
+
+            if (expectedContentType == null || image.FileSize <= 0 || image.FileSize > MaxImageFileSize)
+            {
+                throw new InvalidOperationException(
+                    $"Image '{image.FileName}' must be JPEG, PNG, WebP or GIF and no larger than 1 GiB.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(image.ContentType) &&
+                !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Image '{image.FileName}' has a content type that does not match its extension.");
+            }
+        }
+
+        if (normalized.Sum(file => file.FileSize) > MaxBatchSize)
+        {
+            throw new InvalidOperationException("The maximum combined bulk-upload size is 10 GiB.");
+        }
+
+        if (normalized.Any(file => string.IsNullOrWhiteSpace(file.FileName) ||
+                                   file.FileName != Path.GetFileName(file.FileName)))
+        {
+            throw new InvalidOperationException("File names must not contain directory paths.");
+        }
+
+        if (normalized.Where(file => !string.IsNullOrWhiteSpace(file.BlobName))
+            .Select(file => file.BlobName)
+            .Distinct(StringComparer.Ordinal)
+            .Count() != normalized.Count(file => !string.IsNullOrWhiteSpace(file.BlobName)))
+        {
+            throw new InvalidOperationException("Each uploaded file must use a unique staging blob.");
+        }
+
+        return normalized;
+    }
     public async Task ProcessAsync(
         int jobId,
         CancellationToken cancellationToken = default)
@@ -408,8 +596,6 @@ public class BulkUploadService : IBulkUploadService
                     await _productRepository.UpdateAsync(product);
                 }
 
-                await _unitOfWork.SaveChangesAsync();
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
 
@@ -558,8 +744,6 @@ public class BulkUploadService : IBulkUploadService
                     await _variantRepository.UpdateAsync(variant);
                 }
 
-                await _unitOfWork.SaveChangesAsync();
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
 
@@ -673,8 +857,6 @@ public class BulkUploadService : IBulkUploadService
 
                 await _imageRepository.AddAsync(image);
 
-                await _unitOfWork.SaveChangesAsync();
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
 
@@ -732,11 +914,10 @@ public class BulkUploadService : IBulkUploadService
             CreatedAt = DateTime.UtcNow
         };
 
+        // SaveProgressAsync commits this error with the row counters.
         await _bulkUploadRepository.AddErrorAsync(
             error,
             cancellationToken);
-
-        await _unitOfWork.SaveChangesAsync();
     }
 
     private async Task SaveProgressAsync(
@@ -747,6 +928,7 @@ public class BulkUploadService : IBulkUploadService
             job,
             cancellationToken);
 
+        // Product/image/error changes and progress counters are persisted together.
         await _unitOfWork.SaveChangesAsync();
     }
 }

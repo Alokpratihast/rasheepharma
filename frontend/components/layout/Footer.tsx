@@ -24,6 +24,10 @@ const footerLinks = {
     { label: "My orders", href: "/orders" },
     { label: "Profile", href: "/profile" },
   ],
+  Policies: [
+    { label: "Privacy Policy", href: "/privacy-policy" },
+    { label: "Cancellation & Refunds", href: "/cancellation-refund" },
+  ],
 };
 
 export function Footer() {
@@ -42,7 +46,7 @@ export function Footer() {
       />
 
       <Container>
-        <div className="grid gap-12 py-14 sm:py-16 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="grid gap-10 py-14 sm:py-16 sm:grid-cols-2 xl:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]">
           {/* Company */}
           <div className="max-w-md">
             <Link
@@ -111,6 +115,8 @@ export function Footer() {
           <FooterColumn title="Explore" links={footerLinks.Explore} />
           <FooterColumn title="Business" links={footerLinks.Business} />
           <FooterColumn title="Account" links={footerLinks.Account} />
+          {/* Public policy links make order and data-handling terms easy to find from every customer page. */}
+          <FooterColumn title="Policies" links={footerLinks.Policies} />
         </div>
 
         {/* Bottom bar */}

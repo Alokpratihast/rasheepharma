@@ -1,20 +1,19 @@
 /**
  * Single source of truth for company contact details.
- * Update these once - Header, Footer and Contact page can all import them.
+ * Update these once - Header, Footer and Contact page all read from here.
  */
 export const siteConfig = {
   name: "RashePharma",
   tagline: "Quality Healthcare, Built for Trust",
-  // TODO: replace with the real numbers / addresses
-  phone: "+91 80000 00000",
-  phoneHref: "tel:+918000000000",
-  email: "info@rasheepharma.com",
-  emailHref: "mailto:info@rasheepharma.com",
+  phone: "+91 91104 56656",
+  phoneHref: "tel:+919110456656",
+  email: "hr.rashelifescience@gmail.com",
+  emailHref: "mailto:hr.rashelifescience@gmail.com",
   announcement: "Supplying healthcare partners worldwide",
   addressLabel: "Head office",
   address: [
-    "15th Main Rd, 3rd Stage, 4th Block,",
-    "Sahakar Nagar, Byatarayanapura,",
-    "Bengaluru, Karnataka 560092",
+    "01, B Byraveshwara Nagar,",
+    "Magadi Road, Sunkadakatte,",
+    "Bangalore, Karnataka 560091",
   ],
 } as const;
