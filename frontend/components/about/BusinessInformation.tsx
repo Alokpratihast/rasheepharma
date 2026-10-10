@@ -1,76 +1,68 @@
+import {
+  Building2,
+  CalendarDays,
+  FileText,
+  Globe2,
+  Scale,
+  TrendingUp,
+  UserRound,
+} from "lucide-react";
+
 import { Container } from "@/components/ui/container";
+import { Reveal } from "@/components/about/Reveal";
+import { SectionHeading } from "@/components/about/SectionHeading";
+import { cn } from "@/lib/utils";
 
 const businessDetails = [
   {
+    icon: Building2,
     label: "Nature of Business",
     value: "Manufacturers, Exporters, Wholesaler, Retailer, Trader",
+    wide: true,
   },
-  {
-    label: "Year of Establishment",
-    value: "2019",
-  },
-  {
-    label: "Market Covered",
-    value: "Worldwide",
-  },
-  {
-    label: "Name of Founder",
-    value: "Mr. Shekappa",
-  },
-  {
-    label: "GST No",
-    value: "29AAJCR5569D1ZY",
-  },
-  {
-    label: "Annual Turnover",
-    value: "Rs. 50 Lakh - 1 Crore",
-  },
-  {
-    label: "Legal Status of Firm",
-    value: "Private Limited Company",
-  },
+  { icon: CalendarDays, label: "Year of Establishment", value: "2019" },
+  { icon: Globe2, label: "Market Covered", value: "Worldwide" },
+  { icon: UserRound, label: "Name of Founder", value: "Mr. Shekappa" },
+  { icon: FileText, label: "GST No", value: "29AAJCR5569D1ZY" },
+  { icon: TrendingUp, label: "Annual Turnover", value: "Rs. 50 Lakh - 1 Crore" },
+  { icon: Scale, label: "Legal Status of Firm", value: "Private Limited Company" },
 ];
 
 export function BusinessInformation() {
   return (
-    <section className="bg-[#fafafa] py-14 sm:py-20">
+    <section className="py-16 sm:py-24">
       <Container>
-        <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-            Company Information
-          </p>
+        <Reveal>
+          <SectionHeading
+            eyebrow="Company Information"
+            title="Business Details"
+            description="Key information about our business, operations and company profile."
+          />
+        </Reveal>
 
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#1B2A4A] sm:text-4xl">
-            Business Details
-          </h2>
-
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[#595959] sm:text-base">
-            Key information about our business, operations and company
-            profile.
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-[#dfe4e3] bg-white">
-          <div className="divide-y divide-[#dfe4e3]">
-            {businessDetails.map((detail) => (
-              <div
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {businessDetails.map((detail, index) => {
+            const Icon = detail.icon;
+            return (
+              <Reveal
                 key={detail.label}
-                className="grid grid-cols-1 sm:grid-cols-[32%_68%]"
+                delay={(index % 4) * 80}
+                className={cn(detail.wide && "sm:col-span-2")}
               >
-                <div className="border-b border-[#dfe4e3] bg-[#fafafa] px-4 py-4 sm:border-b-0 sm:border-r">
-                  <p className="text-sm font-semibold text-[#1B2A4A]">
+                <article className="group h-full rounded-3xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_44px_rgba(8,127,91,0.12)] sm:p-6">
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-primary-light text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Icon className="size-5" />
+                  </span>
+                  <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                     {detail.label}
                   </p>
-                </div>
-
-                <div className="px-4 py-4">
-                  <p className="text-sm leading-6 text-[#333]">
+                  <p className="mt-1.5 break-words text-base font-bold leading-snug text-foreground">
                     {detail.value}
                   </p>
-                </div>
-              </div>
-            ))}
-          </div>
+                </article>
+              </Reveal>
+            );
+          })}
         </div>
       </Container>
     </section>

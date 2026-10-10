@@ -1,34 +1,42 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using RashePharma.Application.DTOs.Auth;
 using RashePharma.Application.Interfaces.Services;
 using System.Security.Claims;
 using RashePharma.Infrastructure.Services;
 using System.IdentityModel.Tokens.Jwt;
 namespace RashePharma.Api.Controllers;
-using Microsoft.AspNetCore.Hosting;
-
-
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly AccessTokenRevocationService _accessTokenRevocationService;
-   public AuthController(
-    IAuthService authService,
-    AccessTokenRevocationService accessTokenRevocationService)
-{
-    _authService = authService;
-    _accessTokenRevocationService = accessTokenRevocationService;
-}
+    private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
+
+    public AuthController(
+        IAuthService authService,
+        AccessTokenRevocationService accessTokenRevocationService,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
+    {
+        _authService = authService;
+        _accessTokenRevocationService = accessTokenRevocationService;
+        _configuration = configuration;
+        _environment = environment;
+    }
 
     // =========================================================
     // Register
     // =========================================================
 
-    [HttpPost("register")]
+    [EnableRateLimiting("auth-register")]
+[HttpPost("register")]
     public async Task<ActionResult<AuthResponseDto>> Register(
         RegisterDto dto)
     {
@@ -54,7 +62,8 @@ public class AuthController : ControllerBase
     // Login
     // =========================================================
 
-    [HttpPost("login")]
+    [EnableRateLimiting("auth-login")]
+[HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(
         LoginDto dto)
     {
@@ -76,38 +85,92 @@ public class AuthController : ControllerBase
     // Refresh Token Cookie
     // =========================================================
 
-   private void SetRefreshTokenCookie(string refreshToken)
-{
-    var isDevelopment =
-        HttpContext.RequestServices
-            .GetRequiredService<IWebHostEnvironment>()
-            .IsDevelopment();
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
+        Response.Cookies.Append(
+            "refreshToken",
+            refreshToken,
+            CreateRefreshCookieOptions());
+    }
 
-    Response.Cookies.Append(
-        "refreshToken",
-        refreshToken,
-        new CookieOptions
+    private CookieOptions CreateRefreshCookieOptions()
+    {
+        var isDevelopment = _environment.IsDevelopment();
+
+        return new CookieOptions
         {
             HttpOnly = true,
-
-            // Local HTTP development needs Secure=false.
-            // Production must use Secure=true.
             Secure = !isDevelopment,
-
-            SameSite = SameSiteMode.Lax,
-
-            Expires =
-                DateTimeOffset.UtcNow.AddDays(30),
-
+            // Production may use a separate frontend/API origin; Origin validation below protects cookie endpoints from CSRF.
+            SameSite = isDevelopment
+                ? SameSiteMode.Lax
+                : SameSiteMode.None,
+            Expires = DateTimeOffset.UtcNow.AddDays(30),
+            MaxAge = TimeSpan.FromDays(30),
             Path = "/api/Auth"
-        });
-}
+        };
+    }
 
+    private void DeleteRefreshTokenCookie()
+    {
+        var options = CreateRefreshCookieOptions();
+        options.Expires = DateTimeOffset.UnixEpoch;
+        options.MaxAge = TimeSpan.Zero;
+
+        // Deletion uses the same path and security attributes as the original cookie.
+        Response.Cookies.Append("refreshToken", string.Empty, options);
+    }
+
+    private bool IsTrustedCookieOrigin()
+    {
+        var requestOrigin = NormalizeOrigin(
+            Request.Headers["Origin"].ToString());
+
+        if (requestOrigin == null)
+        {
+            return false;
+        }
+
+        var allowedOrigins = _configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>();
+
+        if ((allowedOrigins == null || allowedOrigins.Length == 0) &&
+            _environment.IsDevelopment())
+        {
+            allowedOrigins =
+            [
+                "http://localhost:3000",
+                "https://rasheepharma.vercel.app"
+            ];
+        }
+
+        // Cookie-authenticated endpoints must match the same explicit origin allowlist used by CORS.
+        return allowedOrigins?.Any(origin =>
+            string.Equals(
+                NormalizeOrigin(origin),
+                requestOrigin,
+                StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static string? NormalizeOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsed) ||
+            parsed.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(parsed.Query) ||
+            !string.IsNullOrEmpty(parsed.Fragment))
+        {
+            return null;
+        }
+
+        return parsed.GetLeftPart(UriPartial.Authority);
+    }
     // =========================================================
     // Forgot Password
     // =========================================================
 
-    [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth-recovery")]
+[HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(
         ForgotPasswordDto dto)
     {
@@ -129,7 +192,8 @@ public class AuthController : ControllerBase
     // Reset Password
     // =========================================================
 
-    [HttpPost("reset-password")]
+    [EnableRateLimiting("auth-recovery")]
+[HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(
         ResetPasswordDto dto)
     {
@@ -191,9 +255,18 @@ public class AuthController : ControllerBase
     }
 
 
-    [HttpPost("refresh")]
+    [EnableRateLimiting("auth-refresh")]
+[HttpPost("refresh")]
     public async Task<ActionResult<AuthResponseDto>> Refresh()
     {
+        // Refresh relies on an ambient HttpOnly cookie, so require a trusted browser origin.
+        if (!IsTrustedCookieOrigin())
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { message = "Request origin is not allowed." });
+        }
+
         var refreshToken =
             Request.Cookies["refreshToken"];
 
@@ -208,15 +281,7 @@ public class AuthController : ControllerBase
 
         if (result == null)
         {
-            Response.Cookies.Delete(
-                "refreshToken",
-                new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Lax,
-                    Path = "/api/Auth"
-                });
+            DeleteRefreshTokenCookie();
 
             return Unauthorized();
         }
@@ -230,11 +295,22 @@ public class AuthController : ControllerBase
 
     
 
+[EnableRateLimiting("auth-refresh")]
 [HttpPost("logout")]
 public async Task<IActionResult> Logout()
 {
-    // Revoke the refresh-token family.
     var refreshToken = Request.Cookies["refreshToken"];
+
+    // Cookie-based logout requires an allowlisted origin to prevent cross-site session termination.
+    if (!string.IsNullOrWhiteSpace(refreshToken) &&
+        !IsTrustedCookieOrigin())
+    {
+        return StatusCode(
+            StatusCodes.Status403Forbidden,
+            new { message = "Request origin is not allowed." });
+    }
+
+    // Revoke the refresh-token family.
 
     if (!string.IsNullOrWhiteSpace(refreshToken))
     {
@@ -259,20 +335,7 @@ public async Task<IActionResult> Logout()
             HttpContext.RequestAborted);
     }
 
-    // Delete the refresh-token cookie.
-    var isDevelopment = HttpContext.RequestServices
-        .GetRequiredService<IWebHostEnvironment>()
-        .IsDevelopment();
-
-    Response.Cookies.Delete(
-        "refreshToken",
-        new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !isDevelopment,
-            SameSite = SameSiteMode.Lax,
-            Path = "/api/Auth"
-        });
+    DeleteRefreshTokenCookie();
 
     return Ok(new { message = "Logged out successfully." });
 }

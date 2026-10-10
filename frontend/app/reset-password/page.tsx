@@ -2,10 +2,11 @@
 
 import {
   FormEvent,
-  useEffect,
+  Suspense,
   useState,
 } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { LockKeyhole, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,9 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:5104/api";
 
-export default function ResetPasswordPage() {
-  const [token, setToken] = useState("");
+function ResetPasswordForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] =
@@ -34,22 +36,6 @@ export default function ResetPasswordPage() {
 
   const [successMessage, setSuccessMessage] =
     useState("");
-
-  useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
-
-    const resetToken = params.get("token");
-
-    if (resetToken) {
-      setToken(resetToken);
-    } else {
-      setErrorMessage(
-        "Invalid password reset link."
-      );
-    }
-  }, []);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -171,12 +157,12 @@ export default function ResetPasswordPage() {
           )}
 
           {/* Error */}
-          {errorMessage && (
+          {(errorMessage || !token) && (
             <div
               role="alert"
               className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
             >
-              {errorMessage}
+              {errorMessage || "Invalid password reset link."}
             </div>
           )}
 
@@ -333,5 +319,16 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </main>
+  );
+}
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#fafafa]" aria-busy="true" />
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

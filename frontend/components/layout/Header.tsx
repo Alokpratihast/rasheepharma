@@ -275,14 +275,12 @@ export function Header() {
               <div className="hidden items-center gap-1.5 lg:flex">
                 <UserProfile />
 
-                <Link href="/cart" aria-label="Shopping cart">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full text-foreground/80 hover:bg-primary-light hover:text-primary"
-                  >
-                    <ShoppingCart className="size-[18px]" />
-                  </Button>
+                <Link
+                  href="/cart"
+                  aria-label="Shopping cart"
+                  className="flex size-9 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-primary-light hover:text-primary"
+                >
+                  <ShoppingCart className="size-[18px]" />
                 </Link>
 
                 <Button
@@ -297,14 +295,12 @@ export function Header() {
 
               {/* Mobile actions */}
               <div className="ml-auto flex items-center gap-1 md:hidden">
-                <Link href="/cart" aria-label="Shopping cart">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full text-foreground/80"
-                  >
-                    <ShoppingCart className="size-5" />
-                  </Button>
+                <Link
+                  href="/cart"
+                  aria-label="Shopping cart"
+                  className="flex size-9 items-center justify-center rounded-full text-foreground/80"
+                >
+                  <ShoppingCart className="size-5" />
                 </Link>
 
                 <Button
@@ -329,14 +325,12 @@ export function Header() {
 
               {/* Tablet: menu button when md..lg (desktop nav hidden) */}
               <div className="hidden items-center gap-1 md:flex lg:hidden">
-                <Link href="/cart" aria-label="Shopping cart">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full text-foreground/80"
-                  >
-                    <ShoppingCart className="size-5" />
-                  </Button>
+                <Link
+                  href="/cart"
+                  aria-label="Shopping cart"
+                  className="flex size-9 items-center justify-center rounded-full text-foreground/80"
+                >
+                  <ShoppingCart className="size-5" />
                 </Link>
                 <Button
                   variant="ghost"

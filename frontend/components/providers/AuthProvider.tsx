@@ -10,10 +10,12 @@ import {
 } from "react";
 
 import { authService } from "@/services/auth.service";
+import { refreshAccessToken } from "@/lib/api/client";
 
 import {
   clearStoredAuth,
   getStoredAuth,
+  getStoredToken,
   setStoredAuth,
 } from "@/lib/auth/session";
 
@@ -60,26 +62,20 @@ export function AuthProvider({
     async function restoreSession() {
       try {
         const storedAuth = getStoredAuth();
+        // A page reload clears the in-memory access token; renew through the HttpOnly cookie.
+        const accessToken =
+          storedAuth?.token ?? (await refreshAccessToken());
 
-        if (!storedAuth) {
+        if (!accessToken) {
           return;
         }
 
-        setToken(storedAuth.token);
-
-        /*
-         * Verify the stored JWT with backend.
-         */
-        const profile = await authService.getProfile(
-          storedAuth.token,
-        );
+        const profile = await authService.getProfile(accessToken);
+        // A 401 retry may have rotated the token while loading the profile.
+        const currentToken = getStoredToken() ?? accessToken;
 
         setUser(profile);
 
-        /*
-         * Keep the fresh profile while preserving
-         * the stored JWT.
-         */
         const authResponse: AuthResponse = {
           userId: profile.id,
           firstName: profile.firstName,
@@ -88,13 +84,13 @@ export function AuthProvider({
           phoneNumber: profile.phoneNumber,
           country: profile.country,
           role: profile.role,
-          token: storedAuth.token,
+          token: currentToken,
         };
 
         setStoredAuth(authResponse);
+        setToken(currentToken);
       } catch {
         clearStoredAuth();
-
         setUser(null);
         setToken(null);
       } finally {
@@ -104,9 +100,6 @@ export function AuthProvider({
 
     restoreSession();
   }, []);
-
-
-  
   useEffect(() => {
     function handleSessionExpired() {
       clearStoredAuth();

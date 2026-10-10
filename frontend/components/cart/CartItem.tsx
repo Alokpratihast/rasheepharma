@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 import type { CartItem as CartItemType } from "@/types/cart";
@@ -47,11 +48,13 @@ export function CartItem({
         {/* Product Image */}
         <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F5F7F7] sm:size-24">
           {imageUrl ? (
-            <img
+            <Image
               src={imageUrl}
               alt={item.productName}
-              className="h-full w-full object-contain p-2"
-              loading="lazy"
+              fill
+              unoptimized
+              sizes="96px"
+              className="object-contain p-2"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium text-[#8A9391]">

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { productVariantService } from "@/services/productVariantService";
 import type {
   ProductVariant,
@@ -23,38 +23,17 @@ export function ProductVariantForm({
 }: ProductVariantFormProps) {
   const isEditMode = Boolean(variant);
 
-  const [strength, setStrength] = useState("");
-  const [packSize, setPackSize] = useState("");
+  const [strength, setStrength] = useState(variant?.strength ?? "");
+  const [packSize, setPackSize] = useState(variant?.packSize ?? "");
   const [price, setPrice] = useState("");
-  const [moq, setMoq] = useState("");
-  const [unitType, setUnitType] = useState("");
-  const [sku, setSku] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [moq, setMoq] = useState(variant?.moq != null ? String(variant.moq) : "");
+  const [unitType, setUnitType] = useState(variant?.unitType ?? "");
+  const [sku, setSku] = useState(variant?.sku ?? "");
+  const [stockQuantity, setStockQuantity] = useState(variant ? String(variant.stockQuantity) : "");
+  const [isActive, setIsActive] = useState(variant?.isActive ?? true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (variant) {
-      setStrength(variant.strength ?? "");
-      setPackSize(variant.packSize ?? "");
-
-      // Existing DB price is already stored in USD.
-      // Admin will enter the new/update price in INR.
-      setPrice("");
-
-      setMoq(
-        variant.moq !== null ? String(variant.moq) : "",
-      );
-      setUnitType(variant.unitType ?? "");
-      setSku(variant.sku ?? "");
-      setStockQuantity(String(variant.stockQuantity));
-      setIsActive(variant.isActive);
-    } else {
-      resetForm();
-    }
-  }, [variant]);
 
   const resetForm = () => {
     setStrength("");

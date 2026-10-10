@@ -160,6 +160,17 @@ await _refreshTokenRepository.AddAsync(refreshTokenEntity);
             return null;
         }
 
+        if (verificationResult ==
+            PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            // Upgrade older password hashes transparently after a successful login.
+            user.PasswordHash =
+                _passwordHasher.HashPassword(user, dto.Password);
+
+            await _userRepository.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
         var token =
             _jwtTokenService.GenerateToken(user);
 
@@ -388,6 +399,8 @@ await _refreshTokenRepository.AddAsync(refreshTokenEntity);
         await _passwordResetTokenRepository
             .UpdateAsync(resetToken);
 
+        // A successful password reset ends all long-lived sessions on every device.
+        await _refreshTokenRepository.RevokeAllForUserAsync(user.Id);
         await _unitOfWork.SaveChangesAsync();
 
         return true;

@@ -93,7 +93,7 @@ export function MyOrders() {
         </h1>
 
         <p className="mt-2 text-sm leading-6 text-[#777]">
-          You haven't placed any orders yet. Start shopping
+          You have not placed any orders yet. Start shopping
           to see your orders here.
         </p>
 

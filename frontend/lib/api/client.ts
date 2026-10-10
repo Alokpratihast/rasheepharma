@@ -99,15 +99,15 @@ function notifySessionExpired(): void {
   }
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) {
     return refreshPromise;
   }
 
-  refreshPromise = (async () => {
+  const performRefresh = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/Auth/refresh`,
+        API_BASE_URL + "/Auth/refresh",
         {
           method: "POST",
           credentials: "include",
@@ -135,23 +135,33 @@ async function refreshAccessToken(): Promise<string | null> {
       const currentAuth = getStoredAuth();
 
       if (currentAuth) {
-        /*
-         * Preserve the current user and replace only
-         * the access token.
-         */
         setStoredAuth({
           ...currentAuth.user,
           token: data.token,
         });
       } else {
-        /*
-         * The backend refresh endpoint should return
-         * the normal AuthResponse DTO.
-         */
         setStoredAuth(data as AuthResponse);
       }
 
       return data.token;
+    } catch {
+      notifySessionExpired();
+      return null;
+    }
+  };
+
+  refreshPromise = (async () => {
+    try {
+      // Web Locks serialize refreshes across tabs so one tab's rotation
+      // does not make another tab look like a stolen-token replay.
+      if (typeof navigator !== "undefined" && navigator.locks) {
+        return await navigator.locks.request(
+          "rashepharma-auth-refresh",
+          performRefresh,
+        );
+      }
+
+      return await performRefresh();
     } catch {
       notifySessionExpired();
       return null;
@@ -162,7 +172,6 @@ async function refreshAccessToken(): Promise<string | null> {
 
   return refreshPromise;
 }
-
 export async function apiClient<T>(
   endpoint: string,
   options: ApiRequestOptions = {},
@@ -244,6 +253,11 @@ export async function apiClient<T>(
           headers: retryHeaders,
         },
       );
+
+      // Clear stale client auth if the one refreshed-token retry is still rejected.
+      if (response.status === 401) {
+        notifySessionExpired();
+      }
     }
   }
 

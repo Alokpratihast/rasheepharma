@@ -92,6 +92,12 @@ export function ProductCard({
             {composition}
           </p>
 
+          {typeof moq === "number" && moq > 0 && (
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              Minimum order: {moq}
+            </p>
+          )}
+
           <div className="mt-auto flex items-end justify-between gap-3 border-t border-dashed border-border pt-4">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">

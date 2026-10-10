@@ -46,23 +46,18 @@ const [quotationPrices, setQuotationPrices] = useState<
 >({});
 
     useEffect(() => {
-      if (authLoading) return;
+      if (authLoading || !isAuthenticated || !token) return;
 
-      if (!isAuthenticated || !token) {
-        setLoading(false);
-        setError("You must be logged in to view enquiries.");
-        return;
-      }
+      let isActive = true;
 
       const loadEnquiries = async () => {
         try {
-          setLoading(true);
-          setError("");
-
           const data = await enquiryService.getAll(token);
-
+          if (!isActive) return;
+          setError("");
           setEnquiries(data);
         } catch (err) {
+          if (!isActive) return;
           console.error("Failed to load enquiries:", err);
 
           setError(
@@ -71,11 +66,15 @@ const [quotationPrices, setQuotationPrices] = useState<
               : "Failed to load enquiries.",
           );
         } finally {
-          setLoading(false);
+          if (isActive) setLoading(false);
         }
       };
 
-      loadEnquiries();
+      void loadEnquiries();
+
+      return () => {
+        isActive = false;
+      };
     }, [authLoading, isAuthenticated, token]);
 
     const formatDate = (date: string) => {
@@ -221,7 +220,7 @@ const [quotationPrices, setQuotationPrices] = useState<
       }
     };
 
-    if (authLoading || loading) {
+    if (authLoading || (isAuthenticated && Boolean(token) && loading)) {
       return (
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -232,7 +231,12 @@ const [quotationPrices, setQuotationPrices] = useState<
       );
     }
 
-    if (error) {
+    const pageError =
+      !isAuthenticated || !token
+        ? "You must be logged in to view enquiries."
+        : error;
+
+    if (pageError) {
       return (
         <div className="p-6">
           <div className="rounded-xl border border-red-200 bg-red-50 p-5">
@@ -245,7 +249,7 @@ const [quotationPrices, setQuotationPrices] = useState<
                 </h2>
 
                 <p className="mt-1 text-sm text-red-700">
-                  {error}
+                  {pageError}
                 </p>
               </div>
             </div>

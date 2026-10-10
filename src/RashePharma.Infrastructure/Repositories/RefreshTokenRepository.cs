@@ -46,6 +46,18 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     }
 
 
+    public async Task RevokeAllForUserAsync(int userId)
+    {
+        // Password changes must invalidate every persistent session for that account.
+        await _context.RefreshTokens
+            .Where(token =>
+                token.UserId == userId &&
+                token.RevokedAt == null)
+            .ExecuteUpdateAsync(setters =>
+                setters.SetProperty(
+                    token => token.RevokedAt,
+                    DateTime.UtcNow));
+    }
     public async Task RevokeAsync(
         RefreshToken refreshToken)
     {

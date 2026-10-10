@@ -10,7 +10,7 @@ const sessionMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => sessionMocks);
 
-import { apiClient, ApiError } from "@/lib/api/client";
+import { apiClient, ApiError, refreshAccessToken } from "@/lib/api/client";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -131,4 +131,38 @@ it("shares one refresh request across concurrent 401 responses", async () => {
 });
 
 
+  it("restores the session through the HttpOnly refresh cookie", async () => {
+    sessionMocks.getStoredAuth.mockReturnValue(null);
+
+    const authResponse = {
+      userId: 7,
+      firstName: "Alok",
+      lastName: "Prathist",
+      email: "alok@example.test",
+      phoneNumber: null,
+      country: null,
+      role: "User",
+      token: "fresh-access-token",
+    };
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse(authResponse),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(refreshAccessToken()).resolves.toBe(
+      "fresh-access-token",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/Auth/refresh"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    );
+    expect(sessionMocks.setStoredAuth).toHaveBeenCalledWith(
+      authResponse,
+    );
+  });
 });

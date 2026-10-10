@@ -48,14 +48,15 @@ public class JwtTokenService : IJwtTokenService
         }
 
         var expiresMinutesValue =
-            jwtSettings["ExpiresMinutes"] ?? "10";
+            jwtSettings["ExpiresMinutes"] ?? "15";
 
         if (!int.TryParse(
             expiresMinutesValue,
             out var expiresMinutes) ||
             expiresMinutes <= 0)
         {
-            expiresMinutes = 10;
+            // A short access-token lifetime limits the impact of token theft.
+            expiresMinutes = 15;
         }
 
         var claims = new List<Claim>

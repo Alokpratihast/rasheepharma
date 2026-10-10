@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/RashePharma.Api/RashePharma.Api.csproj" />
+    <Project Path="src/RashePharma.Api.Tests/RashePharma.Api.Tests.csproj" />
     <Project Path="src/RashePharma.Application/RashePharma.Application.csproj" />
     <Project Path="src/RashePharma.Domain/RashePharma.Domain.csproj" />
     <Project Path="src/RashePharma.Infrastructure/RashePharma.Infrastructure.csproj" />

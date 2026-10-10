@@ -1,54 +1,59 @@
 import { Container } from "@/components/ui/container";
+import { Reveal } from "@/components/about/Reveal";
+import { SectionHeading } from "@/components/about/SectionHeading";
+
+const points = [
+  {
+    no: "01",
+    title: "Our Approach",
+    text: "We aim to serve customers, distributors and business partners with pharmaceutical products supported by consistent processes and a customer-focused approach.",
+  },
+  {
+    no: "02",
+    title: "Our Commitment",
+    text: "Our focus is on maintaining dependable standards across products, service and business relationships while supporting healthcare requirements across markets.",
+  },
+];
 
 export function AboutOverview() {
   return (
-    <section className="bg-[#fafafa] py-14 sm:py-20">
+    <section className="py-16 sm:py-24">
       <Container>
-        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          {/* Section Intro */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-              Who We Are
-            </p>
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16">
+          <Reveal>
+            <SectionHeading
+              eyebrow="Who We Are"
+              title="Focused on quality, reliability and long-term trust"
+              description="RashePharma is committed to building dependable healthcare solutions through a strong focus on product quality, consistency and customer needs."
+            />
+          </Reveal>
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#1B2A4A] sm:text-4xl">
-              Focused on quality, reliability and long-term trust
-            </h2>
-
-            <p className="mt-4 text-sm leading-7 text-[#595959] sm:text-base">
-              RashePharma is committed to building dependable healthcare
-              solutions through a strong focus on product quality,
-              consistency and customer needs.
-            </p>
-          </div>
-
-          {/* Overview Content */}
-          <div className="rounded-2xl border border-[#e4e9e7] bg-white p-6 shadow-sm sm:p-8">
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-lg font-semibold text-[#1B2A4A]">
-                  Our Approach
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-[#666]">
-                  We aim to serve customers, distributors and business
-                  partners with pharmaceutical products supported by
-                  consistent processes and a customer-focused approach.
-                </p>
-              </div>
-
-              <div className="border-t border-[#edf0ef] pt-5">
-                <h3 className="text-lg font-semibold text-[#1B2A4A]">
-                  Our Commitment
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-[#666]">
-                  Our focus is on maintaining dependable standards across
-                  products, service and business relationships while
-                  supporting healthcare requirements across markets.
-                </p>
-              </div>
-            </div>
+          <div className="space-y-4">
+            {points.map((point, index) => (
+              <Reveal key={point.no} delay={index * 120}>
+                <article className="group relative overflow-hidden rounded-3xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_24px_50px_rgba(8,127,91,0.12)] sm:p-8">
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2 -top-6 select-none text-[110px] font-extrabold leading-none text-primary/[0.06] transition-colors group-hover:text-primary/[0.12]"
+                  >
+                    {point.no}
+                  </span>
+                  <div className="relative flex gap-5">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-teal-600 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(8,127,91,0.3)]">
+                      {point.no}
+                    </span>
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">
+                        {point.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                        {point.text}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </Reveal>
+            ))}
           </div>
         </div>
       </Container>

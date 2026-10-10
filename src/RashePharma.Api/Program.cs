@@ -15,6 +15,7 @@ using System.Text;
 using QuestPDF.Infrastructure;
 using RashePharma.Infrastructure.Workers;
 using Stripe;
+using System.Threading.RateLimiting;
 
 // =========================================================
 // Create application builder
@@ -204,6 +205,58 @@ if (!string.IsNullOrWhiteSpace(brevoFromName))
 
 builder.Services.AddControllers();
 
+// Apply endpoint-specific throttles to slow credential guessing and password-reset abuse.
+// Limits are partitioned by the network peer address; do not trust forwarded headers unless
+// the proxy that sets them is explicitly configured as trusted.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("auth-login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-register", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-recovery", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-refresh", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddSwaggerGen(options =>
@@ -234,14 +287,40 @@ builder.Services.AddSwaggerGen(options =>
 // CORS
 // =========================================================
 
+var allowedFrontendOrigins =
+    builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>();
+
+if (!builder.Environment.IsDevelopment() &&
+    !builder.Environment.IsEnvironment("Testing"))
+{
+    if (allowedFrontendOrigins == null || allowedFrontendOrigins.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "Cors:AllowedOrigins must list the exact frontend origins in staging and production.");
+    }
+
+    foreach (var origin in allowedFrontendOrigins)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsedOrigin) ||
+            parsedOrigin.Scheme != Uri.UriSchemeHttps ||
+            parsedOrigin.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(parsedOrigin.Query) ||
+            !string.IsNullOrEmpty(parsedOrigin.Fragment) ||
+            !string.IsNullOrEmpty(parsedOrigin.UserInfo))
+        {
+            throw new InvalidOperationException(
+                $"Cors:AllowedOrigins entry '{origin}' must be an HTTPS origin without a path, query, or credentials.");
+        }
+    }
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        var allowedOrigins =
-            builder.Configuration
-                .GetSection("Cors:AllowedOrigins")
-                .Get<string[]>();
+        var allowedOrigins = allowedFrontendOrigins;
 
         if (allowedOrigins != null &&
             allowedOrigins.Length > 0)
@@ -353,19 +432,8 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context =>
-            {
-                var cookieToken =
-                    context.Request.Cookies["access_token"];
 
-                if (!string.IsNullOrWhiteSpace(cookieToken))
-                {
-                    context.Token = cookieToken;
-                }
-
-                return Task.CompletedTask;
-            },
-
+            // Access tokens are accepted only in explicit Authorization headers; cookies are refresh-only.
             OnTokenValidated = async context =>
             {
                 var jti = context.Principal?
@@ -681,7 +749,11 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
+app.UseRouting();
+
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 

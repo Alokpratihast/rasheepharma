@@ -19,4 +19,6 @@ public interface IRefreshTokenRepository
 
     Task RevokeFamilyAsync(
         Guid tokenFamilyId);
+
+    Task RevokeAllForUserAsync(int userId);
 }
