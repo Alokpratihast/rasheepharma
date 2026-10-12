@@ -20,6 +20,7 @@ public class CartRepository : ICartRepository
             .Include(c => c.Items)
                 .ThenInclude(i => i.ProductVariant)
                     .ThenInclude(v => v.Product)
+                        .ThenInclude(p => p.Images)
             .FirstOrDefaultAsync(c => c.UserId == userId);
     }
 
@@ -29,6 +30,7 @@ public class CartRepository : ICartRepository
             .Include(c => c.Items)
                 .ThenInclude(i => i.ProductVariant)
                     .ThenInclude(v => v.Product)
+                        .ThenInclude(p => p.Images)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
@@ -73,14 +75,12 @@ public class CartRepository : ICartRepository
         await Task.CompletedTask;
     }
 
-    
-
     public async Task ClearItemsAsync(int cartId)
-{
-    var items = await _context.CartItems
-        .Where(item => item.CartId == cartId)
-        .ToListAsync();
+    {
+        var items = await _context.CartItems
+            .Where(item => item.CartId == cartId)
+            .ToListAsync();
 
-    _context.CartItems.RemoveRange(items);
-}
+        _context.CartItems.RemoveRange(items);
+    }
 }

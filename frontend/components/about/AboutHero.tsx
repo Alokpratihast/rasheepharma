@@ -1,156 +1,141 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Globe2,
-  ShieldCheck,
-  Handshake,
-} from "lucide-react";
+import { ArrowRight, ChevronRight, ShieldCheck } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
 
+// float animations (shared with the home hero)
+import "@/components/home/hero.css";
+
+const enter =
+  "animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-fill-mode:backwards]";
+
 export function AboutHero() {
   return (
-    <section className="relative overflow-hidden border-b border-[#e7ebea] bg-[#f7faf9]">
-      {/* Decorative background */}
-      <div className="pointer-events-none absolute -left-32 top-20 size-72 rounded-full bg-[#3E8F96]/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-32 bottom-0 size-80 rounded-full bg-[#F5821F]/10 blur-3xl" />
+    <section className="relative isolate overflow-hidden bg-brand-dark text-white">
+      {/* Background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+      >
+        <div className="absolute -left-40 -top-40 size-[520px] rounded-full bg-primary/50 blur-[110px]" />
+        <div className="absolute -bottom-48 -right-32 size-[480px] rounded-full bg-sky-600/35 blur-[110px]" />
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage:
+              "radial-gradient(circle at 50% 35%, #000, transparent 72%)",
+            WebkitMaskImage:
+              "radial-gradient(circle at 50% 35%, #000, transparent 72%)",
+          }}
+        />
+      </div>
 
       <Container>
-        <div className="relative grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
-          {/* =================================================
-              LEFT CONTENT
-          ================================================== */}
+        <div className="grid items-center gap-14 pb-32 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-36">
+          {/* LEFT */}
+          <div className="max-w-[620px]">
+            <nav aria-label="Breadcrumb" className="text-xs text-white/60">
+              <ol className="flex items-center gap-1.5">
+                <li>
+                  <Link href="/" className="transition-colors hover:text-white">
+                    Home
+                  </Link>
+                </li>
+                <ChevronRight className="size-3.5" />
+                <li aria-current="page" className="text-white/90">
+                  About
+                </li>
+              </ol>
+            </nav>
 
-          <div className="max-w-2xl">
-            {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#dcebea] bg-white px-3 py-1.5 shadow-sm">
-              <span className="size-2 rounded-full bg-[#F5821F]" />
+            <span
+              className={`${enter} mt-7 inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/90 backdrop-blur`}
+            >
+              <span className="size-2 rounded-full bg-emerald-400" />
+              About RashePharma
+            </span>
 
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#3E8F96]">
-                About RashePharma
-              </span>
-            </div>
-
-            {/* Heading */}
-            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-[#1B2A4A] sm:text-5xl lg:text-6xl lg:leading-[1.05]">
+            <h1
+              className={`${enter} mt-6 text-4xl font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-5xl lg:text-[60px]`}
+              style={{ animationDelay: "100ms" }}
+            >
               Building trust through
-              <span className="block text-[#3E8F96]">
+              <span className="block bg-gradient-to-r from-teal-300 to-emerald-200 bg-clip-text text-transparent">
                 quality healthcare.
               </span>
             </h1>
 
-            {/* Description */}
-            <p className="mt-6 max-w-xl text-sm leading-7 text-[#595959] sm:text-base">
+            <p
+              className={`${enter} mt-6 text-base leading-8 text-white/75`}
+              style={{ animationDelay: "200ms" }}
+            >
               RashePharma is focused on delivering quality pharmaceutical
               products and dependable healthcare solutions for customers,
               distributors and business partners.
             </p>
-
-            <p className="mt-4 max-w-xl text-sm leading-7 text-[#666]">
+            <p
+              className={`${enter} mt-4 text-sm leading-7 text-white/60`}
+              style={{ animationDelay: "280ms" }}
+            >
               Our approach combines product reliability, customer focus and
               long-term business relationships to support healthcare
               requirements across markets.
             </p>
 
-            {/* CTA */}
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div
+              className={`${enter} mt-9 flex flex-col gap-3 sm:flex-row`}
+              style={{ animationDelay: "360ms" }}
+            >
               <Link
                 href="/products"
-                className="group inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#F5821F] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#df7115] hover:shadow-md"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-8 font-bold text-brand-dark shadow-[0_14px_34px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-0.5 hover:bg-emerald-50"
               >
                 Explore Products
-
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
-
               <Link
                 href="/contact"
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-[#d9e2df] bg-white px-6 text-sm font-semibold text-[#1B2A4A] transition-colors hover:bg-[#f1f6f4]"
+                className="inline-flex h-12 items-center justify-center rounded-full border border-white/35 px-8 font-bold text-white transition-all hover:-translate-y-0.5 hover:border-white hover:bg-white/10"
               >
                 Contact Us
               </Link>
             </div>
-
-            {/* Trust points */}
-            <div className="mt-9 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-[#e3ebe9] bg-white p-4">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-[#EAF5F3]">
-                  <ShieldCheck className="size-4 text-[#3E8F96]" />
-                </div>
-
-                <p className="mt-3 text-xs font-semibold text-[#1B2A4A]">
-                  Quality Focus
-                </p>
-
-                <p className="mt-1 text-[11px] leading-4 text-[#777]">
-                  Reliable pharmaceutical solutions
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-[#e3ebe9] bg-white p-4">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-[#FFF3E9]">
-                  <Handshake className="size-4 text-[#F5821F]" />
-                </div>
-
-                <p className="mt-3 text-xs font-semibold text-[#1B2A4A]">
-                  Partnerships
-                </p>
-
-                <p className="mt-1 text-[11px] leading-4 text-[#777]">
-                  Built for long-term relationships
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-[#e3ebe9] bg-white p-4">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-[#EAF5F3]">
-                  <Globe2 className="size-4 text-[#3E8F96]" />
-                </div>
-
-                <p className="mt-3 text-xs font-semibold text-[#1B2A4A]">
-                  Global Vision
-                </p>
-
-                <p className="mt-1 text-[11px] leading-4 text-[#777]">
-                  Serving broader healthcare markets
-                </p>
-              </div>
-            </div>
           </div>
 
-          {/* =================================================
-              RIGHT IMAGE
-          ================================================== */}
+          {/* RIGHT: IMAGE */}
+          <div
+            className={`${enter} relative mx-auto w-full max-w-[500px] [animation-duration:900ms]`}
+            style={{ animationDelay: "250ms" }}
+          >
+            <div
+              aria-hidden="true"
+              className="absolute inset-6 rounded-full bg-teal-400/30 blur-3xl"
+            />
 
-          <div className="relative mx-auto w-full max-w-lg">
-            {/* Outer glow */}
-            <div className="absolute -inset-4 rounded-[34px] bg-[#3E8F96]/10 blur-2xl" />
-
-            <div className="relative overflow-hidden rounded-[28px] border border-white bg-[#1B2A4A] p-2 shadow-[0_25px_70px_rgba(27,42,74,0.18)]">
-              <div className="relative aspect-square overflow-hidden rounded-[22px]">
+            <div className="relative overflow-hidden rounded-[40px] border border-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+              <div className="relative aspect-square">
                 <Image
                   src="/images/rashepharma.jpg"
                   alt="RashePharma"
                   fill
                   priority
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  sizes="(max-width: 1024px) 90vw, 500px"
                   className="object-cover"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
 
-                {/* Image overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f1b2e]/70 via-transparent to-transparent" />
-
-                {/* Bottom information */}
                 <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-                  <div className="rounded-2xl border border-white/15 bg-black/20 p-4 backdrop-blur-md">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
                       RashePharma
                     </p>
-
-                    <p className="mt-1 text-sm font-semibold text-white sm:text-base">
+                    <p className="mt-1 text-base font-bold">
                       Better Health. Global Reach.
                     </p>
-
                     <p className="mt-1 text-xs leading-5 text-white/70">
                       Quality-focused pharmaceutical solutions built around
                       trust and reliability.
@@ -160,25 +145,37 @@ export function AboutHero() {
               </div>
             </div>
 
-            {/* Floating badge */}
-            <div className="absolute -bottom-5 -left-4 hidden rounded-2xl border border-[#dcebea] bg-white px-4 py-3 shadow-lg sm:flex sm:items-center sm:gap-3">
-              <div className="flex size-9 items-center justify-center rounded-full bg-[#EAF5F3]">
-                <ShieldCheck className="size-4 text-[#3E8F96]" />
-              </div>
+            {/* Floating badges */}
+            <div className="hero-float absolute -left-3 top-10 hidden items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:flex">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-400/20">
+                <ShieldCheck className="size-5 text-emerald-300" />
+              </span>
+              <span>
+                <span className="block text-[10px] uppercase tracking-wider text-white/60">
+                  Our focus
+                </span>
+                <span className="block text-sm font-bold">Quality &amp; Trust</span>
+              </span>
+            </div>
 
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#888]">
-                  Our Focus
-                </p>
-
-                <p className="text-xs font-semibold text-[#1B2A4A]">
-                  Quality & Trust
-                </p>
-              </div>
+            <div className="hero-float-b absolute -right-3 -top-4 flex size-24 flex-col items-center justify-center rounded-full border border-white/25 bg-gradient-to-br from-emerald-400 to-teal-500 text-brand-dark shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                Since
+              </span>
+              <span className="text-2xl font-extrabold leading-none">2019</span>
             </div>
           </div>
         </div>
       </Container>
+
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 1440 80"
+        preserveAspectRatio="none"
+        className="absolute inset-x-0 -bottom-px h-10 w-full fill-background sm:h-16"
+      >
+        <path d="M0,42 C240,92 480,2 720,32 C960,62 1200,92 1440,36 L1440,80 L0,80 Z" />
+      </svg>
     </section>
   );
 }

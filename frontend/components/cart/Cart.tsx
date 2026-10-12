@@ -18,13 +18,14 @@ export function Cart() {
 
   const router = useRouter();
   const {
+    token,
     isAuthenticated,
     isLoading: authLoading,
   } = useAuth();
 
   const [cart, setCart] = useState<CartType | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadedToken, setLoadedToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const [updatingVariantId, setUpdatingVariantId] =
@@ -34,47 +35,64 @@ export function Cart() {
      LOAD CART
   ================================================== */
 
-  const loadCart = useCallback(async () => {
-    try {
-      setErrorMessage("");
-
-      const response = await cartService.getCart();
-
-      setCart(response);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to load your cart.";
-
-      setErrorMessage(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const loadCart = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
+      try {
+        const response = await cartService.getCart();
+        if (!isCurrent()) return;
+        setCart(response);
+        setErrorMessage("");
+      } catch (error) {
+        if (!isCurrent()) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to load your cart.";
+        setErrorMessage(message);
+      } finally {
+        if (isCurrent()) setLoadedToken(token);
+      }
+    },
+    [token],
+  );
 
   /* =================================================
      LOAD AFTER AUTH IS READY
   ================================================== */
 
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+    if (authLoading || !isAuthenticated || !token) return;
 
-    if (!isAuthenticated) {
-      setCart(null);
-      setIsLoading(false);
-      return;
-    }
+    let isActive = true;
 
-    setIsLoading(true);
-    loadCart();
-  }, [
-    authLoading,
-    isAuthenticated,
-    loadCart,
-  ]);
+    const loadInitialCart = async () => {
+      try {
+        const response = await cartService.getCart();
+        if (!isActive) return;
+        setCart(response);
+        setErrorMessage("");
+      } catch (error) {
+        if (!isActive) return;
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load your cart.",
+        );
+      } finally {
+        if (isActive) setLoadedToken(token);
+      }
+    };
+
+    void loadInitialCart();
+
+    return () => {
+      isActive = false;
+    };
+  }, [authLoading, isAuthenticated, token]);
+
+  const isLoading =
+    authLoading ||
+    (isAuthenticated && Boolean(token) && loadedToken !== token);
 
   /* =================================================
      UPDATE QUANTITY
@@ -227,8 +245,8 @@ export function Cart() {
           <button
             type="button"
             onClick={() => {
-              setIsLoading(true);
-              loadCart();
+              setLoadedToken(null);
+              void loadCart();
             }}
             className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-[#F5821F] px-5 text-sm font-semibold text-white hover:bg-[#df7115]"
           >

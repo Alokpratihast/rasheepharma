@@ -31,4 +31,7 @@ public class Enquiry
 
     public ICollection<EnquiryItem> Items { get; set; }
         = new List<EnquiryItem>();
+
+    public ICollection<EmailNotification> EmailNotifications { get; set; }
+        = new List<EmailNotification>();
 }

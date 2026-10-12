@@ -17,7 +17,7 @@ namespace RashePharma.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -72,6 +72,128 @@ namespace RashePharma.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Addresses");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadError", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BulkUploadJobId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProductSlug")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SheetName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BulkUploadJobId");
+
+                    b.ToTable("BulkUploadErrors");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BlobName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BulkUploadJobId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FileType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BulkUploadJobId");
+
+                    b.ToTable("BulkUploadFiles");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadJob", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ErrorCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProcessedRecords")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SuccessCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalRecords")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BulkUploadJobs");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
@@ -168,6 +290,63 @@ namespace RashePharma.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.EmailNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EnquiryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuotationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnquiryId", "Type")
+                        .IsUnique()
+                        .HasFilter("[EnquiryId] IS NOT NULL");
+
+                    b.HasIndex("OrderId", "Type")
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("QuotationId", "Type")
+                        .IsUnique()
+                        .HasFilter("[QuotationId] IS NOT NULL");
+
+                    b.ToTable("EmailNotifications");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>
@@ -507,6 +686,40 @@ namespace RashePharma.Infrastructure.Migrations
                     b.ToTable("PartnerRequests");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -518,6 +731,9 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CheckoutIdempotencyKey")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -543,17 +759,31 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("StripePaymentIntentId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("StripeSessionId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderId");
+                    b.HasIndex("CheckoutIdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[CheckoutIdempotencyKey] IS NOT NULL");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasFilter("[Status] IN ('Pending', 'Failed')");
+
+                    b.HasIndex("StripePaymentIntentId")
+                        .IsUnique()
+                        .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+                    b.HasIndex("StripeSessionId")
+                        .IsUnique()
+                        .HasFilter("[StripeSessionId] IS NOT NULL");
 
                     b.ToTable("Payments");
                 });
@@ -660,6 +890,7 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Currency")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
@@ -788,6 +1019,73 @@ namespace RashePharma.Infrastructure.Migrations
                     b.ToTable("QuotationItems");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("TokenFamilyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenFamilyId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.RevokedAccessToken", b =>
+                {
+                    b.Property<string>("Jti")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RevokedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Jti");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.ToTable("RevokedAccessTokens");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -803,6 +1101,36 @@ namespace RashePharma.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.StripeWebhookEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StripeEventId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StripeEventId")
+                        .IsUnique();
+
+                    b.ToTable("StripeWebhookEvents");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.User", b =>
@@ -905,6 +1233,28 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadError", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.BulkUploadJob", "BulkUploadJob")
+                        .WithMany("Errors")
+                        .HasForeignKey("BulkUploadJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BulkUploadJob");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadFile", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.BulkUploadJob", "BulkUploadJob")
+                        .WithMany("Files")
+                        .HasForeignKey("BulkUploadJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BulkUploadJob");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.User", "User")
@@ -943,6 +1293,30 @@ namespace RashePharma.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentCategory");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.EmailNotification", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.Enquiry", "Enquiry")
+                        .WithMany("EmailNotifications")
+                        .HasForeignKey("EnquiryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RashePharma.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RashePharma.Domain.Entities.Quotation", "Quotation")
+                        .WithMany()
+                        .HasForeignKey("QuotationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Enquiry");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Quotation");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>
@@ -1042,6 +1416,17 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.User", "User")
+                        .WithMany("PasswordResetTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.Order", "Order")
@@ -1123,6 +1508,17 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("Quotation");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.User", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.Role", "Role")
@@ -1132,6 +1528,13 @@ namespace RashePharma.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadJob", b =>
+                {
+                    b.Navigation("Errors");
+
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Cart", b =>
@@ -1148,6 +1551,8 @@ namespace RashePharma.Infrastructure.Migrations
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Enquiry", b =>
                 {
+                    b.Navigation("EmailNotifications");
+
                     b.Navigation("Items");
                 });
 
@@ -1187,6 +1592,10 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("Enquiries");
 
                     b.Navigation("Orders");
+
+                    b.Navigation("PasswordResetTokens");
+
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

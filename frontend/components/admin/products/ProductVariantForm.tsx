@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { productVariantService } from "@/services/productVariantService";
 import type {
   ProductVariant,
@@ -23,40 +23,22 @@ export function ProductVariantForm({
 }: ProductVariantFormProps) {
   const isEditMode = Boolean(variant);
 
-  const [strength, setStrength] = useState("");
-  const [packSize, setPackSize] = useState("");
+  const [strength, setStrength] = useState(variant?.strength ?? "");
+  const [packSize, setPackSize] = useState(variant?.packSize ?? "");
   const [price, setPrice] = useState("");
-  const [currency, setCurrency] = useState("INR");
-  const [moq, setMoq] = useState("");
-  const [unitType, setUnitType] = useState("");
-  const [sku, setSku] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [moq, setMoq] = useState(variant?.moq != null ? String(variant.moq) : "");
+  const [unitType, setUnitType] = useState(variant?.unitType ?? "");
+  const [sku, setSku] = useState(variant?.sku ?? "");
+  const [stockQuantity, setStockQuantity] = useState(variant ? String(variant.stockQuantity) : "");
+  const [isActive, setIsActive] = useState(variant?.isActive ?? true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (variant) {
-      setStrength(variant.strength ?? "");
-      setPackSize(variant.packSize ?? "");
-      setPrice(String(variant.price));
-      setCurrency(variant.currency ?? "INR");
-      setMoq(variant.moq !== null ? String(variant.moq) : "");
-      setUnitType(variant.unitType ?? "");
-      setSku(variant.sku ?? "");
-      setStockQuantity(String(variant.stockQuantity));
-      setIsActive(variant.isActive);
-    } else {
-      resetForm();
-    }
-  }, [variant]);
 
   const resetForm = () => {
     setStrength("");
     setPackSize("");
     setPrice("");
-    setCurrency("INR");
     setMoq("");
     setUnitType("");
     setSku("");
@@ -65,7 +47,9 @@ export function ProductVariantForm({
     setError(null);
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
 
     try {
@@ -73,7 +57,7 @@ export function ProductVariantForm({
       setError(null);
 
       if (!price || Number(price) < 0) {
-        setError("Please enter a valid price.");
+        setError("Please enter a valid price in INR.");
         return;
       }
 
@@ -87,7 +71,6 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: currency || null,
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -108,7 +91,6 @@ export function ProductVariantForm({
           strength: strength || null,
           packSize: packSize || null,
           price: Number(price),
-          currency: currency || null,
           moq: moq ? Number(moq) : null,
           unitType: unitType || null,
           sku: sku || null,
@@ -199,7 +181,7 @@ export function ProductVariantForm({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Price
+            Price (INR)
           </label>
 
           <input
@@ -210,26 +192,15 @@ export function ProductVariantForm({
             onChange={(event) =>
               setPrice(event.target.value)
             }
-            placeholder="e.g. 25.00"
+            placeholder="e.g. 10000"
             required
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
           />
-        </div>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Currency
-          </label>
-
-          <input
-            type="text"
-            value={currency}
-            onChange={(event) =>
-              setCurrency(event.target.value)
-            }
-            placeholder="INR"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
-          />
+          <p className="mt-1.5 text-xs text-gray-500">
+            Enter the price in Indian Rupees. The system will
+            automatically convert it to USD.
+          </p>
         </div>
 
         <div>

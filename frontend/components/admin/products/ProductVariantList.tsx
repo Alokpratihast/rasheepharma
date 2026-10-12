@@ -13,36 +13,42 @@ export function ProductVariantList({
   productId,
 }: ProductVariantListProps) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingVariant, setEditingVariant] =
     useState<ProductVariant | null>(null);
 
-  const loadVariants = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data =
-        await productVariantService.getByProductId(productId);
-
-      setVariants(data);
-    } catch (error) {
-      console.error(
-        "Failed to load product variants:",
-        error,
-      );
-
-      setError("Failed to load product variants.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadedProductId !== productId;
 
   useEffect(() => {
-    loadVariants();
+    let isActive = true;
+
+    const loadVariants = async () => {
+      try {
+        const data =
+          await productVariantService.getByProductId(productId);
+        if (!isActive) return;
+        setVariants(data);
+        setError(null);
+      } catch (error) {
+        if (!isActive) return;
+        console.error(
+          "Failed to load product variants:",
+          error,
+        );
+        setError("Failed to load product variants.");
+      } finally {
+        if (isActive) setLoadedProductId(productId);
+      }
+    };
+
+    void loadVariants();
+
+    return () => {
+      isActive = false;
+    };
   }, [productId]);
 
   const handleAdd = () => {
@@ -137,6 +143,7 @@ export function ProductVariantList({
       {showForm && (
         <div className="mb-6">
           <ProductVariantForm
+            key={String(productId) + ':' + (editingVariant?.id ?? 'new')}
             productId={productId}
             variant={editingVariant}
             onSuccess={handleSuccess}
@@ -225,8 +232,9 @@ export function ProductVariantList({
                     </td>
 
                     <td className="px-5 py-4 text-sm font-medium text-gray-900">
-                      {variant.currency || "INR"}{" "}
-                      {variant.price.toFixed(2)}
+                      {variant.currency === "USD"
+                      ? `$${variant.price.toFixed(2)}`
+                      : `₹${variant.price.toFixed(2)}`}
                     </td>
 
                     <td className="px-5 py-4 text-sm text-gray-600">

@@ -43,23 +43,27 @@ export function AddressesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  async function loadAddresses() {
-    try {
-      setIsLoading(true);
-
-      const data = await addressService.getAll();
-
-      setAddresses(data);
-    } catch (error) {
-      console.error("Failed to load addresses:", error);
-      toast.error("Unable to load addresses.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadAddresses();
+    let isActive = true;
+
+    const loadInitialAddresses = async () => {
+      try {
+        const data = await addressService.getAll();
+        if (isActive) setAddresses(data);
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load addresses:", error);
+        toast.error("Unable to load addresses.");
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    };
+
+    void loadInitialAddresses();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   function openAddForm() {

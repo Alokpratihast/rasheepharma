@@ -21,7 +21,7 @@ export default function QuotationsPage() {
   const { token, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [quotations, setQuotations] = useState<QuotationList[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedToken, setLoadedToken] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const [selectedQuotation, setSelectedQuotation] =
@@ -30,22 +30,18 @@ export default function QuotationsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !isAuthenticated || !token) return;
 
-    if (!isAuthenticated || !token) {
-      setLoading(false);
-      return;
-    }
+    let isActive = true;
 
     const loadQuotations = async () => {
       try {
-        setLoading(true);
-        setError("");
-
         const data = await quotationService.getAll(token);
-
+        if (!isActive) return;
+        setError("");
         setQuotations(data);
       } catch (err) {
+        if (!isActive) return;
         console.error("Failed to load quotations:", err);
 
         setError(
@@ -54,12 +50,20 @@ export default function QuotationsPage() {
             : "Failed to load quotations.",
         );
       } finally {
-        setLoading(false);
+        if (isActive) setLoadedToken(token);
       }
     };
 
-    loadQuotations();
+    void loadQuotations();
+
+    return () => {
+      isActive = false;
+    };
   }, [token, isAuthenticated, authLoading]);
+
+  const loading =
+    authLoading ||
+    (isAuthenticated && Boolean(token) && loadedToken !== token);
 
   const handleViewQuotation = async (id: number) => {
     if (!token) return;

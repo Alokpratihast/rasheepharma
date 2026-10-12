@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
@@ -33,34 +33,84 @@ interface PendingEnquiry {
   selectedVariantId: string;
 }
 
-export function EnquiryForm({
+function readPendingEnquiry(): PendingEnquiry | null {
+  if (typeof window === "undefined") return null;
+
+  const stored = window.sessionStorage.getItem(PENDING_ENQUIRY_KEY);
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored) as PendingEnquiry;
+  } catch (error) {
+    console.error("Failed to parse pending enquiry:", error);
+    return null;
+  }
+}
+
+export function EnquiryForm(props: EnquiryFormProps) {
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
+  const initialPending = useMemo(
+    () => (!authLoading && isAuthenticated ? readPendingEnquiry() : null),
+    [authLoading, isAuthenticated],
+  );
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      window.sessionStorage.removeItem(PENDING_ENQUIRY_KEY);
+    }
+  }, [authLoading, isAuthenticated, initialPending]);
+
+  if (authLoading) return null;
+
+  return (
+    <EnquiryFormContent
+      key={isAuthenticated ? "authenticated" : "guest"}
+      {...props}
+      token={token}
+      isAuthenticated={isAuthenticated}
+      initialPending={initialPending}
+    />
+  );
+}
+
+interface EnquiryFormContentProps extends EnquiryFormProps {
+  token: string | null;
+  isAuthenticated: boolean;
+  initialPending: PendingEnquiry | null;
+}
+
+function EnquiryFormContent({
   productName,
   productVariantId,
   onSuccess,
-}: EnquiryFormProps) {
+  token,
+  isAuthenticated,
+  initialPending,
+}: EnquiryFormContentProps) {
   const router = useRouter();
 
-  const { token, isAuthenticated, isLoading: authLoading } =
-    useAuth();
-
-  const [customerName, setCustomerName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState<string>();
-  const [country, setCountry] = useState<Country>("IN");
-  const [businessType, setBusinessType] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [message, setMessage] = useState("");
+  const [customerName, setCustomerName] = useState(initialPending?.customerName ?? "");
+  const [email, setEmail] = useState(initialPending?.email ?? "");
+  const [phoneNumber, setPhoneNumber] = useState<string | undefined>(initialPending?.phoneNumber);
+  const [country, setCountry] = useState<Country>(initialPending?.country ?? "IN");
+  const [businessType, setBusinessType] = useState(initialPending?.businessType ?? "");
+  const [quantity, setQuantity] = useState(initialPending?.quantity ?? "1");
+  const [message, setMessage] = useState(initialPending?.message ?? "");
 
   const [products, setProducts] = useState<ProductList[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
-
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [selectedVariantId, setSelectedVariantId] = useState(
-    productVariantId ? String(productVariantId) : "",
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const loadingProducts = !productsLoaded;
+  const [selectedProductId, setSelectedProductId] = useState(
+    initialPending?.selectedProductId ?? "",
   );
 
-  const [loadingProducts, setLoadingProducts] = useState(true);
-  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [loadedVariantProductId, setLoadedVariantProductId] = useState("");
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    productVariantId ? String(productVariantId) : initialPending?.selectedVariantId ?? "",
+  );
+  const loadingVariants =
+    Boolean(selectedProductId) && loadedVariantProductId !== selectedProductId;
   const [submitting, setSubmitting] = useState(false);
 
   const [error, setError] = useState("");
@@ -75,11 +125,12 @@ export function EnquiryForm({
    */
 
   useEffect(() => {
-    async function loadProducts() {
-      try {
-        setLoadingProducts(true);
+    let isActive = true;
 
+    const loadProducts = async () => {
+      try {
         const data = await productService.getAll();
+        if (!isActive) return;
 
         const activeProducts = data.filter(
           (product) => product.isActive,
@@ -87,68 +138,20 @@ export function EnquiryForm({
 
         setProducts(activeProducts);
       } catch (error) {
+        if (!isActive) return;
         console.error("Failed to load products:", error);
-
-        setError(
-          "Unable to load products. Please try again.",
-        );
+        setError("Unable to load products. Please try again.");
       } finally {
-        setLoadingProducts(false);
+        if (isActive) setProductsLoaded(true);
       }
-    }
+    };
 
-    loadProducts();
+    void loadProducts();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
-
-  /*
-   * =================================================
-   * RESTORE PENDING ENQUIRY
-   * =================================================
-   *
-   * If the user was redirected to login, restore the
-   * enquiry form data after coming back.
-   */
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    try {
-      const stored = sessionStorage.getItem(
-        PENDING_ENQUIRY_KEY,
-      );
-
-      if (!stored) {
-        return;
-      }
-
-      const pending: PendingEnquiry = JSON.parse(stored);
-
-      setCustomerName(pending.customerName || "");
-      setEmail(pending.email || "");
-      setPhoneNumber(pending.phoneNumber);
-      setCountry(pending.country || "IN");
-      setBusinessType(pending.businessType || "");
-      setQuantity(pending.quantity || "1");
-      setMessage(pending.message || "");
-      setSelectedProductId(
-        pending.selectedProductId || "",
-      );
-      setSelectedVariantId(
-        pending.selectedVariantId || "",
-      );
-
-      sessionStorage.removeItem(PENDING_ENQUIRY_KEY);
-    } catch (error) {
-      console.error(
-        "Failed to restore pending enquiry:",
-        error,
-      );
-
-      sessionStorage.removeItem(PENDING_ENQUIRY_KEY);
-    }
-  }, [isAuthenticated]);
 
   /*
    * =================================================
@@ -157,59 +160,44 @@ export function EnquiryForm({
    */
 
   useEffect(() => {
-    async function loadVariants() {
-      if (!selectedProductId) {
-        setVariants([]);
-        return;
-      }
+    if (!selectedProductId) return;
 
+    let isActive = true;
+    const requestedProductId = selectedProductId;
+
+    const loadVariants = async () => {
       try {
-        setLoadingVariants(true);
-        setError("");
-
         const product = await productService.getById(
-          Number(selectedProductId),
+          Number(requestedProductId),
         );
+        if (!isActive) return;
 
         const activeVariants = product.variants.filter(
           (variant) => variant.isActive,
         );
 
         setVariants(activeVariants);
-
-        /*
-         * Keep selected variant if it belongs to
-         * the selected product.
-         */
-        if (
-          selectedVariantId &&
-          activeVariants.some(
-            (variant) =>
-              variant.id === Number(selectedVariantId),
-          )
-        ) {
-          return;
-        }
-
-        setSelectedVariantId("");
+        setError("");
       } catch (error) {
+        if (!isActive) return;
         console.error(
           "Failed to load product variants:",
           error,
         );
-
         setVariants([]);
-        setSelectedVariantId("");
-
         setError(
           "Unable to load product variants. Please try again.",
         );
       } finally {
-        setLoadingVariants(false);
+        if (isActive) setLoadedVariantProductId(requestedProductId);
       }
-    }
+    };
 
-    loadVariants();
+    void loadVariants();
+
+    return () => {
+      isActive = false;
+    };
   }, [selectedProductId]);
 
   /*
@@ -225,14 +213,6 @@ export function EnquiryForm({
 
     setError("");
     setSuccess("");
-
-    /*
-     * Wait until AuthProvider finishes restoring the
-     * existing session.
-     */
-    if (authLoading) {
-      return;
-    }
 
     /*
      * =================================================
@@ -252,7 +232,7 @@ export function EnquiryForm({
         quantity,
         message,
         selectedProductId,
-        selectedVariantId,
+        selectedVariantId: selectedVariantId && variants.some((variant) => String(variant.id) === selectedVariantId) ? selectedVariantId : "",
       };
 
       sessionStorage.setItem(
@@ -271,7 +251,13 @@ export function EnquiryForm({
      * =================================================
      */
 
-    if (selectedProductId && !selectedVariantId) {
+    const validSelectedVariantId = variants.some(
+      (variant) => String(variant.id) === selectedVariantId,
+    )
+      ? selectedVariantId
+      : "";
+
+    if (selectedProductId && !validSelectedVariantId) {
       setError(
         "Please select a product variant before submitting.",
       );
@@ -282,7 +268,7 @@ export function EnquiryForm({
     const parsedQuantity = Number(quantity);
 
     if (
-      selectedVariantId &&
+      validSelectedVariantId &&
       (!Number.isInteger(parsedQuantity) ||
         parsedQuantity <= 0)
     ) {
@@ -300,10 +286,10 @@ export function EnquiryForm({
     try {
       setSubmitting(true);
 
-      const items = selectedVariantId
+      const items = validSelectedVariantId
         ? [
             {
-              productVariantId: Number(selectedVariantId),
+              productVariantId: Number(validSelectedVariantId),
               quantity: parsedQuantity,
               message: message.trim() || null,
             },
@@ -338,6 +324,7 @@ setMessage("");
 setSelectedProductId("");
 setSelectedVariantId("");
 setVariants([]);
+onSuccess?.();
 
     } catch (error) {
       console.error("Failed to submit enquiry:", error);
@@ -546,6 +533,8 @@ setVariants([]);
             onChange={(event) => {
               setSelectedProductId(event.target.value);
               setSelectedVariantId("");
+              setVariants([]);
+              setLoadedVariantProductId("");
               setError("");
             }}
             disabled={loadingProducts}
@@ -581,7 +570,7 @@ setVariants([]);
           <select
             id="product-variant"
             name="productVariant"
-            value={selectedVariantId}
+            value={variants.some((variant) => String(variant.id) === selectedVariantId) ? selectedVariantId : ""}
             onChange={(event) => {
               setSelectedVariantId(event.target.value);
               setError("");
@@ -727,16 +716,12 @@ setVariants([]);
         <Button
           type="submit"
           size="lg"
-          disabled={submitting || authLoading}
+          disabled={submitting}
           className="h-11 rounded-lg bg-[#F5821F] px-6 text-white hover:bg-[#df7115] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting
-            ? "Sending..."
-            : authLoading
-              ? "Checking account..."
-              : "Send Enquiry"}
+          {submitting ? "Sending..." : "Send Enquiry"}
 
-          {!submitting && !authLoading && (
+          {!submitting && (
             <Send className="size-4" />
           )}
         </Button>

@@ -31,8 +31,13 @@ public class User
     public ICollection<Address> Addresses { get; set; } = new List<Address>();
     public Cart Cart { get; set; } = null!;
 
+    public ICollection<PasswordResetToken> PasswordResetTokens { get; set; } = new List<PasswordResetToken>();
+
     public ICollection<Order> Orders { get; set; }
     = new List<Order>();
     public ICollection<Enquiry> Enquiries { get; set; }
     = new List<Enquiry>();
+
+    public ICollection<RefreshToken> RefreshTokens { get; set; }
+    = new List<RefreshToken>();
 }

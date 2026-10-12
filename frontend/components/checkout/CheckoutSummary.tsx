@@ -18,6 +18,17 @@ export function CheckoutSummary({
   isPlacingOrder,
   disabled = false,
 }: CheckoutSummaryProps) {
+  const minimumOrderValue = 200;
+  const isBelowMinimum = cart.totalAmount < minimumOrderValue;
+
+  const formatUsd = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
   return (
     <section className="rounded-2xl border border-[#e5e8e7] bg-white p-5 sm:p-6">
       <div className="flex items-center gap-3">
@@ -55,8 +66,6 @@ export function CheckoutSummary({
                 </p>
               )}
 
-             
-
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#666]">
                 <span>
                   Qty:{" "}
@@ -66,14 +75,14 @@ export function CheckoutSummary({
                 </span>
 
                 <span>
-                  ₹{item.unitPrice.toLocaleString("en-IN")} / unit
+                  {formatUsd(item.unitPrice)} / unit
                 </span>
               </div>
             </div>
 
             <div className="shrink-0 text-right">
               <p className="font-bold text-[#1B2A4A]">
-                ₹{item.totalPrice.toLocaleString("en-IN")}
+                {formatUsd(item.totalPrice)}
               </p>
             </div>
           </div>
@@ -102,30 +111,50 @@ export function CheckoutSummary({
           </span>
 
           <span className="text-xl font-bold text-[#F5821F]">
-            ₹{cart.totalAmount.toLocaleString("en-IN")}
+            {formatUsd(cart.totalAmount)}
           </span>
         </div>
       </div>
+
+      {isBelowMinimum && (
+        <div className="mt-4 rounded-xl border border-[#f3d6b8] bg-[#fff8f1] p-3">
+          <p className="text-sm font-semibold text-[#9a4f0b]">
+            Minimum order value is $200.00 USD
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-[#777]">
+            Please add{" "}
+            <span className="font-semibold text-[#9a4f0b]">
+              {formatUsd(minimumOrderValue - cart.totalAmount)}
+            </span>{" "}
+            more to continue.
+          </p>
+        </div>
+      )}
 
       <Button
         type="button"
         size="lg"
         onClick={onPlaceOrder}
-        disabled={disabled || isPlacingOrder}
+        disabled={
+          disabled ||
+          isPlacingOrder ||
+          isBelowMinimum
+        }
         className="mt-6 h-12 w-full rounded-lg bg-[#F5821F] text-white hover:bg-[#df7115]"
       >
         {isPlacingOrder ? (
           <>
             <Loader2 className="mr-2 size-5 animate-spin" />
-            Placing Order...
+            Redirecting to Payment...
           </>
         ) : (
-          "Place Order"
+          "Proceed to Payment"
         )}
       </Button>
 
       <p className="mt-3 text-center text-xs text-[#888]">
-        By placing this order, you confirm that the selected
+        By proceeding to payment, you confirm that the selected
         delivery address is correct.
       </p>
     </section>

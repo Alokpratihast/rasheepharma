@@ -42,7 +42,7 @@ export function CartSummary({
           </span>
 
           <span className="text-lg font-bold text-[#F5821F]">
-            ₹{totalAmount.toFixed(2)}
+            ${totalAmount.toFixed(2)}
           </span>
         </div>
       </div>

@@ -21,12 +21,12 @@ export function CategoryForm({
 }: CategoryFormProps) {
   const isEditMode = Boolean(category);
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(category?.name ?? "");
+  const [slug, setSlug] = useState(category?.slug ?? "");
+  const [description, setDescription] = useState(category?.description ?? "");
   const [parentCategoryId, setParentCategoryId] =
-    useState<number | null>(null);
-  const [isActive, setIsActive] = useState(true);
+    useState<number | null>(category?.parentCategoryId ?? null);
+  const [isActive, setIsActive] = useState(category?.isActive ?? true);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] =
@@ -58,24 +58,6 @@ export function CategoryForm({
 
     loadCategories();
   }, []);
-
-  useEffect(() => {
-    if (!category) {
-      setName("");
-      setSlug("");
-      setDescription("");
-      setParentCategoryId(null);
-      setIsActive(true);
-
-      return;
-    }
-
-    setName(category.name);
-    setSlug(category.slug);
-    setDescription(category.description ?? "");
-    setParentCategoryId(category.parentCategoryId ?? null);
-    setIsActive(category.isActive);
-  }, [category]);
 
   const generateSlug = (value: string) => {
     return value

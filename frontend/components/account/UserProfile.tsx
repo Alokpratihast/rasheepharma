@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   UserRound,
@@ -11,22 +11,30 @@ import {
 
 import { useAuth } from "@/components/providers/AuthProvider";
 
+// During SSR and the browser's hydration pass, both snapshots are false.
+// React switches to the client snapshot after hydration without an effect-driven render.
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
+
 export function UserProfile() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   const {
     user,
     isAuthenticated,
+    isLoading,
     logout,
   } = useAuth();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
 
-  // Prevent hydration mismatch between server and client
-  if (!mounted) {
+  // Browser-only auth restoration must not change markup during hydration.
+  if (!isHydrated || isLoading) {
     return null;
   }
 

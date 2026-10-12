@@ -55,4 +55,37 @@ public class PaymentsController : ControllerBase
             });
         }
     }
+
+    [AllowAnonymous]
+    [HttpPost("webhook")]
+    public async Task<IActionResult> StripeWebhook()
+    {
+        using var reader = new StreamReader(Request.Body);
+
+        var json = await reader.ReadToEndAsync();
+
+        var stripeSignature =
+            Request.Headers["Stripe-Signature"].FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(stripeSignature))
+        {
+            return BadRequest("Missing Stripe-Signature header.");
+        }
+
+        try
+        {
+            await _paymentService.HandleWebhookAsync(
+                json,
+                stripeSignature);
+
+            return Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
 }

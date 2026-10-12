@@ -53,11 +53,19 @@ public class ProductImageService : IProductImageService
             throw new KeyNotFoundException(
                 $"Product with ID {productId} was not found.");
 
-        if (dto.IsPrimary)
-        {
-            var existingImages =
-                await _imageRepository.GetByProductIdAsync(productId);
+        var existingImages =
+            await _imageRepository.GetByProductIdAsync(productId);
 
+        // If there is no primary image yet,
+        // automatically make this image primary.
+        var hasPrimaryImage =
+            existingImages.Any(image => image.IsPrimary);
+
+        var shouldBePrimary =
+            dto.IsPrimary || !hasPrimaryImage;
+
+        if (shouldBePrimary)
+        {
             foreach (var image in existingImages)
             {
                 image.IsPrimary = false;
@@ -69,7 +77,7 @@ public class ProductImageService : IProductImageService
             ProductId = productId,
             ImageUrl = dto.ImageUrl,
             AltText = dto.AltText,
-            IsPrimary = dto.IsPrimary,
+            IsPrimary = shouldBePrimary,
             DisplayOrder = dto.DisplayOrder
         };
 
@@ -145,12 +153,23 @@ public class ProductImageService : IProductImageService
             throw new KeyNotFoundException(
                 $"Product with ID {productId} was not found.");
 
-        if (isPrimary)
-        {
-            var existingImages =
-                await _imageRepository
-                    .GetByProductIdAsync(productId);
+        var existingImages =
+            await _imageRepository
+                .GetByProductIdAsync(productId);
 
+        // Check whether this product already has a primary image.
+        var hasPrimaryImage =
+            existingImages.Any(image => image.IsPrimary);
+
+        // Automatically make the uploaded image primary
+        // when the product does not currently have a primary image.
+        var shouldBePrimary =
+            isPrimary || !hasPrimaryImage;
+
+        // If this image should be primary,
+        // remove primary status from all existing images.
+        if (shouldBePrimary)
+        {
             foreach (var image in existingImages)
             {
                 image.IsPrimary = false;
@@ -167,7 +186,7 @@ public class ProductImageService : IProductImageService
             ProductId = productId,
             ImageUrl = imageUrl,
             AltText = altText,
-            IsPrimary = isPrimary,
+            IsPrimary = shouldBePrimary,
             DisplayOrder = displayOrder
         };
 

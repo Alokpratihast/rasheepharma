@@ -10,7 +10,7 @@ public class Order
 
     public decimal TotalAmount { get; set; }
 
-    public string Currency { get; set; } = "INR";
+    public string Currency { get; set; } = "USD";
 
     public string Status { get; set; } = "Pending";
 

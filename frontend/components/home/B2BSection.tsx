@@ -6,104 +6,108 @@ import {
   MessageSquareText,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+
+import "./hero.css";
 
 const benefits = [
   {
-    title: "Bulk Requirements",
+    title: "Bulk requirements",
     description:
-      "Share your pharmaceutical product and quantity requirements with our team.",
+      "Share your product and quantity requirements with our team.",
     icon: Boxes,
   },
   {
-    title: "Global Business",
+    title: "Global business",
     description:
-      "Connect with us for international distribution and business opportunities.",
+      "Talk to us about international distribution and partnerships.",
     icon: Globe2,
   },
   {
-    title: "Quick Enquiry",
+    title: "Quick enquiry",
     description:
-      "Get product information and business assistance through a simple enquiry.",
+      "Get product information and business support through one simple enquiry.",
     icon: MessageSquareText,
   },
 ];
 
+/**
+ * Closing call to action. Mirrors the hero (dark green, drifting glows,
+ * grid, glass cards) so the page starts and ends in the same voice.
+ */
 export function B2BSection() {
   return (
-    <section className="bg-background py-14 sm:py-16">
+    <section className="bg-white py-14 sm:py-20">
       <Container>
-        <div className="overflow-hidden rounded-xl bg-[#1B2A4A]">
-          <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
-            {/* Content */}
-            <div className="p-7 sm:p-10 lg:p-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-                B2B & Business Enquiries
-              </p>
+        <div className="relative isolate overflow-hidden rounded-[2rem] bg-brand-dark text-white">
+          {/* Background */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10"
+          >
+            <div className="hero-drift absolute -left-24 -top-24 size-80 rounded-full bg-primary/50 blur-[90px]" />
+            <div className="hero-drift-b absolute -bottom-32 -right-20 size-80 rounded-full bg-sky-600/30 blur-[90px]" />
+            <div className="hero-grid absolute inset-0" />
+          </div>
 
-              <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <div className="grid gap-10 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-14 lg:p-14">
+            {/* Content */}
+            <div>
+              <h2 className="max-w-xl text-3xl font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl lg:text-[44px]">
                 Looking for a reliable pharmaceutical partner?
               </h2>
 
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
-                Connect with RashePharma for bulk requirements, product
-                enquiries, distribution opportunities and long-term business
+              <p className="mt-5 max-w-xl text-base leading-7 text-white/75">
+                Contact RashePharma for bulk requirements, product
+                enquiries, distribution opportunities and long-term
                 partnerships.
               </p>
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link href="/b2b/enquiries">
-                  <Button
-                    size="lg"
-                    className="h-11 rounded-lg bg-[#F5821F] px-6 text-white hover:bg-[#df7115]"
-                  >
-                    Request a Quote
-                    <ArrowRight className="size-4" />
-                  </Button>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/b2b/enquiry"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-7 font-bold text-brand-dark shadow-[0_14px_34px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50"
+                >
+                  Request a quote
+                  <ArrowRight className="size-4" />
                 </Link>
 
-                <Link href="/b2b/partner">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="h-11 rounded-lg border-white/20 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white"
-                  >
-                    Become a Partner
-                  </Button>
+                <Link
+                  href="/contact"
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-white/35 px-7 font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white hover:bg-white/10"
+                >
+                  Contact our team
                 </Link>
               </div>
             </div>
 
             {/* Benefits */}
-            <div className="border-t border-white/10 bg-[#223554] p-6 lg:border-l lg:border-t-0">
-              <div className="space-y-3">
-                {benefits.map((benefit) => {
-                  const Icon = benefit.icon;
+            <ul className="space-y-3">
+              {benefits.map((benefit) => {
+                const Icon = benefit.icon;
 
-                  return (
-                    <div
-                      key={benefit.title}
-                      className="flex gap-4 rounded-lg border border-white/10 bg-white/5 p-4"
-                    >
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#3E8F96]/20 text-[#72c5cb]">
-                        <Icon className="size-5" />
-                      </div>
+                return (
+                  <li
+                    key={benefit.title}
+                    className="flex gap-4 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-xl"
+                  >
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/20 text-emerald-300">
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
 
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">
-                          {benefit.title}
-                        </h3>
+                    <div>
+                      <h3 className="text-base font-semibold">
+                        {benefit.title}
+                      </h3>
 
-                        <p className="mt-1 text-xs leading-5 text-white/60">
-                          {benefit.description}
-                        </p>
-                      </div>
+                      <p className="mt-1 text-sm leading-6 text-white/70">
+                        {benefit.description}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       </Container>

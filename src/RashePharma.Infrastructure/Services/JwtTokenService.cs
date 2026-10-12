@@ -48,13 +48,15 @@ public class JwtTokenService : IJwtTokenService
         }
 
         var expiresMinutesValue =
-            jwtSettings["ExpiresMinutes"] ?? "60";
+            jwtSettings["ExpiresMinutes"] ?? "15";
 
         if (!int.TryParse(
-                expiresMinutesValue,
-                out var expiresMinutes))
+            expiresMinutesValue,
+            out var expiresMinutes) ||
+            expiresMinutes <= 0)
         {
-            expiresMinutes = 60;
+            // A short access-token lifetime limits the impact of token theft.
+            expiresMinutes = 15;
         }
 
         var claims = new List<Claim>
@@ -73,7 +75,11 @@ public class JwtTokenService : IJwtTokenService
 
             new Claim(
                 ClaimTypes.Role,
-                user.Role.Name)
+                user.Role.Name),
+
+            new Claim(
+                JwtRegisteredClaimNames.Jti,
+                Guid.NewGuid().ToString())
         };
 
         var securityKey = new SymmetricSecurityKey(

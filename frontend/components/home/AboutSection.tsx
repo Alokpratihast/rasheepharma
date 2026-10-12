@@ -1,106 +1,124 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  Building2,
   Globe2,
+  Handshake,
   ShieldCheck,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 
-const companyHighlights = [
+const points = [
   {
-    icon: Building2,
-    label: "Established",
-    value: "2019",
+    icon: ShieldCheck,
+    title: "Quality products",
+    description:
+      "Pharmaceuticals backed by WHO-GMP and ISO 9001:2015 certificates.",
   },
   {
     icon: Globe2,
-    label: "Market Covered",
-    value: "Worldwide",
+    title: "Reliable supply",
+    description:
+      "Dependable supply to customers and partners across global markets.",
   },
   {
-    icon: ShieldCheck,
-    label: "Business Focus",
-    value: "Pharmaceuticals",
+    icon: Handshake,
+    title: "Responsive service",
+    description:
+      "Product information and business support when you need it.",
   },
 ];
 
 export function AboutSection() {
   return (
-    <section className="bg-background py-14 sm:py-16">
+    <section className="bg-white pb-2 pt-14 sm:pt-20">
       <Container>
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          {/* Certificates: the proof is the visual */}
+          <div className="relative mx-auto h-[380px] w-full max-w-md rounded-[2rem] bg-primary-light sm:h-[440px]">
+            <figure className="absolute left-[7%] top-[9%] w-[52%] -rotate-6">
+              <div className="rounded-lg bg-white p-2 shadow-[0_18px_40px_rgba(7,63,50,0.22)]">
+                <Image
+                  src="/images/rashecertificate1.jpg"
+                  alt="WHO-GMP certificate"
+                  width={350}
+                  height={489}
+                  sizes="(max-width: 640px) 45vw, 220px"
+                  className="h-auto w-full rounded-sm"
+                />
+              </div>
+              <figcaption className="absolute -bottom-3 left-3 rounded-full bg-brand-dark px-3 py-1 text-xs font-semibold text-white">
+                WHO-GMP
+              </figcaption>
+            </figure>
+
+            <figure className="absolute bottom-[8%] right-[7%] w-[52%] rotate-3">
+              <div className="rounded-lg bg-white p-2 shadow-[0_18px_40px_rgba(7,63,50,0.22)]">
+                <Image
+                  src="/images/rashecertificate2.jpg"
+                  alt="ISO 9001:2015 certificate"
+                  width={350}
+                  height={489}
+                  sizes="(max-width: 640px) 45vw, 220px"
+                  className="h-auto w-full rounded-sm"
+                />
+              </div>
+              <figcaption className="absolute -bottom-3 right-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
+                ISO 9001:2015
+              </figcaption>
+            </figure>
+          </div>
+
           {/* Content */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F5821F]">
-              About RashePharma
-            </p>
-
-            <h2 className="mt-3 max-w-xl text-2xl font-semibold tracking-tight text-[#1B2A4A] sm:text-3xl lg:text-4xl">
+            <h2 className="max-w-xl text-3xl font-bold leading-[1.1] tracking-[-0.025em] text-brand-dark sm:text-4xl">
               Building trusted pharmaceutical partnerships
             </h2>
 
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-[#595959] sm:text-base">
-              RashePharma operates in the pharmaceutical sector with a focus on
-              quality products, reliable supply and long-term business
-              relationships across global markets.
+            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
+              RashePharma operates in the pharmaceutical sector with a
+              focus on quality products, reliable supply and long-term
+              business relationships across global markets.
             </p>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#595959] sm:text-base">
-              Our product portfolio supports customers and business partners
-              looking for dependable pharmaceutical solutions and responsive
-              service.
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+              Our product portfolio supports customers and business
+              partners looking for dependable pharmaceutical solutions
+              and responsive service.
             </p>
 
-            <div className="mt-7">
-              <Link href="/about">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-11 rounded-lg border-[#3E8F96]/30 text-[#1B2A4A] hover:border-[#3E8F96] hover:text-[#3E8F96]"
-                >
-                  Learn More
-                  <ArrowRight className="size-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Highlights */}
-          <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-6 sm:p-8">
-            <div className="grid gap-0 sm:grid-cols-3 lg:grid-cols-1">
-              {companyHighlights.map((item, index) => {
-                const Icon = item.icon;
+            <ul className="mt-8 grid gap-5">
+              {points.map((point) => {
+                const Icon = point.icon;
 
                 return (
-                  <div
-                    key={item.label}
-                    className={[
-                      "flex items-center gap-4 py-5",
-                      index !== 0
-                        ? "border-t border-[#e5e5e5]"
-                        : "",
-                    ].join(" ")}
-                  >
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-[#3E8F96] shadow-sm">
-                      <Icon className="size-5" />
-                    </div>
+                  <li key={point.title} className="flex gap-4">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary">
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
 
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.1em] text-[#888]">
-                        {item.label}
-                      </p>
+                      <h3 className="text-base font-semibold text-brand-dark">
+                        {point.title}
+                      </h3>
 
-                      <p className="mt-1 text-base font-semibold text-[#1B2A4A]">
-                        {item.value}
+                      <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
+                        {point.description}
                       </p>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
+
+            <Link
+              href="/about"
+              className="group mt-9 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand-dark px-7 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(7,63,50,0.22)] transition-all hover:-translate-y-0.5 hover:bg-primary"
+            >
+              Learn more about us
+              <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
           </div>
         </div>
       </Container>

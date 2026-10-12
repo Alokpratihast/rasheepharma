@@ -11,15 +11,18 @@ public class ProductVariantService : IProductVariantService
     private readonly IProductVariantRepository _variantRepository;
     private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IExchangeRateService _exchangeRateService;
 
     public ProductVariantService(
         IProductVariantRepository variantRepository,
         IProductRepository productRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IExchangeRateService exchangeRateService)
     {
         _variantRepository = variantRepository;
         _productRepository = productRepository;
         _unitOfWork = unitOfWork;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<List<ProductVariantDto>> GetByProductIdAsync(
@@ -53,13 +56,32 @@ public class ProductVariantService : IProductVariantService
                 $"Product with ID {productId} was not found.");
         }
 
+        if (dto.Price < 0)
+        {
+            throw new InvalidOperationException(
+                "Product price cannot be negative.");
+        }
+
+        // Admin enters price in INR.
+        // Backend converts INR to USD using the cached exchange rate.
+        var inrToUsdRate =
+            await _exchangeRateService.GetInrToUsdRateAsync();
+
+        var usdPrice = Math.Round(
+            dto.Price * inrToUsdRate,
+            2,
+            MidpointRounding.AwayFromZero);
+
         var variant = new ProductVariant
         {
             ProductId = productId,
             Strength = dto.Strength,
             PackSize = dto.PackSize,
-            Price = dto.Price,
-            Currency = dto.Currency,
+
+            // Store converted USD price in database
+            Price = usdPrice,
+            Currency = "USD",
+
             MOQ = dto.MOQ,
             UnitType = dto.UnitType,
             SKU = dto.SKU,
@@ -83,10 +105,29 @@ public class ProductVariantService : IProductVariantService
         if (variant == null)
             return null;
 
+        if (dto.Price < 0)
+        {
+            throw new InvalidOperationException(
+                "Product price cannot be negative.");
+        }
+
+        // Admin enters price in INR.
+        // Backend converts INR to USD using the cached exchange rate.
+        var inrToUsdRate =
+            await _exchangeRateService.GetInrToUsdRateAsync();
+
+        var usdPrice = Math.Round(
+            dto.Price * inrToUsdRate,
+            2,
+            MidpointRounding.AwayFromZero);
+
         variant.Strength = dto.Strength;
         variant.PackSize = dto.PackSize;
-        variant.Price = dto.Price;
-        variant.Currency = dto.Currency;
+
+        // Store converted USD price in database
+        variant.Price = usdPrice;
+        variant.Currency = "USD";
+
         variant.MOQ = dto.MOQ;
         variant.UnitType = dto.UnitType;
         variant.SKU = dto.SKU;
@@ -123,8 +164,11 @@ public class ProductVariantService : IProductVariantService
             Id = variant.Id,
             Strength = variant.Strength,
             PackSize = variant.PackSize,
+
+            // Already stored as USD in database
             Price = variant.Price,
-            Currency = variant.Currency,
+            Currency = "USD",
+
             MOQ = variant.MOQ,
             UnitType = variant.UnitType,
             SKU = variant.SKU,
