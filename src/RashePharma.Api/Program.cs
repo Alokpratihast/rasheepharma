@@ -547,6 +547,9 @@ builder.Services.AddScoped<
     IWebsiteContentRepository,
     WebsiteContentRepository>();
 
+// Blog persistence is registered independently so existing website-content behavior stays unchanged.
+builder.Services.AddScoped<IBlogPostRepository, BlogPostRepository>();
+
 builder.Services.AddScoped<
     IBulkUploadRepository,
     BulkUploadRepository>();
@@ -621,6 +624,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IWebsiteContentService,
     WebsiteContentService>();
+
+builder.Services.AddScoped<IBlogPostService, BlogPostService>();
 
 builder.Services.AddScoped<
     IAuthService,

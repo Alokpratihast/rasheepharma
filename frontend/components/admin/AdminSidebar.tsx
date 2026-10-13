@@ -15,6 +15,7 @@ import {
   Users,
   Globe,
   Handshake,
+  BookOpen,
   Upload,
   ChevronLeft,
   ChevronRight,
@@ -68,6 +69,12 @@ const menuItems = [
     label: "Website Content",
     href: "/admin/content",
     icon: Globe,
+  },
+  // Blog has its own workflow and does not alter the existing Website Content screen.
+  {
+    label: "Blog",
+    href: "/admin/blog",
+    icon: BookOpen,
   },
   {
     label: "Partners",

@@ -27,7 +27,6 @@ import { MobileMenu } from "@/components/navigation/MobileMenu";
 import { EnquiryForm } from "@/components/forms/EnquiryForm";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { Button } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 import { productService } from "@/services/product.service";
@@ -40,9 +39,16 @@ import type { Category } from "@/types/category";
 
 const navigation = [
   { label: "Products", href: "/products" },
+  { label: "Blog", href: "/blog" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
+
+/**
+ * Header is wider than the page content so the logo sits further left.
+ * Change max-w-[1500px] to move the logo left (bigger) / right (smaller).
+ */
+const HEADER_WRAP = "mx-auto w-full max-w-[1500px] px-5 sm:px-6 lg:px-10";
 
 export function Header() {
   const router = useRouter();
@@ -64,7 +70,7 @@ export function Header() {
 
   const progressRef = useRef<HTMLDivElement>(null);
 
-  /* ---------- scroll: compact header + progress bar ---------- */
+  /* ---------- scroll: shadow + progress bar (no layout changes) ---------- */
   useEffect(() => {
     function onScroll() {
       const y = window.scrollY;
@@ -162,56 +168,51 @@ export function Header() {
 
   return (
     <>
+      {/* =============== ANNOUNCEMENT BAR ===============
+          Normal (non-sticky) bar: it scrolls away with the page, so it never
+          changes the sticky header's height (that caused the flicker). */}
+      <div className="hidden bg-brand-dark text-white md:block">
+        <div
+          className={`${HEADER_WRAP} flex h-10 items-center justify-between text-xs`}
+        >
+          <p className="flex items-center gap-2 text-white/80">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+            </span>
+            {siteConfig.announcement}
+          </p>
+
+          <div className="flex items-center gap-5">
+            <a
+              href={siteConfig.phoneHref}
+              className="flex items-center gap-1.5 text-white/80 transition-colors hover:text-white"
+            >
+              <Phone className="size-3.5" />
+              {siteConfig.phone}
+            </a>
+            <a
+              href={siteConfig.emailHref}
+              className="flex items-center gap-1.5 text-white/80 transition-colors hover:text-white"
+            >
+              <Mail className="size-3.5" />
+              {siteConfig.email}
+            </a>
+          </div>
+        </div>
+      </div>
+
       <header
         className={cn(
           "sticky top-0 z-50 w-full transition-shadow duration-300",
           scrolled && "shadow-[0_8px_30px_rgba(7,63,50,0.08)]",
         )}
       >
-        {/* =============== ANNOUNCEMENT BAR =============== */}
-        <div
-          className={cn(
-            "hidden overflow-hidden bg-brand-dark text-white transition-all duration-300 md:block",
-            scrolled ? "max-h-0 opacity-0" : "max-h-10 opacity-100",
-          )}
-        >
-          <Container className="flex h-10 items-center justify-between text-xs">
-            <p className="flex items-center gap-2 text-white/80">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
-              </span>
-              {siteConfig.announcement}
-            </p>
-
-            <div className="flex items-center gap-5">
-              <a
-                href={siteConfig.phoneHref}
-                className="flex items-center gap-1.5 text-white/80 transition-colors hover:text-white"
-              >
-                <Phone className="size-3.5" />
-                {siteConfig.phone}
-              </a>
-              <a
-                href={siteConfig.emailHref}
-                className="flex items-center gap-1.5 text-white/80 transition-colors hover:text-white"
-              >
-                <Mail className="size-3.5" />
-                {siteConfig.email}
-              </a>
-            </div>
-          </Container>
-        </div>
-
         {/* =============== MAIN BAR =============== */}
         <div className="relative border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-          <Container>
-            <div
-              className={cn(
-                "flex items-center gap-4 transition-all duration-300 lg:gap-6",
-                scrolled ? "h-16" : "h-[76px]",
-              )}
-            >
+          <div className={HEADER_WRAP}>
+            {/* Row height is constant - never changes while scrolling */}
+            <div className="flex h-[76px] items-center gap-4 xl:h-[84px] xl:gap-6">
               {/* Logo */}
               <Link
                 href="/"
@@ -224,73 +225,73 @@ export function Header() {
                   width={240}
                   height={62}
                   priority
-                  className={cn(
-                    "w-auto object-contain transition-all duration-300 group-hover:scale-[1.03]",
-                    scrolled ? "h-10" : "h-12",
-                  )}
+                  className="h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.03] xl:h-16"
                 />
               </Link>
 
-              {/* Desktop search */}
-              <HeaderSearch
-                products={products}
-                categories={categories}
-                enableShortcut
-                className="mx-auto hidden w-full max-w-xl md:block"
-              />
+              {/* CENTRE GROUP: search + navigation + actions */}
+              <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 md:flex xl:gap-6">
+                {/* Desktop search */}
+                <HeaderSearch
+                  products={products}
+                  categories={categories}
+                  enableShortcut
+                  className="w-full min-w-0 max-w-md xl:max-w-[22rem] 2xl:max-w-[26rem]"
+                />
 
-              {/* Desktop navigation */}
-              <nav
-                aria-label="Main navigation"
-                className="hidden items-center gap-1 lg:flex"
-              >
-                <CategoriesMegaMenu />
+                {/* Desktop navigation */}
+                <nav
+                  aria-label="Main navigation"
+                  className="hidden items-center gap-1 xl:flex"
+                >
+                  <CategoriesMegaMenu />
 
-                {navigation.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive(item.href) ? "page" : undefined}
-                    className={cn(
-                      "group relative whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
-                      isActive(item.href)
-                        ? "text-primary"
-                        : "text-foreground/80 hover:text-primary",
-                    )}
-                  >
-                    {item.label}
-                    <span
+                  {navigation.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={isActive(item.href) ? "page" : undefined}
                       className={cn(
-                        "absolute inset-x-3.5 -bottom-0.5 h-0.5 origin-left rounded-full bg-primary transition-transform duration-300",
+                        "group relative whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
                         isActive(item.href)
-                          ? "scale-x-100"
-                          : "scale-x-0 group-hover:scale-x-100",
+                          ? "text-primary"
+                          : "text-foreground/80 hover:text-primary",
                       )}
-                    />
+                    >
+                      {item.label}
+                      <span
+                        className={cn(
+                          "absolute inset-x-3.5 -bottom-0.5 h-0.5 origin-left rounded-full bg-primary transition-transform duration-300",
+                          isActive(item.href)
+                            ? "scale-x-100"
+                            : "scale-x-0 group-hover:scale-x-100",
+                        )}
+                      />
+                    </Link>
+                  ))}
+                </nav>
+
+                {/* Desktop actions */}
+                <div className="hidden items-center gap-1.5 xl:flex">
+                  <UserProfile />
+
+                  <Link
+                    href="/cart"
+                    aria-label="Shopping cart"
+                    className="flex size-9 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-primary-light hover:text-primary"
+                  >
+                    <ShoppingCart className="size-[18px]" />
                   </Link>
-                ))}
-              </nav>
 
-              {/* Desktop actions */}
-              <div className="hidden items-center gap-1.5 lg:flex">
-                <UserProfile />
-
-                <Link
-                  href="/cart"
-                  aria-label="Shopping cart"
-                  className="flex size-9 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-primary-light hover:text-primary"
-                >
-                  <ShoppingCart className="size-[18px]" />
-                </Link>
-
-                <Button
-                  type="button"
-                  onClick={handleEnquiryClick}
-                  disabled={!mounted || authLoading}
-                  className="ml-1 h-10 whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-teal-600 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,127,91,0.30)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(8,127,91,0.42)] disabled:translate-y-0 disabled:opacity-60"
-                >
-                  Request Quote
-                </Button>
+                  <Button
+                    type="button"
+                    onClick={handleEnquiryClick}
+                    disabled={!mounted || authLoading}
+                    className="ml-1 h-10 whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-teal-600 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,127,91,0.30)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(8,127,91,0.42)] disabled:translate-y-0 disabled:opacity-60"
+                  >
+                    Request Quote
+                  </Button>
+                </div>
               </div>
 
               {/* Mobile actions */}
@@ -323,8 +324,8 @@ export function Header() {
                 </Button>
               </div>
 
-              {/* Tablet: menu button when md..lg (desktop nav hidden) */}
-              <div className="hidden items-center gap-1 md:flex lg:hidden">
+              {/* Tablet / small laptop: menu button below xl (desktop nav hidden) */}
+              <div className="hidden items-center gap-1 md:flex xl:hidden">
                 <Link
                   href="/cart"
                   aria-label="Shopping cart"
@@ -366,7 +367,7 @@ export function Header() {
                 onEnquire={handleEnquiryClick}
               />
             )}
-          </Container>
+          </div>
 
           {/* Scroll progress */}
           <div

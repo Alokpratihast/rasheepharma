@@ -56,10 +56,28 @@ public class AzureBlobImageStorageService : IImageStorageService
     public async Task<(Stream Stream, string ContentType)> DownloadAsync(
         string imageUrl)
     {
-        var uri = new Uri(imageUrl);
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)) ||
+            !string.Equals(uri.Host, _containerClient.Uri.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("The image URL must point to this application's Azure image container.", nameof(imageUrl));
+        }
 
-        var blobName =
-            Path.GetFileName(uri.AbsolutePath);
+        // Do not reduce arbitrary URLs to a filename: bind reads to this container and
+        // reject nested paths so stored CMS URLs cannot select unrelated resources.
+        var containerPath = _containerClient.Uri.AbsolutePath.TrimEnd('/');
+        var expectedPrefix = $"{containerPath}/";
+        if (!uri.AbsolutePath.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("The image URL is outside the configured image container.", nameof(imageUrl));
+        }
+
+        var blobName = Uri.UnescapeDataString(uri.AbsolutePath[expectedPrefix.Length..]);
+        if (string.IsNullOrWhiteSpace(blobName) || blobName.Contains('/'))
+        {
+            throw new ArgumentException("The image URL does not identify a valid image blob.", nameof(imageUrl));
+        }
 
         var blobClient =
             _containerClient.GetBlobClient(blobName);
