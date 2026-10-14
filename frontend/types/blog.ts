@@ -7,6 +7,7 @@ export interface BlogPost {
   excerpt: string;
   content: string;
   coverImageUrl: string | null;
+  originalCoverImageUrl: string | null;
   authorName: string;
   reviewerName: string | null;
   reviewedAtUtc: string | null;
@@ -25,7 +26,9 @@ export interface BlogPost {
 
 export type BlogPostWriteInput = Omit<BlogPost, "id" | "status" | "publishedAtUtc" | "createdAtUtc" | "updatedAtUtc">;
 
-export type BlogPostListItem = Pick<BlogPost, "id" | "title" | "slug" | "status" | "publishedAtUtc" | "updatedAtUtc">;
+export type BlogPostListItem = Pick<BlogPost, "id" | "title" | "slug" | "status" | "publishedAtUtc" | "updatedAtUtc"> & {
+  hasCoverImage: boolean;
+};
 
 export interface BlogPostPage {
   items: BlogPostListItem[];

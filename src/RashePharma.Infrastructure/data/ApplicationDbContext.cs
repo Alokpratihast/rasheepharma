@@ -109,6 +109,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(post => post.OgTitle).HasMaxLength(180);
             entity.Property(post => post.OgDescription).HasMaxLength(320);
             entity.Property(post => post.CoverImageUrl).HasMaxLength(2048);
+            entity.Property(post => post.OriginalCoverImageUrl).HasMaxLength(2048);
             entity.Property(post => post.OgImageUrl).HasMaxLength(2048);
             entity.Property(post => post.ReviewerName).HasMaxLength(120);
             entity.Property(post => post.Content).HasMaxLength(100000).IsRequired();

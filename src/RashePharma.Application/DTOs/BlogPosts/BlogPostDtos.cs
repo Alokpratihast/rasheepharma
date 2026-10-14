@@ -14,6 +14,8 @@ public sealed class BlogPostWriteDto
     public string Content { get; set; } = string.Empty;
     [StringLength(2048)]
     public string? CoverImageUrl { get; set; }
+    [StringLength(2048)]
+    public string? OriginalCoverImageUrl { get; set; }
     [Required, StringLength(120)]
     public string AuthorName { get; set; } = string.Empty;
     [StringLength(120)]
@@ -42,6 +44,7 @@ public sealed class BlogPostDto
     public string Excerpt { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string? CoverImageUrl { get; set; }
+    public string? OriginalCoverImageUrl { get; set; }
     public string AuthorName { get; set; } = string.Empty;
     public string? ReviewerName { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }
@@ -64,6 +67,7 @@ public sealed class BlogPostSummaryDto
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
+    public bool HasCoverImage { get; set; }
     public string Status { get; set; } = "Draft";
     public DateTime? PublishedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }

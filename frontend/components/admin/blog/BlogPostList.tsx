@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { blogService } from "@/services/blog.service";
 import type { BlogPostPage } from "@/types/blog";
+import { BlogCoverPreview } from "@/components/admin/blog/BlogCoverPreview";
 
 export function BlogPostList() {
   const [result, setResult] = useState<BlogPostPage | null>(null);
@@ -49,13 +50,14 @@ export function BlogPostList() {
       <Link href="/admin/blog/new" className="rounded-lg bg-[#1B2A4A] px-4 py-2.5 font-semibold text-white">New article</Link>
     </div>
     <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="bg-gray-50 text-gray-600"><tr><th className="p-4">Article</th><th className="p-4">Status</th><th className="p-4">Updated</th><th className="p-4">Actions</th></tr></thead>
+      <table className="w-full min-w-[860px] text-left text-sm">
+        <thead className="bg-gray-50 text-gray-600"><tr><th className="p-4">Article</th><th className="p-4">Cover</th><th className="p-4">Status</th><th className="p-4">Updated</th><th className="p-4">Actions</th></tr></thead>
         <tbody className="divide-y">
-          {loading && <tr><td colSpan={4} className="p-8 text-center text-gray-500">Loading articles…</td></tr>}
-          {!loading && !result?.items.length && <tr><td colSpan={4} className="p-8 text-center text-gray-500">No articles yet. Create a draft to get started.</td></tr>}
+          {loading && <tr><td colSpan={5} className="p-8 text-center text-gray-500">Loading articles…</td></tr>}
+          {!loading && !result?.items.length && <tr><td colSpan={5} className="p-8 text-center text-gray-500">No articles yet. Create a draft to get started.</td></tr>}
           {!loading && result?.items.map((post) => <tr key={post.id}>
             <td className="p-4"><p className="font-semibold text-[#1B2A4A]">{post.title}</p><p className="mt-1 text-xs text-gray-500">/blog/{post.slug}</p></td>
+            <td className="p-4"><BlogCoverPreview postId={post.id} hasCoverImage={post.hasCoverImage} alt={`Cover image for ${post.title}`} className="h-14 w-24" /></td>
             <td className="p-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${post.status === "Published" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>{post.status}</span></td>
             <td className="p-4 text-gray-600">{new Date(post.updatedAtUtc).toLocaleDateString()}</td>
             <td className="p-4"><div className="flex items-center gap-3">

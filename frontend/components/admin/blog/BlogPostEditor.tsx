@@ -8,9 +8,11 @@ import { ApiError } from "@/lib/api/client";
 import { blogService } from "@/services/blog.service";
 import type { BlogPost, BlogPostWriteInput } from "@/types/blog";
 import { ArticleBodyEditor } from "@/components/admin/blog/ArticleBodyEditor";
+import { BlogCoverPreview } from "@/components/admin/blog/BlogCoverPreview";
+import { BlogCoverImagePicker } from "@/components/admin/blog/BlogCoverImagePicker";
 
 const emptyPost: BlogPostWriteInput = {
-  title: "", slug: "", excerpt: "", content: "", coverImageUrl: null,
+  title: "", slug: "", excerpt: "", content: "", coverImageUrl: null, originalCoverImageUrl: null,
   authorName: "", reviewerName: null, reviewedAtUtc: null, metaTitle: null,
   metaDescription: null, canonicalUrl: null, ogTitle: null, ogDescription: null,
   ogImageUrl: null, isIndexable: true,
@@ -19,7 +21,8 @@ const emptyPost: BlogPostWriteInput = {
 function toInput(post: BlogPost): BlogPostWriteInput {
   return {
     title: post.title, slug: post.slug, excerpt: post.excerpt, content: post.content,
-    coverImageUrl: post.coverImageUrl, authorName: post.authorName, reviewerName: post.reviewerName,
+    coverImageUrl: post.coverImageUrl, originalCoverImageUrl: post.originalCoverImageUrl,
+    authorName: post.authorName, reviewerName: post.reviewerName,
     reviewedAtUtc: post.reviewedAtUtc, metaTitle: post.metaTitle, metaDescription: post.metaDescription,
     canonicalUrl: post.canonicalUrl, ogTitle: post.ogTitle, ogDescription: post.ogDescription,
     ogImageUrl: post.ogImageUrl, isIndexable: post.isIndexable,
@@ -30,15 +33,18 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
   const router = useRouter();
   const [post, setPost] = useState<BlogPostWriteInput>(emptyPost);
   const [status, setStatus] = useState<string>("Draft");
+  const [slugIsCustom, setSlugIsCustom] = useState(Boolean(postId));
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(Boolean(postId));
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!postId) return;
     blogService.getById(postId).then((loaded) => {
       const loadedPost = toInput(loaded);
       setPost(loadedPost);
+      setSlugIsCustom(true);
       setHasUnsavedChanges(false);
       setStatus(loaded.status);
     }).catch((error: unknown) => {
@@ -58,24 +64,48 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
   }, [hasUnsavedChanges]);
 
+  useEffect(() => {
+    return () => {
+      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    };
+  }, [coverPreviewUrl]);
+
   const setField = <K extends keyof BlogPostWriteInput>(key: K, value: BlogPostWriteInput[K]) => {
     setPost((current) => ({ ...current, [key]: value }));
     setHasUnsavedChanges(true);
   };
 
+  const updateTitle = (value: string) => {
+    setField("title", value);
+    if (!slugIsCustom) {
+      setPost((current) => ({ ...current, slug: slugifyBlogTitle(value) }));
+    }
+  };
+
+  const updateSlug = (value: string) => {
+    const isCustom = value.trim().length > 0;
+    setSlugIsCustom(isCustom);
+    setField("slug", isCustom ? value : slugifyBlogTitle(post.title));
+  };
+
+  const getSaveInput = (): BlogPostWriteInput => ({
+    ...post,
+    // Keep the generated preview out of the payload; the server resolves collisions authoritatively.
+    slug: slugIsCustom ? post.slug : "",
+  });
+
   const save = async (): Promise<BlogPost | null> => {
     if (postId) {
-      const updated = await blogService.update(postId, post);
+      const updated = await blogService.update(postId, getSaveInput());
       const normalized = toInput(updated);
       setPost(normalized);
       setHasUnsavedChanges(false);
       return updated;
     }
-    const created = await blogService.create(post);
+    const created = await blogService.create(getSaveInput());
     const normalized = toInput(created);
     setPost(normalized);
     setHasUnsavedChanges(false);
-    router.replace(`/admin/blog/${created.id}`);
     return created;
   };
 
@@ -88,8 +118,10 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
     setBusy(true);
     try {
       const saved = await save();
-      if (saved) setStatus(saved.status);
-      toast.success(saved?.status === "Published" ? "Article changes saved." : "Draft saved.");
+      if (!saved) throw new Error("This article could not be found.");
+      setStatus(saved.status);
+      toast.success(saved.status === "Published" ? "Article changes saved." : "Draft saved.");
+      router.replace("/admin/blog");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Could not save the article.");
     } finally { setBusy(false); }
@@ -99,9 +131,11 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
     setBusy(true);
     try {
       const saved = await save();
-      const published = await blogService.publish(saved?.id ?? postId!);
+      if (!saved) throw new Error("This article could not be found.");
+      const published = await blogService.publish(saved.id);
       setStatus(published.status);
       toast.success("Article published.");
+      router.replace("/admin/blog");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Could not publish the article.");
     } finally { setBusy(false); }
@@ -115,12 +149,14 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
     finally { setBusy(false); }
   };
 
-  const onCoverUpload = async (file?: File) => {
-    if (!file) return;
-    setBusy(true);
-    try { const result = await blogService.uploadCover(file); setField("coverImageUrl", result.url); toast.success("Cover image uploaded."); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Could not upload the image."); }
-    finally { setBusy(false); }
+  const onCoverUploaded = (result: { url: string; originalUrl: string }, previewUrl: string) => {
+    setPost((current) => ({
+      ...current,
+      coverImageUrl: result.url,
+      originalCoverImageUrl: result.originalUrl,
+    }));
+    setHasUnsavedChanges(true);
+    setCoverPreviewUrl(previewUrl);
   };
 
   if (loading) return <div className="p-8 text-gray-600">Loading article…</div>;
@@ -142,8 +178,19 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
       <fieldset disabled={busy} className="contents">
       <section className="space-y-4 rounded-xl border bg-white p-5 shadow-sm">
         <h2 className="font-semibold text-[#1B2A4A]">Article</h2>
-        <Field label="Title" required value={post.title} onChange={(v) => setField("title", v)} />
-        <Field label="URL slug (leave blank to create from title)" value={post.slug ?? ""} onChange={(v) => setField("slug", v)} />
+        <Field label="Title" required value={post.title} onChange={updateTitle} />
+        <div>
+          <label htmlFor="blog-post-slug" className="block text-sm font-medium text-gray-700">
+            URL slug {slugIsCustom ? "(custom)" : "(generated from title)"}
+          </label>
+          <input id="blog-post-slug" value={post.slug ?? ""} onChange={(event) => updateSlug(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-300 p-3" autoComplete="off" />
+          <p className="mt-1 text-xs text-gray-500">
+            {slugIsCustom
+              ? "Custom slug. It must be unique; published article URLs should stay stable."
+              : "Preview: /blog/" + (post.slug || "your-article") + ". Duplicate titles receive a unique suffix when saved."}
+          </p>
+        </div>
         <Field label="Short excerpt" required value={post.excerpt} onChange={(v) => setField("excerpt", v)} textarea />
         <div className="block text-sm font-medium text-gray-700">
           <label htmlFor="article-body" className="mb-1 block">Article body <span className="text-red-600">*</span></label>
@@ -153,12 +200,14 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
         <Field label="Author name" required value={post.authorName} onChange={(v) => setField("authorName", v)} />
         <Field label="Medical/content reviewer (optional)" value={post.reviewerName ?? ""} onChange={(v) => setField("reviewerName", v || null)} />
         <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Cover image URL" value={post.coverImageUrl ?? ""} onChange={(v) => setField("coverImageUrl", v || null)} />
-          <label className="block text-sm font-medium text-gray-700">Upload cover (JPEG, PNG, WebP; max 8 MB)
-            <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(e) => void onCoverUpload(e.target.files?.[0])} className="mt-1 block w-full rounded-lg border p-2" />
-          </label>
+          <Field label="16:10 cover image URL" value={post.coverImageUrl ?? ""} onChange={(v) => {
+            setPost((current) => ({ ...current, coverImageUrl: v || null, originalCoverImageUrl: null }));
+            setHasUnsavedChanges(true);
+          }} />
+          <BlogCoverImagePicker disabled={busy} postId={postId} hasOriginal={Boolean(post.originalCoverImageUrl || post.coverImageUrl)} onUploaded={onCoverUploaded} onUploadingChange={setBusy} />
         </div>
-        <p className="text-xs text-gray-500">Image uploads use the current Azure Blob image service.</p>
+        <BlogCoverPreview postId={postId} hasCoverImage={Boolean(post.coverImageUrl)} localPreviewUrl={coverPreviewUrl} className="aspect-[16/10] w-full max-w-2xl" />
+        <p className="text-xs text-gray-500">The original image is kept for future edits. The generated 16:10 WebP is used on the public blog. Stored privately and previewed through the authenticated admin API.</p>
       </section>
 
       <section className="space-y-4 rounded-xl border bg-white p-5 shadow-sm">
@@ -176,6 +225,16 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
       </fieldset>
     </form>
   );
+}
+
+function slugifyBlogTitle(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 200)
+    .replace(/-+$/g, "");
 }
 
 function Field({ label, value, onChange, required, textarea }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; textarea?: boolean }) {

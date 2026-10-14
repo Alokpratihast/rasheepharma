@@ -8,13 +8,37 @@ namespace RashePharma.Infrastructure.Repositories;
 /// <summary>Blog queries are isolated here so public reads always filter at the database.</summary>
 public sealed class BlogPostRepository(ApplicationDbContext context) : IBlogPostRepository
 {
-    public async Task<IReadOnlyList<BlogPost>> GetPublishedAsync(int skip, int take, CancellationToken ct)
-        => await context.BlogPosts.AsNoTracking().Where(p => p.Status == "Published")
-            .OrderByDescending(p => p.PublishedAtUtc).ThenByDescending(p => p.Id)
-            .Skip(skip).Take(take).ToListAsync(ct);
+    public async Task<IReadOnlyList<BlogPost>> GetPublishedAsync(
+        int skip, int take, string? search, string sort, CancellationToken ct)
+    {
+        var query = PublishedQuery(search);
+        query = sort switch
+        {
+            "oldest" => query.OrderBy(p => p.PublishedAtUtc).ThenBy(p => p.Id),
+            "title" => query.OrderBy(p => p.Title).ThenBy(p => p.Id),
+            _ => query.OrderByDescending(p => p.PublishedAtUtc).ThenByDescending(p => p.Id)
+        };
 
-    public Task<int> CountPublishedAsync(CancellationToken ct)
-        => context.BlogPosts.CountAsync(p => p.Status == "Published", ct);
+        return await query.Skip(skip).Take(take).ToListAsync(ct);
+    }
+
+    public Task<int> CountPublishedAsync(string? search, CancellationToken ct)
+        => PublishedQuery(search).CountAsync(ct);
+
+    private IQueryable<BlogPost> PublishedQuery(string? search)
+    {
+        var query = context.BlogPosts.AsNoTracking().Where(p => p.Status == "Published");
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(p =>
+                p.Title.Contains(search) ||
+                p.Slug.Contains(search) ||
+                p.Excerpt.Contains(search) ||
+                p.AuthorName.Contains(search));
+        }
+
+        return query;
+    }
 
     public Task<BlogPost?> GetPublishedBySlugAsync(string slug, CancellationToken ct)
         => context.BlogPosts.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug && p.Status == "Published", ct);

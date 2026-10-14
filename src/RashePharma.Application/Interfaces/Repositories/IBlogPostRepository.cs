@@ -4,8 +4,8 @@ namespace RashePharma.Application.Interfaces.Repositories;
 
 public interface IBlogPostRepository
 {
-    Task<IReadOnlyList<BlogPost>> GetPublishedAsync(int skip, int take, CancellationToken cancellationToken);
-    Task<int> CountPublishedAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<BlogPost>> GetPublishedAsync(int skip, int take, string? search, string sort, CancellationToken cancellationToken);
+    Task<int> CountPublishedAsync(string? search, CancellationToken cancellationToken);
     Task<BlogPost?> GetPublishedBySlugAsync(string slug, CancellationToken cancellationToken);
     Task<IReadOnlyList<BlogPost>> GetAdminPageAsync(int skip, int take, CancellationToken cancellationToken);
     Task<int> CountAllAsync(CancellationToken cancellationToken);

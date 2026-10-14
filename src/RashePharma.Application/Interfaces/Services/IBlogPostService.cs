@@ -4,7 +4,9 @@ namespace RashePharma.Application.Interfaces.Services;
 
 public interface IBlogPostService
 {
-    Task<PagedPublicBlogPostsDto> GetPublishedPageAsync(int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedPublicBlogPostsDto> GetPublishedPageAsync(int page, int pageSize, string? search, string? sort, CancellationToken cancellationToken);
+    Task<string?> GetPublishedCoverImageUrlAsync(string slug, CancellationToken cancellationToken);
+
     Task<PublicBlogPostDto?> GetPublishedBySlugAsync(string slug, CancellationToken cancellationToken);
     Task<PagedBlogPostsDto> GetAdminPageAsync(int page, int pageSize, CancellationToken cancellationToken);
     Task<BlogPostDto?> GetByIdAsync(int id, CancellationToken cancellationToken);

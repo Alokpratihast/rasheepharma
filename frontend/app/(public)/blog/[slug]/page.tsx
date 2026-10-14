@@ -52,7 +52,7 @@ export default async function BlogArticlePage({ params }: PageProps) {
         <h1 className="mt-3 text-3xl font-bold leading-tight text-[#1B2A4A] md:text-5xl">{post.title}</h1><p className="mt-4 text-lg leading-8 text-gray-600">{post.excerpt}</p>
         {post.reviewerName && <p className="mt-3 text-sm text-gray-500">Reviewed by {post.reviewerName}{post.reviewedAtUtc ? ` · ${new Date(post.reviewedAtUtc).toLocaleDateString("en-IN", { dateStyle: "long", timeZone: "UTC" })}` : ""}</p>}
       </header>
-      {post.coverImageUrl && <Image src={`${apiBase}/blog/posts/${encodeURIComponent(post.slug)}/image`} alt="" width={1200} height={700} unoptimized className="mb-8 max-h-[480px] w-full rounded-2xl object-cover" />}
+      {post.coverImageUrl && <Image src={`${apiBase}/blog/posts/${encodeURIComponent(post.slug)}/image`} alt="" width={1200} height={750} unoptimized className="mb-8 max-h-[560px] w-full rounded-2xl bg-slate-50 object-contain" />}
       <MarkdownArticle content={post.content} />
       <p className="mt-10 border-t pt-5 text-sm text-gray-500">This article is for general information and does not replace advice from a qualified healthcare professional.</p>
     </article>

@@ -12,7 +12,10 @@ public class BlogPost
     public string Slug { get; set; } = string.Empty;
     public string Excerpt { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    /// <summary>16:10 display image used by public article cards and detail pages.</summary>
     public string? CoverImageUrl { get; set; }
+    /// <summary>Unmodified uploaded source retained for future re-cropping.</summary>
+    public string? OriginalCoverImageUrl { get; set; }
     public string AuthorName { get; set; } = string.Empty;
     public string? ReviewerName { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }

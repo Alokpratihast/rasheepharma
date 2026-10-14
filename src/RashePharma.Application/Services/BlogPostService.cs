@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using RashePharma.Application.DTOs.BlogPosts;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
@@ -11,13 +12,39 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
 {
     private const int MaxPageSize = 100;
 
-    public async Task<PagedPublicBlogPostsDto> GetPublishedPageAsync(int page, int pageSize, CancellationToken ct)
+    public async Task<PagedPublicBlogPostsDto> GetPublishedPageAsync(
+        int page,
+        int pageSize,
+        string? search,
+        string? sort,
+        CancellationToken ct)
     {
         (page, pageSize) = NormalizePaging(page, pageSize);
-        var items = await repository.GetPublishedAsync((page - 1) * pageSize, pageSize, ct);
-        return new(items.Select(ToPublicSummaryDto).ToArray(), page, pageSize, await repository.CountPublishedAsync(ct));
+        search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        if (search?.Length > 100) search = search[..100];
+
+        sort = sort?.Trim().ToLowerInvariant() switch
+        {
+            "oldest" => "oldest",
+            "title" => "title",
+            _ => "newest"
+        };
+
+        var items = await repository.GetPublishedAsync((page - 1) * pageSize, pageSize, search, sort, ct);
+        var totalCount = await repository.CountPublishedAsync(search, ct);
+        return new(items.Select(ToPublicSummaryDto).ToArray(), page, pageSize, totalCount);
     }
 
+    public async Task<string?> GetPublishedCoverImageUrlAsync(
+        string slug,
+        CancellationToken cancellationToken)
+    {
+        var post = await repository.GetPublishedBySlugAsync(
+            slug.Trim(),
+            cancellationToken);
+
+        return post?.CoverImageUrl;
+    }
     public async Task<PublicBlogPostDto?> GetPublishedBySlugAsync(string slug, CancellationToken ct)
     {
         var post = await repository.GetPublishedBySlugAsync(slug.Trim(), ct);
@@ -39,11 +66,29 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
 
     public async Task<BlogPostDto> CreateAsync(BlogPostWriteDto dto, CancellationToken ct)
     {
-        var slug = await GetUniqueSlugAsync(dto.Slug, dto.Title, null, ct);
+        var generatedFromTitle = string.IsNullOrWhiteSpace(dto.Slug);
         var post = new BlogPost { Status = "Draft", CreatedAtUtc = DateTime.UtcNow };
-        Apply(post, dto, slug);
-        await repository.AddAsync(post, ct);
-        return ToDto(post);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var slug = await GetUniqueSlugAsync(dto.Slug, dto.Title, null, ct);
+            Apply(post, dto, slug);
+
+            try
+            {
+                await repository.AddAsync(post, ct);
+                return ToDto(post);
+            }
+            catch (DbUpdateException) when (generatedFromTitle && attempt < 4)
+            {
+                // The unique index closes the race between checking and inserting.
+                // If another request won with the same slug, choose the next suffix and retry.
+                if (!await repository.SlugExistsAsync(slug, null, ct))
+                    throw;
+            }
+        }
+
+        throw new InvalidOperationException("Could not create a unique article URL. Please try again.");
     }
 
     public async Task<BlogPostDto?> UpdateAsync(int id, BlogPostWriteDto dto, CancellationToken ct)
@@ -92,10 +137,26 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
 
     private async Task<string> GetUniqueSlugAsync(string? requested, string title, int? id, CancellationToken ct)
     {
-        var slug = Slugify(string.IsNullOrWhiteSpace(requested) ? title : requested);
-        if (slug.Length is 0 or > 200) throw new InvalidOperationException("Slug must contain 1 to 200 URL-safe characters.");
-        if (await repository.SlugExistsAsync(slug, id, ct)) throw new InvalidOperationException("That slug is already used by another blog post.");
-        return slug;
+        var generateFromTitle = string.IsNullOrWhiteSpace(requested);
+        var baseSlug = Slugify(generateFromTitle ? title : requested!);
+        if (baseSlug.Length is 0 or > 200) throw new InvalidOperationException("Slug must contain 1 to 200 URL-safe characters.");
+
+        if (!generateFromTitle)
+        {
+            if (await repository.SlugExistsAsync(baseSlug, id, ct))
+                throw new InvalidOperationException("That custom slug is already used. Choose a different URL slug.");
+            return baseSlug;
+        }
+
+        var candidate = baseSlug;
+        for (var suffix = 2; await repository.SlugExistsAsync(candidate, id, ct); suffix++)
+        {
+            var suffixText = "-" + suffix;
+            var availableBaseLength = 200 - suffixText.Length;
+            candidate = baseSlug[..Math.Min(baseSlug.Length, availableBaseLength)].TrimEnd('-') + suffixText;
+        }
+
+        return candidate;
     }
 
     private static string Slugify(string value)
@@ -121,7 +182,9 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
     private static void Apply(BlogPost post, BlogPostWriteDto dto, string slug)
     {
         post.Title = dto.Title.Trim(); post.Slug = slug; post.Excerpt = dto.Excerpt.Trim(); post.Content = dto.Content.Trim();
-        post.CoverImageUrl = EmptyToNull(dto.CoverImageUrl); post.AuthorName = dto.AuthorName.Trim();
+        post.CoverImageUrl = EmptyToNull(dto.CoverImageUrl);
+        post.OriginalCoverImageUrl = EmptyToNull(dto.OriginalCoverImageUrl);
+        post.AuthorName = dto.AuthorName.Trim();
         post.ReviewerName = EmptyToNull(dto.ReviewerName); post.ReviewedAtUtc = dto.ReviewedAtUtc;
         post.MetaTitle = EmptyToNull(dto.MetaTitle); post.MetaDescription = EmptyToNull(dto.MetaDescription);
         post.CanonicalUrl = EmptyToNull(dto.CanonicalUrl); post.OgTitle = EmptyToNull(dto.OgTitle);
@@ -132,7 +195,8 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
     private static BlogPostDto ToDto(BlogPost p) => new()
     {
         Id = p.Id, Title = p.Title, Slug = p.Slug, Excerpt = p.Excerpt, Content = p.Content,
-        CoverImageUrl = p.CoverImageUrl, AuthorName = p.AuthorName, ReviewerName = p.ReviewerName,
+        CoverImageUrl = p.CoverImageUrl, OriginalCoverImageUrl = p.OriginalCoverImageUrl,
+        AuthorName = p.AuthorName, ReviewerName = p.ReviewerName,
         ReviewedAtUtc = p.ReviewedAtUtc, Status = p.Status, PublishedAtUtc = p.PublishedAtUtc,
         MetaTitle = p.MetaTitle, MetaDescription = p.MetaDescription, CanonicalUrl = p.CanonicalUrl,
         OgTitle = p.OgTitle, OgDescription = p.OgDescription, OgImageUrl = p.OgImageUrl,
@@ -141,7 +205,8 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
 
     private static BlogPostSummaryDto ToSummaryDto(BlogPost p) => new()
     {
-        Id = p.Id, Title = p.Title, Slug = p.Slug, Status = p.Status,
+        Id = p.Id, Title = p.Title, Slug = p.Slug,
+        HasCoverImage = !string.IsNullOrWhiteSpace(p.CoverImageUrl), Status = p.Status,
         PublishedAtUtc = p.PublishedAtUtc, UpdatedAtUtc = p.UpdatedAtUtc
     };
 
