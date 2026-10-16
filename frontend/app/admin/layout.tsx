@@ -13,7 +13,7 @@ export default function AdminLayout({
         <AdminSidebar />
         <Toaster position="top-right" richColors closeButton />
 
-        <main className="min-h-screen pl-64">
+        <main className="min-h-screen pt-14 lg:pl-64 lg:pt-0">
           {children}
         </main>
       </div>

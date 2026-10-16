@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
 import { blogService } from "@/services/blog.service";
+import { slugify } from "@/lib/slugify";
 import type { BlogPost, BlogPostWriteInput } from "@/types/blog";
 import { ArticleBodyEditor } from "@/components/admin/blog/ArticleBodyEditor";
 import { BlogCoverPreview } from "@/components/admin/blog/BlogCoverPreview";
@@ -78,20 +79,20 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
   const updateTitle = (value: string) => {
     setField("title", value);
     if (!slugIsCustom) {
-      setPost((current) => ({ ...current, slug: slugifyBlogTitle(value) }));
+      setPost((current) => ({ ...current, slug: slugify(value) }));
     }
   };
 
   const updateSlug = (value: string) => {
     const isCustom = value.trim().length > 0;
     setSlugIsCustom(isCustom);
-    setField("slug", isCustom ? value : slugifyBlogTitle(post.title));
+    setField("slug", isCustom ? value : slugify(post.title));
   };
 
   const getSaveInput = (): BlogPostWriteInput => ({
     ...post,
     // Keep the generated preview out of the payload; the server resolves collisions authoritatively.
-    slug: slugIsCustom ? post.slug : "",
+    slug: slugIsCustom ? slugify(post.slug ?? "") : "",
   });
 
   const save = async (): Promise<BlogPost | null> => {
@@ -183,7 +184,7 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
           <label htmlFor="blog-post-slug" className="block text-sm font-medium text-gray-700">
             URL slug {slugIsCustom ? "(custom)" : "(generated from title)"}
           </label>
-          <input id="blog-post-slug" value={post.slug ?? ""} onChange={(event) => updateSlug(event.target.value)}
+          <input id="blog-post-slug" value={post.slug ?? ""} onChange={(event) => updateSlug(event.target.value)} onBlur={() => updateSlug(slugify(post.slug ?? ""))}
             className="mt-1 w-full rounded-lg border border-gray-300 p-3" autoComplete="off" />
           <p className="mt-1 text-xs text-gray-500">
             {slugIsCustom
@@ -225,16 +226,6 @@ export function BlogPostEditor({ postId }: { postId?: number }) {
       </fieldset>
     </form>
   );
-}
-
-function slugifyBlogTitle(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 200)
-    .replace(/-+$/g, "");
 }
 
 function Field({ label, value, onChange, required, textarea }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; textarea?: boolean }) {

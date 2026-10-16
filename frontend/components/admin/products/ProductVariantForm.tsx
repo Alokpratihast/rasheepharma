@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import { productVariantService } from "@/services/productVariantService";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
 import type {
   ProductVariant,
   ProductVariantCreateInput,
@@ -113,11 +115,7 @@ export function ProductVariantForm({
         error,
       );
 
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to save product variant.",
-      );
+      setError(getAdminErrorMessage(error, "We could not save this variant. Check the fields and try again."));
     } finally {
       setLoading(false);
     }
@@ -141,7 +139,7 @@ export function ProductVariantForm({
       </div>
 
       {error && (
-        <div className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
@@ -296,11 +294,8 @@ export function ProductVariantForm({
           disabled={loading}
           className="rounded-lg bg-[#1B2A4A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#142039] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading
-            ? "Saving..."
-            : isEditMode
-              ? "Update Variant"
-              : "Add Variant"}
+          {loading && <LoaderCircle aria-hidden="true" className="mr-2 inline size-4 animate-spin" />}
+          {loading ? "Saving…" : isEditMode ? "Update Variant" : "Add Variant"}
         </button>
 
         {onCancel && (

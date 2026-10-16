@@ -60,7 +60,10 @@ public class AzureBlobBulkUploadStorageService
             Resource = "b",
             StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
             ExpiresOn = DateTimeOffset.UtcNow.AddHours(1),
-            Protocol = SasProtocol.Https
+            // Allow HTTP only for a loopback emulator such as Azurite. Real Azure Blob endpoints remain HTTPS-only.
+            Protocol = blobClient.Uri.IsLoopback
+                ? SasProtocol.HttpsAndHttp
+                : SasProtocol.Https
         };
         sas.SetPermissions(
             BlobSasPermissions.Create |

@@ -19,6 +19,8 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -36,10 +38,10 @@ const menuItems = [
   },
 
   {
-  label: "Bulk Upload",
-  href: "/admin/bulk-upload",
-  icon: Upload,
-},
+    label: "Bulk Upload",
+    href: "/admin/bulk-upload",
+    icon: Upload,
+  },
   {
     label: "Categories",
     href: "/admin/categories",
@@ -89,18 +91,48 @@ export function AdminSidebar() {
   const { logout } = useAuth();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
+    setMobileOpen(false);
     logout();
     router.push("/login");
   };
 
   return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 ${
-        collapsed ? "w-20" : "w-64"
-      }`}
-    >
+    <>
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+        <div>
+          <p className="font-bold text-[#1B2A4A]">RashePharma</p>
+          <p className="text-[11px] text-slate-500">Admin Panel</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((open) => !open)}
+          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={mobileOpen}
+          aria-controls="admin-navigation"
+          className="flex size-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+        >
+          {mobileOpen ? <X aria-hidden="true" className="size-5" /> : <Menu aria-hidden="true" className="size-5" />}
+        </button>
+      </header>
+
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
+        />
+      )}
+
+      <aside
+        id="admin-navigation"
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 ${
+          collapsed ? "w-64 lg:w-20" : "w-64"
+        } ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
       {/* Header / Logo */}
       <div
         className={`relative flex h-16 shrink-0 items-center border-b border-gray-200 ${
@@ -133,7 +165,7 @@ export function AdminSidebar() {
           title={
             collapsed ? "Expand sidebar" : "Collapse sidebar"
           }
-          className="absolute -right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-100 hover:text-[#1B2A4A]"
+          className="absolute -right-3 top-1/2 hidden size-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-100 hover:text-[#1B2A4A] lg:flex"
         >
           {collapsed ? (
             <ChevronRight className="size-4" />
@@ -157,6 +189,7 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMobileOpen(false)}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center rounded-lg py-2.5 text-sm font-medium transition ${
                   collapsed
@@ -186,6 +219,7 @@ export function AdminSidebar() {
         {/* View Website */}
         <Link
           href="/"
+          onClick={() => setMobileOpen(false)}
           title={collapsed ? "View Website" : undefined}
           className={`flex items-center rounded-lg py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-[#1B2A4A] ${
             collapsed
@@ -214,6 +248,7 @@ export function AdminSidebar() {
           {!collapsed && <span>Logout</span>}
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

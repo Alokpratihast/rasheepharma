@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { categoryService } from "@/services/category.service";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
+import { slugify } from "@/lib/slugify";
 import type {
   Category,
   CategoryCreateInput,
@@ -23,6 +26,7 @@ export function CategoryForm({
 
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
+  const [slugIsCustom, setSlugIsCustom] = useState(Boolean(category));
   const [description, setDescription] = useState(category?.description ?? "");
   const [parentCategoryId, setParentCategoryId] =
     useState<number | null>(category?.parentCategoryId ?? null);
@@ -50,7 +54,7 @@ export function CategoryForm({
           error,
         );
 
-        setError("Failed to load categories.");
+        setError(getAdminErrorMessage(error, "We could not load the category list. Refresh the page and try again."));
       } finally {
         setLoadingCategories(false);
       }
@@ -59,19 +63,13 @@ export function CategoryForm({
     loadCategories();
   }, []);
 
-  const generateSlug = (value: string) => {
-    return value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  };
-
   const handleNameChange = (value: string) => {
+    setError(null);
+    setSuccess(null);
     setName(value);
 
-    if (!isEditMode) {
-      setSlug(generateSlug(value));
+    if (!slugIsCustom) {
+      setSlug(slugify(value));
     }
   };
 
@@ -84,18 +82,22 @@ export function CategoryForm({
     setSuccess(null);
 
     if (!name.trim()) {
-      setError("Category name is required.");
+      const message = "Enter a category name before saving.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
-    if (!slug.trim()) {
-      setError("Slug is required.");
+    if (!slugify(slug)) {
+      const message = "Enter a URL slug or generate one from the category name.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
     const data: CategoryCreateInput = {
       name: name.trim(),
-      slug: slug.trim(),
+      slug: slugify(slug),
       description: description.trim() || null,
       parentCategoryId,
       isActive,
@@ -120,10 +122,16 @@ export function CategoryForm({
           ? "Category updated successfully."
           : "Category created successfully.",
       );
+      toast.success(
+        isEditMode
+          ? "Category changes saved."
+          : "Category added successfully. You can add another category here.",
+      );
 
       if (!isEditMode) {
         setName("");
         setSlug("");
+        setSlugIsCustom(false);
         setDescription("");
         setParentCategoryId(null);
         setIsActive(true);
@@ -136,7 +144,14 @@ export function CategoryForm({
         error,
       );
 
-      setError("Failed to save category.");
+      const message = getAdminErrorMessage(
+        error,
+        isEditMode
+          ? "Could not update this category. Check the fields and try again."
+          : "Could not add this category. Check the fields and try again.",
+      );
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +175,8 @@ export function CategoryForm({
           <input
             id="category-name"
             type="text"
+            required
+            autoComplete="off"
             value={name}
             onChange={(event) =>
               handleNameChange(event.target.value)
@@ -180,18 +197,40 @@ export function CategoryForm({
 
           <input
             id="category-slug"
+            required
             type="text"
             value={slug}
-            onChange={(event) =>
-              setSlug(event.target.value)
-            }
+            onChange={(event) => {
+              setError(null);
+              setSuccess(null);
+              setSlugIsCustom(true);
+              setSlug(event.target.value);
+            }}
+            onBlur={() => setSlug((current) => slugify(current))}
+            autoComplete="off"
             placeholder="e.g. tablets"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#1B2A4A] focus:ring-1 focus:ring-[#1B2A4A]"
           />
 
-          <p className="mt-1 text-xs text-gray-400">
-            Used in category URLs.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-gray-500">
+              {slugIsCustom
+                ? "Custom URL. You can regenerate it from the category name."
+                : `Auto-generated: /categories/${slug || "category-name"}`}
+            </p>
+            {slugIsCustom && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSlugIsCustom(false);
+                  setSlug(slugify(name));
+                }}
+                className="text-xs font-semibold text-[#007f68] hover:underline"
+              >
+                Generate from name
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Parent Category */}
@@ -287,7 +326,7 @@ export function CategoryForm({
 
       {/* Messages */}
       {error && (
-        <div className="mt-6 rounded-lg bg-red-50 px-4 py-3">
+        <div role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
           <p className="text-sm text-red-600">
             {error}
           </p>
@@ -295,7 +334,7 @@ export function CategoryForm({
       )}
 
       {success && (
-        <div className="mt-6 rounded-lg bg-green-50 px-4 py-3">
+        <div role="status" className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
           <p className="text-sm text-green-700">
             {success}
           </p>

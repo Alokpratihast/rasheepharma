@@ -1,8 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 import { categoryService } from "@/services/category.service";
 import { productService } from "@/services/product.service";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
+import { slugify } from "@/lib/slugify";
 import type { Category } from "@/types/category";
 import type {
   ProductCreateInput,
@@ -35,6 +39,7 @@ export function ProductForm({
   onSuccess,
 }: ProductFormProps) {
   const isEditMode = Boolean(product);
+  const [slugIsCustom, setSlugIsCustom] = useState(Boolean(product));
 
   const [categories, setCategories] = useState<Category[]>(
     [],
@@ -84,7 +89,7 @@ export function ProductForm({
           error,
         );
 
-        setError("Failed to load categories.");
+        setError(getAdminErrorMessage(error, "We could not load categories. Refresh the page before adding a product."));
       } finally {
         setLoadingCategories(false);
       }
@@ -97,10 +102,27 @@ export function ProductForm({
     field: keyof FormData,
     value: string | boolean,
   ) => {
+    setError(null);
+    setSuccess(null);
     setFormData((previous) => ({
       ...previous,
       [field]: value,
     }));
+  };
+
+  const handleNameChange = (name: string) => {
+    setError(null);
+    setSuccess(null);
+    setFormData((previous) => ({
+      ...previous,
+      name,
+      ...(!slugIsCustom ? { slug: slugify(name) } : {}),
+    }));
+  };
+
+  const handleSlugChange = (slug: string) => {
+    setSlugIsCustom(true);
+    handleChange("slug", slug);
   };
 
   const handleSubmit = async (
@@ -112,17 +134,23 @@ export function ProductForm({
     setSuccess(null);
 
     if (!formData.name.trim()) {
-      setError("Product name is required.");
+      const message = "Enter a product name before saving.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
-    if (!formData.slug.trim()) {
-      setError("Product slug is required.");
+    if (!slugify(formData.slug)) {
+      const message = "Enter a URL slug or generate one from the product name.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
     if (!formData.categoryId) {
-      setError("Please select a category.");
+      const message = "Choose a category for this product before saving.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
@@ -131,7 +159,7 @@ export function ProductForm({
     try {
       const baseData = {
         name: formData.name.trim(),
-        slug: formData.slug.trim(),
+        slug: slugify(formData.slug),
         genericName:
           formData.genericName.trim() || null,
         composition:
@@ -164,6 +192,7 @@ export function ProductForm({
         setSuccess(
           "Product updated successfully.",
         );
+        toast.success("Product changes saved.");
       } else {
         const createData: ProductCreateInput =
           baseData;
@@ -174,8 +203,9 @@ export function ProductForm({
           );
 
         setSuccess(
-          "Product created successfully.",
+          "Product added. You can add another product here.",
         );
+        toast.success("Product added successfully. Add the next product when you’re ready.");
 
         setFormData({
           name: "",
@@ -190,6 +220,7 @@ export function ProductForm({
           isActive: true,
           isFeatured: false,
         });
+        setSlugIsCustom(false);
       }
 
       onSuccess?.(savedProduct);
@@ -199,11 +230,14 @@ export function ProductForm({
         error,
       );
 
-      setError(
+      const message = getAdminErrorMessage(
+        error,
         isEditMode
-          ? "Failed to update product."
-          : "Failed to create product.",
+          ? "Could not update this product. Check the fields and try again."
+          : "Could not add this product. Check the fields and try again.",
       );
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -233,13 +267,10 @@ export function ProductForm({
             <input
               id="name"
               type="text"
+              required
               value={formData.name}
-              onChange={(event) =>
-                handleChange(
-                  "name",
-                  event.target.value,
-                )
-              }
+              onChange={(event) => handleNameChange(event.target.value)}
+              autoComplete="off"
               placeholder="Enter product name"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
             />
@@ -251,22 +282,39 @@ export function ProductForm({
               htmlFor="slug"
               className="mb-2 block text-sm font-medium text-[#1B2A4A]"
             >
-              Slug *
+              URL slug *
             </label>
 
             <input
               id="slug"
               type="text"
+              required
               value={formData.slug}
-              onChange={(event) =>
-                handleChange(
-                  "slug",
-                  event.target.value,
-                )
-              }
+              onChange={(event) => handleSlugChange(event.target.value)}
+              onBlur={() => handleChange("slug", slugify(formData.slug))}
+              autoComplete="off"
               placeholder="product-slug"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#1B2A4A]"
             />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-gray-500">
+                {slugIsCustom
+                  ? "Custom URL. You can regenerate it from the product name."
+                  : `Auto-generated: /products/${formData.slug || "product-name"}`}
+              </p>
+              {slugIsCustom && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSlugIsCustom(false);
+                    handleChange("slug", slugify(formData.name));
+                  }}
+                  className="text-xs font-semibold text-[#007f68] hover:underline"
+                >
+                  Generate from name
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Generic Name */}
@@ -507,13 +555,13 @@ export function ProductForm({
 
       {/* Messages */}
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-600">
+        <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {success}
         </div>
       )}
@@ -525,6 +573,7 @@ export function ProductForm({
           disabled={submitting || loadingCategories}
           className="rounded-lg bg-[#1B2A4A] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#142039] disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {submitting && <LoaderCircle aria-hidden="true" className="mr-2 inline size-4 animate-spin" />}
           {submitting
             ? isEditMode
               ? "Updating..."

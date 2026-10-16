@@ -30,3 +30,6 @@ Thumbs.db
 .DS_Store
 # Debug / generated dumps
 full-source-debug.txtstripe
+
+# Local test secrets
+**/tests/environment/.env

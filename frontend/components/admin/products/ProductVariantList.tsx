@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 import { productVariantService } from "@/services/productVariantService";
 import type { ProductVariant } from "@/types/product";
 import { ProductVariantForm } from "@/components/admin/products/ProductVariantForm";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
 
 interface ProductVariantListProps {
   productId: number;
@@ -15,6 +17,7 @@ export function ProductVariantList({
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const [showForm, setShowForm] = useState(false);
   const [editingVariant, setEditingVariant] =
@@ -24,6 +27,8 @@ export function ProductVariantList({
 
   useEffect(() => {
     let isActive = true;
+    setLoadedProductId(null);
+    setError(null);
 
     const loadVariants = async () => {
       try {
@@ -38,7 +43,7 @@ export function ProductVariantList({
           "Failed to load product variants:",
           error,
         );
-        setError("Failed to load product variants.");
+        setError(getAdminErrorMessage(error, "We could not load variants. Check your connection and try again."));
       } finally {
         if (isActive) setLoadedProductId(productId);
       }
@@ -49,7 +54,7 @@ export function ProductVariantList({
     return () => {
       isActive = false;
     };
-  }, [productId]);
+  }, [productId, retryKey]);
 
   const handleAdd = () => {
     setEditingVariant(null);
@@ -86,7 +91,7 @@ export function ProductVariantList({
         error,
       );
 
-      setError("Failed to delete product variant.");
+      setError(getAdminErrorMessage(error, "We could not delete this variant. Check the product details and try again."));
     }
   };
 
@@ -153,16 +158,24 @@ export function ProductVariantList({
       )}
 
       {error && (
-        <div className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
+        <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p>{error}</p>
+          {!loading && loadedProductId === productId && variants.length === 0 && (
+            <button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-3 inline-flex items-center gap-2 font-semibold text-red-900 hover:underline">
+              <RefreshCw aria-hidden="true" className="size-4" /> Retry loading variants
+            </button>
+          )}
         </div>
       )}
 
       {loading ? (
-        <div className="rounded-xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Loading variants...
-          </p>
+        <div role="status" aria-label="Loading product variants" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div aria-hidden="true" className="space-y-3">
+            <div className="h-5 w-40 animate-pulse rounded bg-slate-100" />
+            <div className="h-12 animate-pulse rounded bg-slate-100" />
+            <div className="h-12 animate-pulse rounded bg-slate-100" />
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-sm text-slate-500"><LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Loading variants…</p>
         </div>
       ) : variants.length === 0 ? (
         <div className="rounded-xl bg-white p-8 text-center shadow-sm">
