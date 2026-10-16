@@ -22,6 +22,7 @@ public interface IBulkUploadService
 
     Task ProcessAsync(
         int jobId,
+        string claimToken,
         CancellationToken cancellationToken = default);
 
     Task<object?> GetStatusAsync(
