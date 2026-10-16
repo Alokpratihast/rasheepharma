@@ -100,10 +100,6 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
 
-                    b.Property<string>("OriginalCoverImageUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -134,6 +130,10 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<string>("OgTitle")
                         .HasMaxLength(180)
                         .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("OriginalCoverImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
 
                     b.Property<DateTime?>("PublishedAtUtc")
                         .HasColumnType("datetime2");
@@ -259,6 +259,12 @@ namespace RashePharma.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClaimToken")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
@@ -274,6 +280,12 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("HeartbeatAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("ProcessedRecords")
                         .HasColumnType("int");

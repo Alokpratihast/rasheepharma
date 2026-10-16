@@ -66,58 +66,149 @@ public class BulkUploadWorker : BackgroundService
             "Bulk upload worker stopped.");
     }
 
-    private async Task ProcessPendingJobsAsync(
-        CancellationToken cancellationToken)
+
+private async Task ProcessPendingJobsAsync(
+    CancellationToken cancellationToken)
+{
+    for (var i = 0; i < MaxJobsPerCycle; i++)
     {
-        for (var i = 0; i < MaxJobsPerCycle; i++)
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var scope = _scopeFactory.CreateScope();
+
+        var repository =
+            scope.ServiceProvider
+                .GetRequiredService<IBulkUploadRepository>();
+
+        var service =
+            scope.ServiceProvider
+                .GetRequiredService<IBulkUploadService>();
+
+        var job = await repository.ClaimNextPendingJobAsync(
+            cancellationToken);
+
+        if (job is null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            return;
+        }
 
-            using var scope = _scopeFactory.CreateScope();
+        if (string.IsNullOrWhiteSpace(job.ClaimToken))
+        {
+            throw new InvalidOperationException(
+                $"Claim token is missing for bulk upload job {job.Id}.");
+        }
 
-            var repository =
-                scope.ServiceProvider
-                    .GetRequiredService<IBulkUploadRepository>();
+        var claimToken = job.ClaimToken;
 
-            var service =
-                scope.ServiceProvider
-                    .GetRequiredService<IBulkUploadService>();
+        _logger.LogInformation(
+            "Bulk upload job {JobId} claimed. Attempt {AttemptCount}.",
+            job.Id,
+            job.AttemptCount);
 
-            var job =
-                await repository.ClaimNextPendingJobAsync(
-                    cancellationToken);
+        using var processingCts =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
 
-            if (job == null)
-            {
-                return;
-            }
+        using var heartbeatCts =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+
+        var heartbeatTask = RenewLeaseLoopAsync(
+            job.Id,
+            claimToken,
+            heartbeatCts.Token,
+            processingCts);
+
+        try
+        {
+            await service.ProcessAsync(
+                job.Id,
+                claimToken,
+                processingCts.Token);
 
             _logger.LogInformation(
-                "Bulk upload job {JobId} claimed for processing.",
+                "Bulk upload job {JobId} processing completed.",
                 job.Id);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+            when (processingCts.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                "Bulk upload job {JobId} processing stopped because its lease was lost or processing was cancelled.",
+                job.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Bulk upload job {JobId} failed during processing.",
+                job.Id);
+        }
+        finally
+        {
+            await heartbeatCts.CancelAsync();
 
             try
             {
-                await service.ProcessAsync(
-                    job.Id,
-                    cancellationToken);
-
-                _logger.LogInformation(
-                    "Bulk upload job {JobId} processing completed.",
-                    job.Id);
+                await heartbeatTask;
             }
             catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+                when (heartbeatCts.IsCancellationRequested)
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Bulk upload job {JobId} failed during processing.",
-                    job.Id);
+                // Expected when processing completes or stops.
             }
         }
     }
+}
+
+private async Task RenewLeaseLoopAsync(
+    int jobId,
+    string claimToken,
+    CancellationToken heartbeatToken,
+    CancellationTokenSource processingCts)
+{
+    var leaseDuration = TimeSpan.FromMinutes(2);
+    var renewalInterval = TimeSpan.FromSeconds(30);
+
+    while (true)
+    {
+        await Task.Delay(renewalInterval, heartbeatToken);
+
+        heartbeatToken.ThrowIfCancellationRequested();
+
+        using var scope = _scopeFactory.CreateScope();
+
+        var repository =
+            scope.ServiceProvider
+                .GetRequiredService<IBulkUploadRepository>();
+
+        var renewed = await repository.TryRenewLeaseAsync(
+            jobId,
+            claimToken,
+            leaseDuration,
+            heartbeatToken);
+
+        if (renewed)
+        {
+            _logger.LogDebug(
+                "Lease renewed for bulk upload job {JobId}.",
+                jobId);
+
+            continue;
+        }
+
+        _logger.LogWarning(
+            "Lease renewal failed for bulk upload job {JobId}. Processing will be cancelled.",
+            jobId);
+
+        await processingCts.CancelAsync();
+        return;
+    }
+}
+
 }

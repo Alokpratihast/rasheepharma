@@ -1,11 +1,9 @@
 using Microsoft.Extensions.Logging;
-
 using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
 using RashePharma.Domain.Enums;
-
 namespace RashePharma.Application.Services;
 
 public class BulkUploadService : IBulkUploadService
@@ -17,7 +15,6 @@ public class BulkUploadService : IBulkUploadService
     private const long MaxImageFileSize = 1024L * 1024 * 1024;
     private const long MaxBatchSize = 10L * 1024 * 1024 * 1024;
     private const int MaxImageCount = 500;
-
     private readonly IBulkUploadRepository _bulkUploadRepository;
     private readonly IProductRepository _productRepository;
     private readonly IProductVariantRepository _variantRepository;
@@ -29,7 +26,7 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
-
+    /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
         IBulkUploadRepository bulkUploadRepository,
         IProductRepository productRepository,
@@ -55,7 +52,7 @@ public class BulkUploadService : IBulkUploadService
         _exchangeRateService = exchangeRateService;
         _logger = logger;
     }
-
+    /// <summary>Creates a Pending bulk-upload job when only a file name is supplied.</summary>
     public async Task<int> CreateJobAsync(
         string fileName,
         CancellationToken cancellationToken = default)
@@ -66,16 +63,13 @@ public class BulkUploadService : IBulkUploadService
             Status = BulkUploadStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
-
         await _bulkUploadRepository.CreateJobAsync(
             job,
             cancellationToken);
-
         await _unitOfWork.SaveChangesAsync();
-
         return job.Id;
     }
-
+    /// <summary>Creates a job and stores the Excel workbook and uploaded image files.</summary>
     public async Task<int> CreateJobAsync(
         Stream excelStream,
         string excelFileName,
@@ -88,20 +82,15 @@ public class BulkUploadService : IBulkUploadService
             Status = BulkUploadStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
-
         await _bulkUploadRepository.CreateJobAsync(
             job,
             cancellationToken);
-
         await _unitOfWork.SaveChangesAsync();
-
         var excelFileSize = excelStream.Length;
-
         var excelUrl = await _bulkUploadStorageService.UploadAsync(
             excelStream,
             excelFileName,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
         var excelFile = new BulkUploadFile
         {
             BulkUploadJobId = job.Id,
@@ -114,20 +103,16 @@ public class BulkUploadService : IBulkUploadService
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             FileSize = excelFileSize
         };
-
         await _bulkUploadRepository.AddFileAsync(
             excelFile,
             cancellationToken);
-
         foreach (var file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             var fileUrl = await _bulkUploadStorageService.UploadAsync(
                 file.Stream,
                 file.FileName,
                 file.ContentType);
-
             var bulkFile = new BulkUploadFile
             {
                 BulkUploadJobId = job.Id,
@@ -139,18 +124,13 @@ public class BulkUploadService : IBulkUploadService
                 ContentType = file.ContentType,
                 FileSize = file.FileSize
             };
-
             await _bulkUploadRepository.AddFileAsync(
                 bulkFile,
                 cancellationToken);
         }
-
         await _unitOfWork.SaveChangesAsync();
-
         return job.Id;
     }
-
-
     /// <summary>
     /// Validates an admin's upload manifest and creates one narrowly scoped
     /// SAS URL per file. Large file bytes never pass through this API process.
@@ -162,14 +142,12 @@ public class BulkUploadService : IBulkUploadService
         var normalized = ValidateManifest(files);
         await _bulkUploadStorageService.EnsureContainerExistsAsync(cancellationToken);
         var targets = new List<BulkUploadUploadTarget>(normalized.Count);
-
         foreach (var file in normalized)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var target = await _bulkUploadStorageService.CreateUploadTargetAsync(
                 file.FileName,
                 cancellationToken);
-
             targets.Add(new BulkUploadUploadTarget(
                 file.FileName,
                 file.FileType,
@@ -177,20 +155,18 @@ public class BulkUploadService : IBulkUploadService
                 target.BlobName,
                 target.UploadUrl));
         }
-
         return targets;
     }
-
     /// <summary>
     /// Verifies every staged blob before persisting a Pending job. The worker
     /// only claims Pending jobs, so incomplete uploads cannot be processed.
     /// </summary>
+    /// <summary>Verifies staged files and creates a Pending job with its complete file manifest.</summary>
     public async Task<int> CreateJobFromStagedFilesAsync(
         IReadOnlyCollection<BulkUploadStagedFileInput> files,
         CancellationToken cancellationToken = default)
     {
         var normalized = ValidateManifest(files);
-
         foreach (var file in normalized)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -198,14 +174,12 @@ public class BulkUploadService : IBulkUploadService
                 file.BlobName,
                 file.FileSize,
                 cancellationToken);
-
             if (!exists)
             {
                 throw new InvalidOperationException(
                     $"Uploaded file '{file.FileName}' is missing or its size does not match the upload manifest.");
             }
         }
-
         var excelFile = normalized.Single(file => file.FileType == ExcelFileType);
         var job = new BulkUploadJob
         {
@@ -213,7 +187,6 @@ public class BulkUploadService : IBulkUploadService
             Status = BulkUploadStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
-
         foreach (var file in normalized)
         {
             job.Files.Add(new BulkUploadFile
@@ -226,14 +199,13 @@ public class BulkUploadService : IBulkUploadService
                 FileSize = file.FileSize
             });
         }
-
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
         return job.Id;
     }
-
+    /// <summary>Validates file count, names, types, sizes, and staging-blob uniqueness.</summary>
     private static List<BulkUploadStagedFileInput> ValidateManifest<T>(
         IReadOnlyCollection<T> files)
     {
@@ -242,7 +214,6 @@ public class BulkUploadService : IBulkUploadService
             throw new InvalidOperationException(
                 $"Upload one .xlsx workbook and no more than {MaxImageCount} images.");
         }
-
         var normalized = files.Select(file => file switch
         {
             BulkUploadFileDescriptor descriptor => new BulkUploadStagedFileInput(
@@ -252,17 +223,14 @@ public class BulkUploadService : IBulkUploadService
                 descriptor.FileType,
                 string.Empty),
             BulkUploadStagedFileInput staged => staged,
-
             _ => throw new InvalidOperationException("Unsupported upload manifest entry.")
         }).ToList();
-
         if (normalized.Count(file => file.FileType == ExcelFileType) != 1 ||
             normalized.Any(file => file.FileType is not (ExcelFileType or ImageFileType)))
         {
             throw new InvalidOperationException(
                 "The upload must contain exactly one Excel file; remaining files must be images.");
         }
-
         var excel = normalized.Single(file => file.FileType == ExcelFileType);
         if (!string.Equals(Path.GetExtension(excel.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase) ||
             excel.FileSize <= 0 || excel.FileSize > MaxExcelFileSize)
@@ -270,13 +238,11 @@ public class BulkUploadService : IBulkUploadService
             throw new InvalidOperationException(
                 "The workbook must be a non-empty .xlsx file no larger than 50 MiB because the current workbook parser loads it into memory.");
         }
-
         var images = normalized.Where(file => file.FileType == ImageFileType).ToList();
         if (images.Count > MaxImageCount)
         {
             throw new InvalidOperationException($"A maximum of {MaxImageCount} images is allowed per job.");
         }
-
         var duplicateNames = images
             .GroupBy(file => file.FileName, StringComparer.OrdinalIgnoreCase)
             .Any(group => group.Count() > 1);
@@ -285,7 +251,6 @@ public class BulkUploadService : IBulkUploadService
             throw new InvalidOperationException(
                 "Image file names must be unique within a bulk upload because the workbook references images by file name.");
         }
-
         foreach (var image in images)
         {
             var expectedContentType = image.FileName is null
@@ -298,13 +263,11 @@ public class BulkUploadService : IBulkUploadService
                     ".gif" => "image/gif",
                     _ => null
                 };
-
             if (expectedContentType == null || image.FileSize <= 0 || image.FileSize > MaxImageFileSize)
             {
                 throw new InvalidOperationException(
                     $"Image '{image.FileName}' must be JPEG, PNG, WebP or GIF and no larger than 1 GiB.");
             }
-
             if (!string.IsNullOrWhiteSpace(image.ContentType) &&
                 !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
             {
@@ -312,18 +275,15 @@ public class BulkUploadService : IBulkUploadService
                     $"Image '{image.FileName}' has a content type that does not match its extension.");
             }
         }
-
         if (normalized.Sum(file => file.FileSize) > MaxBatchSize)
         {
             throw new InvalidOperationException("The maximum combined bulk-upload size is 10 GiB.");
         }
-
         if (normalized.Any(file => string.IsNullOrWhiteSpace(file.FileName) ||
                                    file.FileName != Path.GetFileName(file.FileName)))
         {
             throw new InvalidOperationException("File names must not contain directory paths.");
         }
-
         if (normalized.Where(file => !string.IsNullOrWhiteSpace(file.BlobName))
             .Select(file => file.BlobName)
             .Distinct(StringComparer.Ordinal)
@@ -331,123 +291,105 @@ public class BulkUploadService : IBulkUploadService
         {
             throw new InvalidOperationException("Each uploaded file must use a unique staging blob.");
         }
-
         return normalized;
     }
+    /// <summary>Processes a claimed job and persists progress only while the supplied claim token remains valid.</summary>
     public async Task ProcessAsync(
         int jobId,
+        string claimToken,
         CancellationToken cancellationToken = default)
     {
         var job = await _bulkUploadRepository.GetByIdAsync(
             jobId,
             cancellationToken);
-
         if (job == null)
         {
             throw new KeyNotFoundException(
                 $"Bulk upload job with ID {jobId} was not found.");
         }
 
+        // Verify the claim before performing any processing or database writes.
+        if (!await _bulkUploadRepository.IsClaimOwnerAsync(jobId, claimToken, cancellationToken))
+        {
+            throw new OperationCanceledException(
+                $"Bulk upload job {jobId} is no longer owned by this worker.",
+                cancellationToken);
+        }
         // Diagnostic logging
         _logger.LogInformation(
-            "DEBUG BulkUpload Job {JobId}: Files loaded = {FileCount}",
+            "Bulk upload job {JobId}: loaded {FileCount} files",
             job.Id,
             job.Files.Count);
-
         foreach (var file in job.Files)
         {
             _logger.LogInformation(
-                "DEBUG BulkUpload Job {JobId}: FileType={FileType}, OriginalFileName={FileName}, BlobName={BlobName}, FileUrl={FileUrl}",
+                "BulkUpload Job {JobId}: FileType={FileType}, OriginalFileName={FileName}, BlobName={BlobName}",
                 job.Id,
                 file.FileType,
                 file.OriginalFileName,
-                file.BlobName,
-                file.FileUrl);
+                file.BlobName);
         }
-
         if (job.Status == BulkUploadStatus.Completed ||
             job.Status == BulkUploadStatus.CompletedWithErrors)
         {
             return;
         }
-
         try
         {
             job.Status = BulkUploadStatus.Processing;
             job.StartedAt ??= DateTime.UtcNow;
             job.ErrorMessage = null;
-
-            await _bulkUploadRepository.UpdateJobAsync(
-                job,
-                cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync();
-
+            await SaveProgressAsync(job, claimToken, cancellationToken);
             var excelFile = job.Files
                 .FirstOrDefault(file =>
                     file.FileType == ExcelFileType);
-
             if (excelFile == null)
             {
                 throw new InvalidOperationException(
                     "Excel file was not found for this bulk upload job.");
             }
-
             await using var excelStream =
                 await DownloadStagedFileAsync(
                     excelFile.FileUrl,
                     cancellationToken);
-
             var data = await _excelParser.ParseAsync(
                 excelStream,
                 cancellationToken);
-
             var validImageRows = data.Images
                 .Where(image =>
                     !string.IsNullOrWhiteSpace(image.ImageFileName))
                 .ToList();
-
             job.TotalRecords =
                 data.Products.Count +
                 data.Variants.Count +
                 validImageRows.Count;
-
-            await _bulkUploadRepository.UpdateJobAsync(
-                job,
-                cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync();
-
+            await SaveProgressAsync(job, claimToken, cancellationToken);
             var inrToUsdRate =
                 await _exchangeRateService.GetInrToUsdRateAsync();
-
             await ProcessProductsAsync(
                 job,
                 data.Products,
+                claimToken,
                 cancellationToken);
-
             await ProcessVariantsAsync(
                 job,
                 data.Variants,
                 inrToUsdRate,
+                claimToken,
                 cancellationToken);
-
             await ProcessImagesAsync(
                 job,
                 data.Images,
+                claimToken,
                 cancellationToken);
-
             job.Status = job.ErrorCount > 0
                 ? BulkUploadStatus.CompletedWithErrors
                 : BulkUploadStatus.Completed;
-
             job.CompletedAt = DateTime.UtcNow;
-
-            await _bulkUploadRepository.UpdateJobAsync(
+            await SaveProgressAsync(
                 job,
+                claimToken,
                 cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync();
         }
         catch (OperationCanceledException)
         {
@@ -458,22 +400,38 @@ public class BulkUploadService : IBulkUploadService
             job.Status = BulkUploadStatus.Failed;
             job.ErrorMessage = ex.Message;
             job.CompletedAt = DateTime.UtcNow;
-
             _logger.LogError(
                 ex,
                 "Bulk upload job {JobId} failed during processing.",
                 job.Id);
+            try
+            {
+                // A stale worker must not overwrite the status of the current claim owner.
+                var failureSaved = await _bulkUploadRepository.UpdateJobIfOwnedAsync(
+                    job,
+                    claimToken,
+                    cancellationToken);
 
-            await _bulkUploadRepository.UpdateJobAsync(
-                job,
-                cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync();
+                if (!failureSaved)
+                {
+                    _logger.LogWarning(
+                        "Bulk upload job {JobId} failed after this worker lost ownership; failure status was not overwritten.",
+                        job.Id);
+                }
+            }
+            catch (Exception saveException)
+            {
+                // Keep the original processing exception as the one propagated to the worker.
+                _logger.LogError(
+                    saveException,
+                    "Could not persist failure status for bulk upload job {JobId}.",
+                    job.Id);
+            }
 
             throw;
         }
     }
-
+    /// <summary>Returns the public status and progress fields for a bulk-upload job.</summary>
     public async Task<object?> GetStatusAsync(
         int jobId,
         CancellationToken cancellationToken = default)
@@ -481,12 +439,10 @@ public class BulkUploadService : IBulkUploadService
         var job = await _bulkUploadRepository.GetByIdAsync(
             jobId,
             cancellationToken);
-
         if (job == null)
         {
             return null;
         }
-
         return new
         {
             job.Id,
@@ -502,18 +458,17 @@ public class BulkUploadService : IBulkUploadService
             job.CompletedAt
         };
     }
-
+    /// <summary>Validates and inserts or updates product rows, recording row-level errors when needed.</summary>
     private async Task ProcessProductsAsync(
         BulkUploadJob job,
         IReadOnlyList<BulkUploadProductRow> rows,
+        string claimToken,
         CancellationToken cancellationToken)
     {
         for (var index = 0; index < rows.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             var row = rows[index];
-
             try
             {
                 if (string.IsNullOrWhiteSpace(row.Slug))
@@ -521,24 +476,19 @@ public class BulkUploadService : IBulkUploadService
                     throw new InvalidOperationException(
                         "Product slug is required.");
                 }
-
                 if (string.IsNullOrWhiteSpace(row.ProductName))
                 {
                     throw new InvalidOperationException(
                         "Product name is required.");
                 }
-
                 if (string.IsNullOrWhiteSpace(row.Category))
                 {
                     throw new InvalidOperationException(
                         "Category is required.");
                 }
-
                 var categorySlug = row.Category.Trim();
-
                 var category = await _categoryRepository.GetBySlugAsync(
                     categorySlug);
-
                 if (category == null)
                 {
                     category = new Category
@@ -548,17 +498,13 @@ public class BulkUploadService : IBulkUploadService
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     };
-
                     await _categoryRepository.AddAsync(category);
-
-                    await _unitOfWork.SaveChangesAsync();
+                    // Save the category and progress only if this worker still owns the job.
+                    await SaveProgressAsync(job, claimToken, cancellationToken);
                 }
-
                 var slug = row.Slug.Trim();
-
                 var product =
                     await _productRepository.GetBySlugAsync(slug);
-
                 if (product == null)
                 {
                     product = new Product
@@ -576,7 +522,6 @@ public class BulkUploadService : IBulkUploadService
                         IsFeatured = row.IsFeatured,
                         CreatedAt = DateTime.UtcNow
                     };
-
                     await _productRepository.AddAsync(product);
                 }
                 else
@@ -592,16 +537,18 @@ public class BulkUploadService : IBulkUploadService
                     product.IsActive = row.IsActive;
                     product.IsFeatured = row.IsFeatured;
                     product.UpdatedAt = DateTime.UtcNow;
-
                     await _productRepository.UpdateAsync(product);
                 }
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
                     cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -612,29 +559,27 @@ public class BulkUploadService : IBulkUploadService
                     row.Slug,
                     ex.Message,
                     cancellationToken);
-
                 job.ProcessedRecords++;
                 job.ErrorCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
                     cancellationToken);
             }
         }
     }
-
+    /// <summary>Validates and inserts or updates product variants, converting INR prices to USD.</summary>
     private async Task ProcessVariantsAsync(
         BulkUploadJob job,
         IReadOnlyList<BulkUploadVariantRow> rows,
         decimal inrToUsdRate,
+        string claimToken,
         CancellationToken cancellationToken)
     {
         for (var index = 0; index < rows.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             var row = rows[index];
-
             try
             {
                 if (string.IsNullOrWhiteSpace(row.ProductSlug))
@@ -642,46 +587,37 @@ public class BulkUploadService : IBulkUploadService
                     throw new InvalidOperationException(
                         "Product slug is required.");
                 }
-
                 if (row.PriceInr <= 0)
                 {
                     throw new InvalidOperationException(
                         "Price INR must be greater than zero.");
                 }
-
                 if (row.MOQ < 0)
                 {
                     throw new InvalidOperationException(
                         "MOQ cannot be negative.");
                 }
-
                 if (row.StockQuantity < 0)
                 {
                     throw new InvalidOperationException(
                         "Stock quantity cannot be negative.");
                 }
-
                 var product =
                     await _productRepository.GetBySlugAsync(
                         row.ProductSlug.Trim());
-
                 if (product == null)
                 {
                     throw new InvalidOperationException(
                         $"Product '{row.ProductSlug}' was not found.");
                 }
-
                 var usdPrice = Math.Round(
                     row.PriceInr * inrToUsdRate,
                     2,
                     MidpointRounding.AwayFromZero);
-
                 var variants =
                     await _variantRepository.GetByProductIdAsync(
                         product.Id);
-
                 ProductVariant? variant = null;
-
                 if (!string.IsNullOrWhiteSpace(row.SKU))
                 {
                     variant = variants.FirstOrDefault(v =>
@@ -691,7 +627,6 @@ public class BulkUploadService : IBulkUploadService
                             row.SKU.Trim(),
                             StringComparison.OrdinalIgnoreCase));
                 }
-
                 if (variant == null)
                 {
                     variant = variants.FirstOrDefault(v =>
@@ -708,7 +643,6 @@ public class BulkUploadService : IBulkUploadService
                             row.UnitType?.Trim(),
                             StringComparison.OrdinalIgnoreCase));
                 }
-
                 if (variant == null)
                 {
                     variant = new ProductVariant
@@ -725,7 +659,6 @@ public class BulkUploadService : IBulkUploadService
                         IsActive = row.IsActive,
                         CreatedAt = DateTime.UtcNow
                     };
-
                     await _variantRepository.AddAsync(variant);
                 }
                 else
@@ -740,16 +673,18 @@ public class BulkUploadService : IBulkUploadService
                     variant.StockQuantity = row.StockQuantity;
                     variant.IsActive = row.IsActive;
                     variant.UpdatedAt = DateTime.UtcNow;
-
                     await _variantRepository.UpdateAsync(variant);
                 }
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
                     cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -760,33 +695,30 @@ public class BulkUploadService : IBulkUploadService
                     row.ProductSlug,
                     ex.Message,
                     cancellationToken);
-
                 job.ProcessedRecords++;
                 job.ErrorCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
                     cancellationToken);
             }
         }
     }
-
+    /// <summary>Matches staged images to products, uploads image content, and records image rows or errors.</summary>
     private async Task ProcessImagesAsync(
         BulkUploadJob job,
         IReadOnlyList<BulkUploadImageRow> rows,
+        string claimToken,
         CancellationToken cancellationToken)
     {
         for (var index = 0; index < rows.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             var row = rows[index];
-
             if (string.IsNullOrWhiteSpace(row.ImageFileName))
             {
                 continue;
             }
-
             try
             {
                 if (string.IsNullOrWhiteSpace(row.ProductSlug))
@@ -794,50 +726,40 @@ public class BulkUploadService : IBulkUploadService
                     throw new InvalidOperationException(
                         "Product slug is required.");
                 }
-
                 var product =
                     await _productRepository.GetBySlugAsync(
                         row.ProductSlug.Trim());
-
                 if (product == null)
                 {
                     throw new InvalidOperationException(
                         $"Product '{row.ProductSlug}' was not found.");
                 }
-
                 var stagedFile = job.Files.FirstOrDefault(file =>
                     file.FileType == ImageFileType &&
                     string.Equals(
                         file.OriginalFileName.Trim(),
                         row.ImageFileName.Trim(),
                         StringComparison.OrdinalIgnoreCase));
-
                 if (stagedFile == null)
                 {
                     throw new InvalidOperationException(
                         $"Image file '{row.ImageFileName}' was not uploaded.");
                 }
-
                 await using var stagedStream =
                     await DownloadStagedFileAsync(
                         stagedFile.FileUrl,
                         cancellationToken);
-
                 var imageUrl = await _imageStorageService.UploadAsync(
                     stagedStream,
                     stagedFile.OriginalFileName,
                     stagedFile.ContentType);
-
                 var existingImages =
                     await _imageRepository.GetByProductIdAsync(
                         product.Id);
-
                 var hasPrimaryImage =
                     existingImages.Any(image => image.IsPrimary);
-
                 var shouldBePrimary =
                     row.IsPrimary || !hasPrimaryImage;
-
                 if (shouldBePrimary)
                 {
                     foreach (var existingImage in existingImages)
@@ -845,7 +767,6 @@ public class BulkUploadService : IBulkUploadService
                         existingImage.IsPrimary = false;
                     }
                 }
-
                 var image = new ProductImage
                 {
                     ProductId = product.Id,
@@ -854,14 +775,32 @@ public class BulkUploadService : IBulkUploadService
                     IsPrimary = shouldBePrimary,
                     DisplayOrder = row.DisplayOrder
                 };
-
                 await _imageRepository.AddAsync(image);
-
                 job.ProcessedRecords++;
                 job.SuccessCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                await AddErrorAsync(
+                    job,
+                    "Images",
+                    index + 2,
+                    row.ProductSlug,
+                    ex.Message,
+                    cancellationToken);
+                job.ProcessedRecords++;
+                job.ErrorCount++;
+                await SaveProgressAsync(
+                    job,
+                    claimToken,
                     cancellationToken);
             }
             catch (Exception ex)
@@ -873,29 +812,26 @@ public class BulkUploadService : IBulkUploadService
                     row.ProductSlug,
                     ex.Message,
                     cancellationToken);
-
                 job.ProcessedRecords++;
                 job.ErrorCount++;
-
                 await SaveProgressAsync(
                     job,
+                    claimToken,
                     cancellationToken);
             }
         }
     }
-
+    /// <summary>Downloads a staged file stream for parsing or image processing.</summary>
     private async Task<Stream> DownloadStagedFileAsync(
         string fileUrl,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
         var result =
             await _bulkUploadStorageService.DownloadAsync(fileUrl);
-
         return result.Stream;
     }
-
+    /// <summary>Adds a row-level validation or processing error to the current unit of work.</summary>
     private async Task AddErrorAsync(
         BulkUploadJob job,
         string sheetName,
@@ -913,22 +849,29 @@ public class BulkUploadService : IBulkUploadService
             ErrorMessage = errorMessage,
             CreatedAt = DateTime.UtcNow
         };
-
         // SaveProgressAsync commits this error with the row counters.
         await _bulkUploadRepository.AddErrorAsync(
             error,
             cancellationToken);
     }
-
+    /// <summary>Checks cancellation and claim ownership, then atomically saves tracked changes through the repository.</summary>
     private async Task SaveProgressAsync(
         BulkUploadJob job,
+        string claimToken,
         CancellationToken cancellationToken)
     {
-        await _bulkUploadRepository.UpdateJobAsync(
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var updated = await _bulkUploadRepository.UpdateJobIfOwnedAsync(
             job,
+            claimToken,
             cancellationToken);
 
-        // Product/image/error changes and progress counters are persisted together.
-        await _unitOfWork.SaveChangesAsync();
+        if (!updated)
+        {
+            throw new OperationCanceledException(
+                $"Bulk upload job {job.Id} is no longer owned by this worker.",
+                cancellationToken);
+        }
     }
 }
