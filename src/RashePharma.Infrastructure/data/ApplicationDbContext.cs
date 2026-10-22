@@ -74,6 +74,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Partner> Partners => Set<Partner>();
 
+    public DbSet<LocationSeoPage> LocationSeoPages => Set<LocationSeoPage>();
+
     public DbSet<WebsiteContent> WebsiteContents
         => Set<WebsiteContent>();
 
@@ -447,6 +449,21 @@ public class ApplicationDbContext : DbContext
         // Unique Indexes
         // =====================================================
 
+        modelBuilder.Entity<LocationSeoPage>(entity =>
+        {
+            entity.HasIndex(p => new { p.CountrySlug, p.CitySlug }).IsUnique();
+            entity.Property(p => p.Country).IsRequired();
+            entity.Property(p => p.CountryCode).IsRequired();
+            entity.Property(p => p.CountrySlug).IsRequired();
+            entity.Property(p => p.City).IsRequired();
+            entity.Property(p => p.CitySlug).IsRequired();
+            entity.Property(p => p.MetaTitle).IsRequired();
+            entity.Property(p => p.MetaDescription).IsRequired();
+            entity.Property(p => p.Heading).IsRequired();
+            entity.Property(p => p.Intro).IsRequired();
+            entity.Property(p => p.BuyerFocus).IsRequired();
+        });
+
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
@@ -592,3 +609,5 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);  
     }
 }
+
+

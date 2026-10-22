@@ -6,42 +6,54 @@ import { toast } from "sonner";
 import { blogService } from "@/services/blog.service";
 import type { BlogPostPage } from "@/types/blog";
 import { BlogCoverPreview } from "@/components/admin/blog/BlogCoverPreview";
+import { Pagination } from "@/components/admin/Pagination";
 
 export function BlogPostList() {
   const [result, setResult] = useState<BlogPostPage | null>(null);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [pageSize, setPageSize] = useState(25);
+  const [loadedPageKey, setLoadedPageKey] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
+  const requestKey = `${page}:${pageSize}`;
+  const loading = mutating || loadedPageKey !== requestKey;
 
   useEffect(() => {
     let active = true;
     // Resolve the request asynchronously and ignore stale page responses after navigation.
-    blogService.getAdminPage(page)
+    blogService.getAdminPage(page, pageSize)
       .then((posts) => { if (active) setResult(posts); })
       .catch((error: unknown) => { if (active) toast.error(error instanceof Error ? error.message : "Could not load blog posts."); })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) setLoadedPageKey(requestKey); });
     return () => { active = false; };
-  }, [page]);
+  }, [page, pageSize, requestKey]);
 
   const load = async () => {
-    try { setResult(await blogService.getAdminPage(page)); }
+    try {
+      const posts = await blogService.getAdminPage(page, pageSize);
+      if (!posts.items.length && page > 1) {
+        setPage(page - 1);
+        return;
+      }
+      setResult(posts);
+    }
     catch (error) { toast.error(error instanceof Error ? error.message : "Could not load blog posts."); }
-    finally { setLoading(false); }
+    finally { setLoadedPageKey(requestKey); setMutating(false); }
   };
 
   const remove = async (id: number) => {
     if (!window.confirm("Delete this blog post? This cannot be undone.")) return;
-    setLoading(true);
+    setMutating(true);
     try { await blogService.delete(id); toast.success("Blog post deleted."); await load(); }
-    catch (error) { setLoading(false); toast.error(error instanceof Error ? error.message : "Could not delete blog post."); }
+    catch (error) { setMutating(false); toast.error(error instanceof Error ? error.message : "Could not delete blog post."); }
   };
 
   const togglePublish = async (id: number, published: boolean) => {
-    setLoading(true);
+    setMutating(true);
     try {
       if (published) await blogService.unpublish(id); else await blogService.publish(id);
       toast.success(published ? "Post returned to draft." : "Post published.");
       await load();
-    } catch (error) { setLoading(false); toast.error(error instanceof Error ? error.message : "Could not update publication status."); }
+    } catch (error) { setMutating(false); toast.error(error instanceof Error ? error.message : "Could not update publication status."); }
   };
 
   return <section className="mx-auto max-w-7xl p-6 md:p-10">
@@ -62,17 +74,25 @@ export function BlogPostList() {
             <td className="p-4 text-gray-600">{new Date(post.updatedAtUtc).toLocaleDateString()}</td>
             <td className="p-4"><div className="flex items-center gap-3">
               <Link className="font-medium text-blue-700 hover:underline" href={`/admin/blog/${post.id}`}>Edit</Link>
-              <button type="button" onClick={() => void togglePublish(post.id, post.status === "Published")} className="font-medium text-blue-700 hover:underline">{post.status === "Published" ? "Unpublish" : "Publish"}</button>
-              <button type="button" onClick={() => void remove(post.id)} className="font-medium text-red-700 hover:underline">Delete</button>
+              <button type="button" disabled={loading} onClick={() => void togglePublish(post.id, post.status === "Published")} className="font-medium text-blue-700 hover:underline disabled:opacity-50">{post.status === "Published" ? "Unpublish" : "Publish"}</button>
+              <button type="button" disabled={loading} onClick={() => void remove(post.id)} className="font-medium text-red-700 hover:underline disabled:opacity-50">Delete</button>
             </div></td>
           </tr>)}
         </tbody>
       </table>
     </div>
-    <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-      <span>{result ? `${result.totalCount} article${result.totalCount === 1 ? "" : "s"}` : ""}</span>
-      <div className="flex gap-2"><button disabled={page <= 1 || loading} onClick={() => { setLoading(true); setPage((current) => current - 1); }} className="rounded border px-3 py-1.5 disabled:opacity-40">Previous</button>
-        <button disabled={!result || page * result.pageSize >= result.totalCount || loading} onClick={() => { setLoading(true); setPage((current) => current + 1); }} className="rounded border px-3 py-1.5 disabled:opacity-40">Next</button></div>
-    </div>
+    {result && result.totalCount > 0 && (
+      <div className="mt-4">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={result.totalCount}
+          itemLabel="articles"
+          disabled={loading}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        />
+      </div>
+    )}
   </section>;
 }

@@ -16,11 +16,14 @@ import type {
   QuotationDetails,
   QuotationList,
 } from "@/types/quotation";
+import { Pagination } from "@/components/admin/Pagination";
 
 export default function QuotationsPage() {
   const { token, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [quotations, setQuotations] = useState<QuotationList[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [loadedToken, setLoadedToken] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -64,6 +67,9 @@ export default function QuotationsPage() {
   const loading =
     authLoading ||
     (isAuthenticated && Boolean(token) && loadedToken !== token);
+  const pageCount = Math.max(1, Math.ceil(quotations.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleQuotations = quotations.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const handleViewQuotation = async (id: number) => {
     if (!token) return;
@@ -271,7 +277,7 @@ export default function QuotationsPage() {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {quotations.map((quotation) => (
+                {visibleQuotations.map((quotation) => (
                   <tr
                     key={quotation.id}
                     className="transition hover:bg-gray-50"
@@ -337,6 +343,20 @@ export default function QuotationsPage() {
           </div>
         )}
       </div>
+
+      {quotations.length > 0 && (
+        <div className="mt-4">
+          <Pagination
+            page={safePage}
+            pageSize={pageSize}
+            totalItems={quotations.length}
+            itemLabel="quotations"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+            disabled={detailsLoading}
+          />
+        </div>
+      )}
 
       {/* Details Modal */}
       {selectedQuotation && (

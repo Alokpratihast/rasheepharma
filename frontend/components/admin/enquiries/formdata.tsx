@@ -21,6 +21,7 @@
   import type { EnquiryDetails } from "@/types/enquiry";
   import { quotationService } from "@/services/quotation.service";
   import type { CreateQuotation } from "@/types/quotation";
+  import { Pagination } from "@/components/admin/Pagination";
 
   export default function EnquiriesPage() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -28,6 +29,8 @@
     const [enquiries, setEnquiries] = useState<EnquiryDetails[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
 
     const [selectedEnquiry, setSelectedEnquiry] =
       useState<EnquiryDetails | null>(null);
@@ -84,6 +87,10 @@ const [quotationPrices, setQuotationPrices] = useState<
         year: "numeric",
       });
     };
+
+    const pageCount = Math.max(1, Math.ceil(enquiries.length / pageSize));
+    const safePage = Math.min(page, pageCount);
+    const visibleEnquiries = enquiries.slice((safePage - 1) * pageSize, safePage * pageSize);
 
     const formatDateTime = (date: string) => {
       return new Date(date).toLocaleString("en-IN", {
@@ -345,7 +352,7 @@ const [quotationPrices, setQuotationPrices] = useState<
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
-                    {enquiries.map((enquiry) => (
+                    {visibleEnquiries.map((enquiry) => (
                       <tr
                         key={enquiry.id}
                         className="transition hover:bg-gray-50"
@@ -452,6 +459,17 @@ const [quotationPrices, setQuotationPrices] = useState<
                 </table>
               </div>
             </div>
+          )}
+          {enquiries.length > 0 && (
+            <Pagination
+              page={safePage}
+              pageSize={pageSize}
+              totalItems={enquiries.length}
+              itemLabel="enquiries"
+              onPageChange={setPage}
+              onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+              disabled={loading}
+            />
           )}
         </div>
 

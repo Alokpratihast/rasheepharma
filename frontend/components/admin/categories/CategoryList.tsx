@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { categoryService } from "@/services/category.service";
 import type { Category } from "@/types/category";
+import { Pagination } from "@/components/admin/Pagination";
 
 export function CategoryList() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -11,6 +12,8 @@ export function CategoryList() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -74,6 +77,10 @@ const [deleteError, setDeleteError] = useState<string | null>(null);
     setDeletingId(null);
   }
 };
+
+  const pageCount = Math.max(1, Math.ceil(categories.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleCategories = categories.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <main className="min-h-screen bg-[#f5f7f6] p-6">
@@ -183,7 +190,7 @@ const [deleteError, setDeleteError] = useState<string | null>(null);
                     </thead>
 
                     <tbody className="divide-y divide-gray-100">
-                      {categories.map((category) => (
+                      {visibleCategories.map((category) => (
                         <tr
                           key={category.id}
                           className="transition hover:bg-gray-50"
@@ -281,6 +288,19 @@ const [deleteError, setDeleteError] = useState<string | null>(null);
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+            {categories.length > 0 && (
+              <div className="mt-4">
+                <Pagination
+                  page={safePage}
+                  pageSize={pageSize}
+                  totalItems={categories.length}
+                  itemLabel="categories"
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+                  disabled={deletingId !== null}
+                />
               </div>
             )}
           </>

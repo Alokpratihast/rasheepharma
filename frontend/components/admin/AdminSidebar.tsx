@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Users,
   Globe,
+  MapPin,
   Handshake,
   BookOpen,
   Upload,
@@ -71,6 +72,11 @@ const menuItems = [
     label: "Website Content",
     href: "/admin/content",
     icon: Globe,
+  },
+  {
+    label: "Location SEO",
+    href: "/admin/locations",
+    icon: MapPin,
   },
   // Blog has its own workflow and does not alter the existing Website Content screen.
   {
@@ -252,3 +258,4 @@ export function AdminSidebar() {
     </>
   );
 }
+

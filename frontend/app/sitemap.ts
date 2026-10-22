@@ -3,6 +3,8 @@ import type { MetadataRoute } from "next";
 import type { Category } from "@/types/category";
 import type { PublicBlogPostPage } from "@/types/blog";
 import type { ProductList } from "@/types/product";
+import { cityLandingPageSeeder } from "@/data/seed/cityLandingPageSeeder";
+import type { LocationSeoPage, LocationSeoRouteStatus } from "@/types/location-seo-page";
 
 const apiBase = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5104/api"
@@ -78,15 +80,39 @@ async function getPublishedPosts(): Promise<NonNullable<PublicBlogPostPage["item
   ].slice(0, 50_000);
 }
 
+type SitemapLocation = (typeof cityLandingPageSeeder)[number] & { isPublished?: boolean; isIndexable?: boolean };
+
+async function getLocationPages(): Promise<SitemapLocation[]> {
+  try {
+    const [pagesResponse, statusResponse] = await Promise.all([
+      fetch(`${apiBase}/location-pages`, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(10_000) }),
+      fetch(`${apiBase}/location-pages/status`, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(10_000) }),
+    ]);
+    const saved = pagesResponse.ok ? await pagesResponse.json() as LocationSeoPage[] : [];
+    const statuses = statusResponse.ok ? await statusResponse.json() as LocationSeoRouteStatus[] : [];
+    const savedByRoute = new Map(saved.map(page => [`${page.countrySlug}/${page.citySlug}`, page]));
+    const statusByRoute = new Map(statuses.map(page => [`${page.countrySlug}/${page.citySlug}`, page]));
+    const initial = cityLandingPageSeeder.flatMap(seed => {
+      const route = `${seed.countrySlug}/${seed.citySlug}`;
+      if (statusByRoute.get(route)?.isPublished === false) return [];
+      return [savedByRoute.get(route) ?? { ...seed, isIndexable: true }];
+    });
+    const initialRoutes = new Set(cityLandingPageSeeder.map(page => `${page.countrySlug}/${page.citySlug}`));
+    return [...initial, ...saved.filter(page => !initialRoutes.has(`${page.countrySlug}/${page.citySlug}`))];
+  } catch {
+    return cityLandingPageSeeder.map(page => ({ ...page, isPublished: true, isIndexable: true }));
+  }
+}
 // Generate at request time so a frontend build does not need a reachable API.
 // The API responses themselves remain cached for an hour by fetchPublicJson.
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories, posts] = await Promise.all([
+  const [products, categories, posts, locations] = await Promise.all([
     fetchPublicJson<ProductList[]>("/Products"),
     fetchPublicJson<Category[]>("/Categories"),
     getPublishedPosts(),
+    getLocationPages(),
   ]);
 
   return [
@@ -117,5 +143,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "monthly" as const,
         priority: 0.6,
       })),
+    ...Array.from(new Map(locations.filter(page => page.isPublished !== false).map(page => [page.countrySlug, page] as const)).values())
+      .map(page => ({ url: `${siteUrl}/countries/${page.countrySlug}`, changeFrequency: "monthly" as const, priority: 0.6 })),
+    ...locations.filter(page => page.isPublished !== false && page.isIndexable !== false).map(page => ({
+      url: `${siteUrl}/countries/${page.countrySlug}/${page.citySlug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
   ];
 }
+
