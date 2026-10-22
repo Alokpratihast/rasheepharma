@@ -37,7 +37,7 @@ export function ProductImageList({
   productId,
 }: ProductImageListProps) {
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -54,13 +54,11 @@ export function ProductImageList({
   const [selectedFilePreview, setSelectedFilePreview] =
     useState<string | null>(null);
 
-  const loading = loadedProductId !== productId;
+  const requestKey = `${productId}:${retryKey}`;
+  const loading = loadedRequestKey !== requestKey;
 
   useEffect(() => {
     let isActive = true;
-    setLoadedProductId(null);
-    setError(null);
-
     const loadImages = async () => {
       try {
         const data =
@@ -76,7 +74,7 @@ export function ProductImageList({
         );
         setError(getAdminErrorMessage(error, "We could not load product images. Check your connection and try again."));
       } finally {
-        if (isActive) setLoadedProductId(productId);
+        if (isActive) setLoadedRequestKey(requestKey);
       }
     };
 
@@ -85,7 +83,7 @@ export function ProductImageList({
     return () => {
       isActive = false;
     };
-  }, [productId, retryKey]);
+  }, [productId, retryKey, requestKey]);
 
   useEffect(() => {
     return () => {
@@ -436,7 +434,7 @@ export function ProductImageList({
       {error && (
         <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
-          {!loading && loadedProductId === productId && images.length === 0 && (
+          {!loading && images.length === 0 && (
             <button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-3 flex items-center gap-2 font-semibold text-red-900 hover:underline">
               <RefreshCw aria-hidden="true" className="size-4" /> Retry loading images
             </button>

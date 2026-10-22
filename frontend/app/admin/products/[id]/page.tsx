@@ -18,22 +18,20 @@ export default function EditProductPage() {
   const [product, setProduct] =
     useState<ProductDetails | null>(null);
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
+  const requestKey = `${productId}:${retryKey}`;
+  const invalidProductId = !productId || Number.isNaN(productId);
+  const loading = !invalidProductId && loadedRequestKey !== requestKey;
+  const visibleError = invalidProductId
+    ? "This product link is invalid. Return to the product list and open the item again."
+    : error;
 
   useEffect(() => {
     let active = true;
 
     const loadProduct = async () => {
-      if (!productId || Number.isNaN(productId)) {
-        if (active) {
-          setError("This product link is invalid. Return to the product list and open the item again.");
-          setLoading(false);
-        }
-        return;
-      }
-
       try {
         const data =
           await productService.getById(productId);
@@ -49,15 +47,13 @@ export default function EditProductPage() {
           setError(getAdminErrorMessage(loadError, "We could not load this product. Check your connection and try again."));
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) setLoadedRequestKey(requestKey);
       }
     };
 
-    setLoading(true);
-    setError(null);
-    void loadProduct();
+    if (!invalidProductId) void loadProduct();
     return () => { active = false; };
-  }, [productId, retryKey]);
+  }, [productId, retryKey, requestKey, invalidProductId]);
 
   if (loading) {
     return (
@@ -76,13 +72,13 @@ export default function EditProductPage() {
     );
   }
 
-  if (error || !product) {
+  if (visibleError || !product) {
     return (
       <main className="min-h-screen bg-[#f5f7f6] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <div role="alert" className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
             <h1 className="text-xl font-semibold text-[#1B2A4A]">Could not open this product</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{error ?? "This product may have been removed. Return to the list and choose another product."}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{visibleError ?? "This product may have been removed. Return to the list and choose another product."}</p>
             <button
               type="button"
               onClick={() => setRetryKey((value) => value + 1)}

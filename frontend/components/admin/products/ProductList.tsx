@@ -6,19 +6,28 @@ import { productService } from "@/services/product.service";
 import type { ProductList as Product } from "@/types/product";
 import { ProductTable } from "@/components/admin/products/ProductTable";
 import { ProductFilters } from "@/components/admin/products/ProductFilters";
+import { Pagination } from "@/components/admin/Pagination";
 import { getAdminErrorMessage } from "@/lib/admin-error-message";
 import { LoaderCircle, RefreshCw, SearchX } from "lucide-react";
 
 export function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [featured, setFeatured] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [reloadKey, setReloadKey] = useState(0);
+  const [loadedReloadKey, setLoadedReloadKey] = useState<number | null>(null);
+  const loading = loadedReloadKey !== reloadKey;
+
+  const reload = () => {
+    setError(null);
+    setReloadKey((value) => value + 1);
+  };
 
   useEffect(() => {
     let active = true;
@@ -38,12 +47,10 @@ export function ProductList() {
           setError(getAdminErrorMessage(loadError, "We could not load the product catalogue. Check your connection and try again."));
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) setLoadedReloadKey(reloadKey);
       }
     };
 
-    setLoading(true);
-    setError(null);
     void loadProducts();
     return () => { active = false; };
   }, [reloadKey]);
@@ -102,6 +109,13 @@ export function ProductList() {
     featured,
   ]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredProducts, pageSize, safePage],
+  );
+
   return (
     <main className="min-h-screen bg-[#f5f7f6] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -120,7 +134,7 @@ export function ProductList() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setReloadKey((value) => value + 1)}
+              onClick={reload}
               disabled={loading}
               className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
             >
@@ -180,7 +194,7 @@ export function ProductList() {
           <div role="alert" className="mt-8 rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
             <p className="font-semibold text-red-900">Products could not be loaded</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">{error}</p>
-            <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#1B2A4A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#142039]">
+            <button type="button" onClick={reload} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#1B2A4A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#142039]">
               <RefreshCw aria-hidden="true" className="size-4" /> Try again
             </button>
           </div>
@@ -195,15 +209,15 @@ export function ProductList() {
               status={status}
               featured={featured}
               categories={categories}
-              onSearchChange={setSearch}
-              onCategoryChange={setCategory}
-              onStatusChange={setStatus}
-              onFeaturedChange={setFeatured}
+              onSearchChange={(value) => { setSearch(value); setPage(1); }}
+              onCategoryChange={(value) => { setCategory(value); setPage(1); }}
+              onStatusChange={(value) => { setStatus(value); setPage(1); }}
+              onFeaturedChange={(value) => { setFeatured(value); setPage(1); }}
             />
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p aria-live="polite" className="text-sm text-gray-600">
-                Showing{" "}
+                Matching{" "}
                 <span className="font-semibold text-[#1B2A4A]">
                   {filteredProducts.length}
                 </span>{" "}
@@ -229,10 +243,22 @@ export function ProductList() {
                 </div>
               ) : (
               <ProductTable
-                products={filteredProducts}
+                products={visibleProducts}
               />
               )}
             </div>
+            {filteredProducts.length > 0 && (
+              <div className="mt-4">
+                <Pagination
+                  page={safePage}
+                  pageSize={pageSize}
+                  totalItems={filteredProducts.length}
+                  itemLabel="products"
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+                />
+              </div>
+            )}
           </>
         )}
       </div>

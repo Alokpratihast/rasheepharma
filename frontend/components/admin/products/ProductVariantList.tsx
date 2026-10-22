@@ -15,7 +15,7 @@ export function ProductVariantList({
   productId,
 }: ProductVariantListProps) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -23,13 +23,11 @@ export function ProductVariantList({
   const [editingVariant, setEditingVariant] =
     useState<ProductVariant | null>(null);
 
-  const loading = loadedProductId !== productId;
+  const requestKey = `${productId}:${retryKey}`;
+  const loading = loadedRequestKey !== requestKey;
 
   useEffect(() => {
     let isActive = true;
-    setLoadedProductId(null);
-    setError(null);
-
     const loadVariants = async () => {
       try {
         const data =
@@ -45,7 +43,7 @@ export function ProductVariantList({
         );
         setError(getAdminErrorMessage(error, "We could not load variants. Check your connection and try again."));
       } finally {
-        if (isActive) setLoadedProductId(productId);
+        if (isActive) setLoadedRequestKey(requestKey);
       }
     };
 
@@ -54,7 +52,7 @@ export function ProductVariantList({
     return () => {
       isActive = false;
     };
-  }, [productId, retryKey]);
+  }, [productId, retryKey, requestKey]);
 
   const handleAdd = () => {
     setEditingVariant(null);
@@ -160,7 +158,7 @@ export function ProductVariantList({
       {error && (
         <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <p>{error}</p>
-          {!loading && loadedProductId === productId && variants.length === 0 && (
+          {!loading && variants.length === 0 && (
             <button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-3 inline-flex items-center gap-2 font-semibold text-red-900 hover:underline">
               <RefreshCw aria-hidden="true" className="size-4" /> Retry loading variants
             </button>
