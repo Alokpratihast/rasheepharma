@@ -6,6 +6,7 @@ import { Eye, Loader2, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
 
 import { orderService } from "@/services/order.service";
+import { Pagination } from "@/components/admin/Pagination";
 
 interface AdminOrder {
   id: number;
@@ -19,6 +20,8 @@ interface AdminOrder {
 export function AdminOrders() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -35,6 +38,10 @@ export function AdminOrders() {
 
     loadOrders();
   }, []);
+
+  const pageCount = Math.max(1, Math.ceil(orders.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleOrders = orders.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const getStatusClass = (status: string) => {
     switch (status.toLowerCase()) {
@@ -130,7 +137,7 @@ export function AdminOrders() {
               </thead>
 
               <tbody>
-                {orders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr
                     key={order.id}
                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
@@ -184,6 +191,17 @@ export function AdminOrders() {
           </div>
         )}
       </div>
+
+      {orders.length > 0 && (
+        <Pagination
+          page={safePage}
+          pageSize={pageSize}
+          totalItems={orders.length}
+          itemLabel="orders"
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        />
+      )}
     </section>
   );
 }

@@ -6,37 +6,54 @@ import { productService } from "@/services/product.service";
 import type { ProductList as Product } from "@/types/product";
 import { ProductTable } from "@/components/admin/products/ProductTable";
 import { ProductFilters } from "@/components/admin/products/ProductFilters";
+import { Pagination } from "@/components/admin/Pagination";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
+import { LoaderCircle, RefreshCw, SearchX } from "lucide-react";
 
 export function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [featured, setFeatured] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loadedReloadKey, setLoadedReloadKey] = useState<number | null>(null);
+  const loading = loadedReloadKey !== reloadKey;
+
+  const reload = () => {
+    setError(null);
+    setReloadKey((value) => value + 1);
+  };
 
   useEffect(() => {
+    let active = true;
+
     const loadProducts = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
         const data = await productService.getAll();
 
-        setProducts(data);
-      } catch (error) {
-        console.error("Failed to load products:", error);
+        if (active) {
+          setProducts(data);
+          setError(null);
+        }
+      } catch (loadError) {
+        console.error("Failed to load products:", loadError);
 
-        setError("Failed to load products.");
+        if (active) {
+          setError(getAdminErrorMessage(loadError, "We could not load the product catalogue. Check your connection and try again."));
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoadedReloadKey(reloadKey);
       }
     };
 
-    loadProducts();
-  }, []);
+    void loadProducts();
+    return () => { active = false; };
+  }, [reloadKey]);
 
   const categories = useMemo(() => {
     return Array.from(
@@ -92,11 +109,18 @@ export function ProductList() {
     featured,
   ]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredProducts, pageSize, safePage],
+  );
+
   return (
-    <main className="min-h-screen bg-[#f5f7f6] p-6">
+    <main className="min-h-screen bg-[#f5f7f6] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-semibold text-[#1B2A4A]">
               Products
@@ -107,29 +131,72 @@ export function ProductList() {
             </p>
           </div>
 
-          <Link
-            href="/admin/products/new"
-            className="rounded-lg bg-[#1B2A4A] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#142039]"
-          >
-            Add Product
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={reload}
+              disabled={loading}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+            >
+              <RefreshCw aria-hidden="true" className={`size-4 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Loading…" : "Refresh"}
+            </button>
+            <Link
+              href="/admin/products/new"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1B2A4A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#142039]"
+            >
+              Add product
+            </Link>
+          </div>
         </div>
 
-        {/* Loading */}
+        {/* Loading summary */}
         {loading && (
-          <div className="mt-8 rounded-xl bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">
-              Loading products...
+          <div role="status" aria-label="Loading product catalogue" className="mt-6 grid gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="h-[74px] animate-pulse rounded-xl border border-slate-200 bg-white" />
+            ))}
+            <span className="sr-only">Loading product catalogue…</span>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">All products</p><p className="mt-1 text-2xl font-bold text-[#1B2A4A]">{products.length}</p></div>
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">Active</p><p className="mt-1 text-2xl font-bold text-emerald-700">{products.filter((product) => product.isActive).length}</p></div>
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">Featured</p><p className="mt-1 text-2xl font-bold text-[#1B2A4A]">{products.filter((product) => product.isFeatured).length}</p></div>
+          </div>
+        )}
+
+        {loading && (
+          <div aria-hidden="true" className="mt-8 space-y-4">
+            <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="h-12 animate-pulse bg-slate-100" />
+              {Array.from({ length: 6 }, (_, index) => (
+                <div key={index} className="flex h-[76px] items-center gap-6 border-t border-slate-100 px-6">
+                  <div className="h-4 w-1/4 animate-pulse rounded bg-slate-100" />
+                  <div className="h-4 w-1/6 animate-pulse rounded bg-slate-100" />
+                  <div className="h-4 w-1/5 animate-pulse rounded bg-slate-100" />
+                  <div className="h-4 w-16 animate-pulse rounded-full bg-slate-100" />
+                </div>
+              ))}
+            </div>
+            <p role="status" className="flex items-center justify-center gap-2 text-sm text-slate-500">
+              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              Loading products…
             </p>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="mt-8 rounded-xl bg-white p-6 shadow-sm">
-            <p className="text-sm text-red-600">
-              {error}
-            </p>
+          <div role="alert" className="mt-8 rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+            <p className="font-semibold text-red-900">Products could not be loaded</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{error}</p>
+            <button type="button" onClick={reload} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#1B2A4A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#142039]">
+              <RefreshCw aria-hidden="true" className="size-4" /> Try again
+            </button>
           </div>
         )}
 
@@ -142,15 +209,15 @@ export function ProductList() {
               status={status}
               featured={featured}
               categories={categories}
-              onSearchChange={setSearch}
-              onCategoryChange={setCategory}
-              onStatusChange={setStatus}
-              onFeaturedChange={setFeatured}
+              onSearchChange={(value) => { setSearch(value); setPage(1); }}
+              onCategoryChange={(value) => { setCategory(value); setPage(1); }}
+              onStatusChange={(value) => { setStatus(value); setPage(1); }}
+              onFeaturedChange={(value) => { setFeatured(value); setPage(1); }}
             />
 
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Showing{" "}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p aria-live="polite" className="text-sm text-gray-600">
+                Matching{" "}
                 <span className="font-semibold text-[#1B2A4A]">
                   {filteredProducts.length}
                 </span>{" "}
@@ -163,10 +230,35 @@ export function ProductList() {
             </div>
 
             <div className="mt-4">
+              {filteredProducts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
+                  <SearchX aria-hidden="true" className="mx-auto size-9 text-slate-400" />
+                  <h2 className="mt-3 font-semibold text-[#1B2A4A]">{products.length === 0 ? "No products yet" : "No products match these filters"}</h2>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{products.length === 0 ? "Add your first product to start building the catalogue." : "Try another search or clear the filters to see more products."}</p>
+                  {products.length === 0 ? (
+                    <Link href="/admin/products/new" className="mt-4 inline-flex rounded-lg bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#142039]">Add your first product</Link>
+                  ) : (
+                    <button type="button" onClick={() => { setSearch(""); setCategory(""); setStatus(""); setFeatured(""); }} className="mt-4 text-sm font-semibold text-[#007f68] hover:underline">Clear filters</button>
+                  )}
+                </div>
+              ) : (
               <ProductTable
-                products={filteredProducts}
+                products={visibleProducts}
               />
+              )}
             </div>
+            {filteredProducts.length > 0 && (
+              <div className="mt-4">
+                <Pagination
+                  page={safePage}
+                  pageSize={pageSize}
+                  totalItems={filteredProducts.length}
+                  itemLabel="products"
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+                />
+              </div>
+            )}
           </>
         )}
       </div>

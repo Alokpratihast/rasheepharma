@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { productImageService } from "@/services/productImageService";
-import {  getApiAssetUrl } from "@/lib/api/client";
+import { getApiAssetUrl } from "@/lib/api/client";
+import { getAdminErrorMessage } from "@/lib/admin-error-message";
 import type { ProductImage } from "@/types/product";
 
 interface ProductImageListProps {
@@ -35,8 +37,9 @@ export function ProductImageList({
   productId,
 }: ProductImageListProps) {
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [loadedProductId, setLoadedProductId] = useState<number | null>(null);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,11 +54,11 @@ export function ProductImageList({
   const [selectedFilePreview, setSelectedFilePreview] =
     useState<string | null>(null);
 
-  const loading = loadedProductId !== productId;
+  const requestKey = `${productId}:${retryKey}`;
+  const loading = loadedRequestKey !== requestKey;
 
   useEffect(() => {
     let isActive = true;
-
     const loadImages = async () => {
       try {
         const data =
@@ -69,9 +72,9 @@ export function ProductImageList({
           "Failed to load product images:",
           error,
         );
-        setError("Failed to load product images.");
+        setError(getAdminErrorMessage(error, "We could not load product images. Check your connection and try again."));
       } finally {
-        if (isActive) setLoadedProductId(productId);
+        if (isActive) setLoadedRequestKey(requestKey);
       }
     };
 
@@ -80,7 +83,7 @@ export function ProductImageList({
     return () => {
       isActive = false;
     };
-  }, [productId]);
+  }, [productId, retryKey, requestKey]);
 
   useEffect(() => {
     return () => {
@@ -325,11 +328,7 @@ export function ProductImageList({
         error,
       );
 
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to save product image.",
-      );
+      setError(getAdminErrorMessage(error, "We could not save this image. Check the image details and try again."));
     } finally {
       setSaving(false);
     }
@@ -369,11 +368,7 @@ export function ProductImageList({
         error,
       );
 
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete product image.",
-      );
+      setError(getAdminErrorMessage(error, "We could not delete this image. Try again."));
     }
   };
 
@@ -437,13 +432,18 @@ export function ProductImageList({
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
+          {!loading && images.length === 0 && (
+            <button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-3 flex items-center gap-2 font-semibold text-red-900 hover:underline">
+              <RefreshCw aria-hidden="true" className="size-4" /> Retry loading images
+            </button>
+          )}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {success}
         </div>
       )}
@@ -674,6 +674,7 @@ export function ProductImageList({
               disabled={saving}
               className="rounded-lg bg-[#1B2A4A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#142039] disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {saving && <LoaderCircle aria-hidden="true" className="mr-2 inline size-4 animate-spin" />}
               {saving
                 ? "Saving..."
                 : editingImage
@@ -694,10 +695,13 @@ export function ProductImageList({
       )}
 
       {loading ? (
-        <div className="rounded-xl bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Loading images...
-          </p>
+        <div role="status" aria-label="Loading product images" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div aria-hidden="true" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="h-56 animate-pulse rounded-xl bg-slate-100" />
+            ))}
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-sm text-slate-500"><LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Loading images…</p>
         </div>
       ) : images.length === 0 ? (
         <div className="rounded-xl bg-white p-8 text-center shadow-sm">

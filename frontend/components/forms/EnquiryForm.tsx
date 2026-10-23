@@ -17,6 +17,9 @@ interface EnquiryFormProps {
   productName?: string;
   productVariantId?: number;
   onSuccess?: () => void;
+  initialMessage?: string;
+  initialCountry?: Country;
+  initialProductId?: number;
 }
 
 const PENDING_ENQUIRY_KEY = "pending_enquiry";
@@ -83,6 +86,9 @@ function EnquiryFormContent({
   productName,
   productVariantId,
   onSuccess,
+  initialMessage,
+  initialCountry,
+  initialProductId,
   token,
   isAuthenticated,
   initialPending,
@@ -92,16 +98,20 @@ function EnquiryFormContent({
   const [customerName, setCustomerName] = useState(initialPending?.customerName ?? "");
   const [email, setEmail] = useState(initialPending?.email ?? "");
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(initialPending?.phoneNumber);
-  const [country, setCountry] = useState<Country>(initialPending?.country ?? "IN");
+  const [country, setCountry] = useState<Country>(
+    initialPending?.country ?? initialCountry ?? "IN",
+  );
   const [businessType, setBusinessType] = useState(initialPending?.businessType ?? "");
   const [quantity, setQuantity] = useState(initialPending?.quantity ?? "1");
-  const [message, setMessage] = useState(initialPending?.message ?? "");
+  const [message, setMessage] = useState(
+    initialPending?.message ?? initialMessage ?? "",
+  );
 
   const [products, setProducts] = useState<ProductList[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const loadingProducts = !productsLoaded;
   const [selectedProductId, setSelectedProductId] = useState(
-    initialPending?.selectedProductId ?? "",
+    initialPending?.selectedProductId ?? (initialProductId ? String(initialProductId) : ""),
   );
 
   const [variants, setVariants] = useState<ProductVariant[]>([]);

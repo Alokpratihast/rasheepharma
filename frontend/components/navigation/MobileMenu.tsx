@@ -27,7 +27,7 @@ export function MobileMenu({
   onEnquire,
 }: MobileMenuProps) {
   return (
-    <div className="border-t border-[#edf0ef] bg-white md:hidden">
+    <div className="border-t border-[#edf0ef] bg-white xl:hidden">
       <nav
         aria-label="Mobile navigation"
         className="px-3 py-3"

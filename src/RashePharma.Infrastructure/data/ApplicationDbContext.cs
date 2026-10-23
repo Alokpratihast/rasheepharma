@@ -74,8 +74,13 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Partner> Partners => Set<Partner>();
 
+    public DbSet<LocationSeoPage> LocationSeoPages => Set<LocationSeoPage>();
+
     public DbSet<WebsiteContent> WebsiteContents
         => Set<WebsiteContent>();
+
+    // Kept separate from WebsiteContent because articles have publication and SEO lifecycles.
+    public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
 
     public DbSet<BulkUploadJob> BulkUploadJobs
     => Set<BulkUploadJob>();
@@ -89,6 +94,28 @@ public class ApplicationDbContext : DbContext
     
     {
         base.OnModelCreating(modelBuilder);
+
+        // Unique slugs and a published/date index keep public blog lookups deterministic and fast.
+        modelBuilder.Entity<BlogPost>(entity =>
+        {
+            entity.HasIndex(post => post.Slug).IsUnique();
+            entity.HasIndex(post => new { post.Status, post.PublishedAtUtc });
+            entity.Property(post => post.Title).HasMaxLength(180).IsRequired();
+            entity.Property(post => post.Slug).HasMaxLength(200).IsRequired();
+            entity.Property(post => post.Excerpt).HasMaxLength(500).IsRequired();
+            entity.Property(post => post.AuthorName).HasMaxLength(120).IsRequired();
+            entity.Property(post => post.Status).HasMaxLength(20).IsRequired();
+            entity.Property(post => post.MetaTitle).HasMaxLength(180);
+            entity.Property(post => post.MetaDescription).HasMaxLength(320);
+            entity.Property(post => post.CanonicalUrl).HasMaxLength(2048);
+            entity.Property(post => post.OgTitle).HasMaxLength(180);
+            entity.Property(post => post.OgDescription).HasMaxLength(320);
+            entity.Property(post => post.CoverImageUrl).HasMaxLength(2048);
+            entity.Property(post => post.OriginalCoverImageUrl).HasMaxLength(2048);
+            entity.Property(post => post.OgImageUrl).HasMaxLength(2048);
+            entity.Property(post => post.ReviewerName).HasMaxLength(120);
+            entity.Property(post => post.Content).HasMaxLength(100000).IsRequired();
+        });
 
         // =====================================================
         // Category → Category
@@ -422,6 +449,21 @@ public class ApplicationDbContext : DbContext
         // Unique Indexes
         // =====================================================
 
+        modelBuilder.Entity<LocationSeoPage>(entity =>
+        {
+            entity.HasIndex(p => new { p.CountrySlug, p.CitySlug }).IsUnique();
+            entity.Property(p => p.Country).IsRequired();
+            entity.Property(p => p.CountryCode).IsRequired();
+            entity.Property(p => p.CountrySlug).IsRequired();
+            entity.Property(p => p.City).IsRequired();
+            entity.Property(p => p.CitySlug).IsRequired();
+            entity.Property(p => p.MetaTitle).IsRequired();
+            entity.Property(p => p.MetaDescription).IsRequired();
+            entity.Property(p => p.Heading).IsRequired();
+            entity.Property(p => p.Intro).IsRequired();
+            entity.Property(p => p.BuyerFocus).IsRequired();
+        });
+
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
@@ -567,3 +609,5 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);  
     }
 }
+
+

@@ -48,16 +48,25 @@ export async function FeaturedProducts() {
         {featured.length > 0 ? (
           <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {featured.map((product) => (
-              <ProductCard
-                key={product.id}
-                name={product.name}
-                form={product.dosageForm ?? ""}
-                composition={product.composition ?? ""}
-                packSize={product.packSize ?? ""}
-                moq={product.moq}
-                slug={product.slug}
-                imageUrl={product.primaryImageUrl}
-              />
+              <div key={product.id} className="flex h-full flex-col">
+                <div className="min-h-0 flex-1">
+                  <ProductCard
+                    name={product.name}
+                    form={product.dosageForm ?? ""}
+                    composition={product.composition ?? ""}
+                    packSize={product.packSize ?? ""}
+                    moq={product.moq}
+                    slug={product.slug}
+                    imageUrl={product.primaryImageUrl}
+                  />
+                </div>
+                <Link
+                  href={`/b2b/enquiry?productId=${product.id}&productName=${encodeURIComponent(product.name)}`}
+                  className="mt-2 inline-flex min-h-10 items-center justify-center rounded-full border border-primary/25 bg-white px-4 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  Request product quote
+                </Link>
+              </div>
             ))}
           </div>
         ) : (

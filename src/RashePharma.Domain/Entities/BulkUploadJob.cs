@@ -1,3 +1,4 @@
+
 using RashePharma.Domain.Enums;
 
 namespace RashePharma.Domain.Entities;
@@ -28,9 +29,18 @@ public class BulkUploadJob
 
     public DateTime? CompletedAt { get; set; }
 
+    // Retry and worker ownership tracking
+    public int AttemptCount { get; set; }
+
+    public string? ClaimToken { get; set; }
+
+    public DateTime? LeaseExpiresAtUtc { get; set; }
+
+    public DateTime? HeartbeatAtUtc { get; set; }
+
     public ICollection<BulkUploadError> Errors { get; set; }
         = new List<BulkUploadError>();
 
     public ICollection<BulkUploadFile> Files { get; set; }
-    = new List<BulkUploadFile>();
+        = new List<BulkUploadFile>();
 }

@@ -3,10 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
 import { siteConfig } from "@/lib/site";
+import { cityLandingPageSeeder } from "@/data/seed/cityLandingPageSeeder";
+import { locationSeoService } from "@/services/location-seo.service";
+import type { LocationSeoPage, LocationSeoRouteStatus } from "@/types/location-seo-page";
 
 /** Only routes that exist in the app. */
 const footerLinks = {
@@ -32,6 +36,41 @@ const footerLinks = {
 
 export function Footer() {
   const pathname = usePathname();
+  const [locationPages, setLocationPages] = useState<Array<LocationSeoPage | (typeof cityLandingPageSeeder)[number]>>(
+    cityLandingPageSeeder,
+  );
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      locationSeoService.getPublished(),
+      locationSeoService.getRouteStatuses(),
+    ]).then(([saved, statuses]: [LocationSeoPage[], LocationSeoRouteStatus[]]) => {
+      if (!active) return;
+      const savedByRoute = new Map(saved.map((page) => [`${page.countrySlug}/${page.citySlug}`, page]));
+      const statusByRoute = new Map(statuses.map((page) => [`${page.countrySlug}/${page.citySlug}`, page]));
+      const seedRoutes = new Set(cityLandingPageSeeder.map((page) => `${page.countrySlug}/${page.citySlug}`));
+      const seededPages = cityLandingPageSeeder.flatMap((page) => {
+        const route = `${page.countrySlug}/${page.citySlug}`;
+        if (statusByRoute.get(route)?.isPublished === false) return [];
+        return [savedByRoute.get(route) ?? page];
+      });
+      setLocationPages([
+        ...seededPages,
+        ...saved.filter((page) => !seedRoutes.has(`${page.countrySlug}/${page.citySlug}`)),
+      ]);
+    }).catch(() => {
+      // Keep starter links visible if the API is temporarily unavailable.
+    });
+    return () => { active = false; };
+  }, []);
+
+  const indiaLocationLinks = locationPages
+    .filter((page) => page.countrySlug === "india")
+    .map((page) => ({ label: page.city, href: `/countries/${page.countrySlug}/${page.citySlug}` }));
+  const internationalLocationLinks = locationPages
+    .filter((page) => page.countrySlug !== "india")
+    .map((page) => ({ label: page.city, href: `/countries/${page.countrySlug}/${page.citySlug}` }));
 
   if (pathname.startsWith("/admin")) {
     return null;
@@ -39,16 +78,40 @@ export function Footer() {
 
   return (
     <footer className="relative isolate overflow-hidden bg-brand-dark text-white">
-      {/* Soft glow, same family as the hero */}
+      {/* Subtle ambient color keeps the footer within the existing brand palette. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-32 -top-32 -z-10 size-96 rounded-full bg-primary/30 blur-[110px]"
+        className="pointer-events-none absolute -right-28 top-0 -z-10 size-[28rem] rounded-full bg-primary/20 blur-[120px]"
       />
 
       <Container>
-        <div className="grid gap-10 py-14 sm:py-16 sm:grid-cols-2 xl:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]">
-          {/* Company */}
-          <div className="max-w-md">
+        <section
+          aria-labelledby="footer-cta-title"
+          className="relative -translate-y-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.07] p-6 shadow-2xl shadow-black/10 backdrop-blur-sm sm:-translate-y-10 sm:p-9 lg:flex lg:items-center lg:justify-between lg:gap-8"
+        >
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+              Rashe Lifesciences · B2B partnerships
+            </p>
+            <h2 id="footer-cta-title" className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+              Looking for a dependable pharmaceutical partner?
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/65 sm:text-base">
+              Share your requirements and our team will help you find the right next step.
+            </p>
+          </div>
+          <Link
+            href="/b2b/enquiry"
+            className="mt-6 inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-emerald-400 px-6 text-sm font-semibold text-brand-dark shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark lg:mt-0"
+          >
+            Discuss your requirements
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        </section>
+
+        <div className="grid gap-12 pb-10 pt-1 sm:grid-cols-2 lg:grid-cols-[1.15fr_1.3fr_1.25fr] lg:gap-10 lg:pb-14">
+          {/* Company and contact information */}
+          <div className="max-w-sm">
             <Link
               href="/"
               aria-label="Rashe Lifesciences home"
@@ -63,12 +126,11 @@ export function Footer() {
               />
             </Link>
 
-            <p className="mt-6 max-w-sm text-sm leading-7 text-white/70">
-              Quality pharmaceutical products and trusted healthcare
-              partnerships across global markets.
+            <p className="mt-5 text-sm leading-7 text-white/65">
+              Quality pharmaceutical products and trusted healthcare partnerships across global markets.
             </p>
 
-            <ul className="mt-7 space-y-4 text-sm text-white/75">
+            <ul className="mt-6 space-y-3 text-sm text-white/70">
               <li className="flex items-start gap-3">
                 <MapPin
                   aria-hidden="true"
@@ -112,27 +174,33 @@ export function Footer() {
             </ul>
           </div>
 
-          <FooterColumn title="Explore" links={footerLinks.Explore} />
-          <FooterColumn title="Business" links={footerLinks.Business} />
-          <FooterColumn title="Account" links={footerLinks.Account} />
-          {/* Public policy links make order and data-handling terms easy to find from every customer page. */}
-          <FooterColumn title="Policies" links={footerLinks.Policies} />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10">
+            <FooterColumn title="Explore" links={footerLinks.Explore} />
+            <FooterColumn title="For business" links={footerLinks.Business} />
+            <FooterColumn title="Your account" links={footerLinks.Account} />
+            <FooterColumn title="Policies" links={footerLinks.Policies} />
+          </div>
+
+          <nav aria-label="Find us by location">
+            <h3 className="text-sm font-semibold text-white">Find us by location</h3>
+            <div className="mt-5 space-y-5">
+              <LocationGroup title="India" links={indiaLocationLinks} />
+              <LocationGroup title="International markets" links={internationalLocationLinks} />
+            </div>
+          </nav>
         </div>
 
-        {/* Bottom bar */}
-        <div className="flex flex-col gap-4 border-t border-white/10 py-6 text-sm text-white/55 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            &copy; {new Date().getFullYear()} {siteConfig.name}. All
-            rights reserved.
-          </p>
-
-          <Link
-            href="/b2b/enquiry"
-            className="inline-flex items-center gap-1 font-medium text-white/80 transition-colors hover:text-emerald-300"
-          >
-            Request a quote
-            <ArrowUpRight aria-hidden="true" className="size-4" />
-          </Link>
+        <div className="flex flex-col gap-4 border-t border-white/10 py-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+          <p>&copy; {new Date().getFullYear()} {siteConfig.name}. All rights reserved.</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Link
+              href="/b2b/enquiry"
+              className="inline-flex items-center gap-1 font-medium text-white/80 transition-colors hover:text-emerald-300"
+            >
+              Request a quote
+              <ArrowUpRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
         </div>
       </Container>
     </footer>
@@ -149,12 +217,12 @@ function FooterColumn({ title, links }: FooterColumnProps) {
     <nav aria-label={title}>
       <h3 className="text-sm font-semibold text-white">{title}</h3>
 
-      <ul className="mt-5 flex flex-col gap-3">
+      <ul className="mt-4 flex flex-col gap-3">
         {links.map((link) => (
           <li key={link.href + link.label}>
             <Link
               href={link.href}
-              className="text-sm text-white/65 transition-colors hover:text-emerald-300"
+              className="text-sm text-white/60 transition-colors hover:text-emerald-300"
             >
               {link.label}
             </Link>
@@ -162,5 +230,25 @@ function FooterColumn({ title, links }: FooterColumnProps) {
         ))}
       </ul>
     </nav>
+  );
+}
+
+function LocationGroup({ title, links }: FooterColumnProps) {
+  return (
+    <div>
+      <h4 className="text-xs font-medium uppercase tracking-wider text-white/45">{title}</h4>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-200"
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

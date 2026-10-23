@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -8,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
+import { CertificateGallery } from "@/components/home/CertificateGallery";
 
 const points = [
   {
@@ -36,39 +36,7 @@ export function AboutSection() {
       <Container>
         <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           {/* Certificates: the proof is the visual */}
-          <div className="relative mx-auto h-[380px] w-full max-w-md rounded-[2rem] bg-primary-light sm:h-[440px]">
-            <figure className="absolute left-[7%] top-[9%] w-[52%] -rotate-6">
-              <div className="rounded-lg bg-white p-2 shadow-[0_18px_40px_rgba(7,63,50,0.22)]">
-                <Image
-                  src="/images/rashecertificate1.jpg"
-                  alt="WHO-GMP certificate"
-                  width={350}
-                  height={489}
-                  sizes="(max-width: 640px) 45vw, 220px"
-                  className="h-auto w-full rounded-sm"
-                />
-              </div>
-              <figcaption className="absolute -bottom-3 left-3 rounded-full bg-brand-dark px-3 py-1 text-xs font-semibold text-white">
-                WHO-GMP
-              </figcaption>
-            </figure>
-
-            <figure className="absolute bottom-[8%] right-[7%] w-[52%] rotate-3">
-              <div className="rounded-lg bg-white p-2 shadow-[0_18px_40px_rgba(7,63,50,0.22)]">
-                <Image
-                  src="/images/rashecertificate2.jpg"
-                  alt="ISO 9001:2015 certificate"
-                  width={350}
-                  height={489}
-                  sizes="(max-width: 640px) 45vw, 220px"
-                  className="h-auto w-full rounded-sm"
-                />
-              </div>
-              <figcaption className="absolute -bottom-3 right-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
-                ISO 9001:2015
-              </figcaption>
-            </figure>
-          </div>
+          <CertificateGallery />
 
           {/* Content */}
           <div>
