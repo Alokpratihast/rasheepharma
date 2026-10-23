@@ -19,6 +19,7 @@ interface EnquiryFormProps {
   onSuccess?: () => void;
   initialMessage?: string;
   initialCountry?: Country;
+  initialProductId?: number;
 }
 
 const PENDING_ENQUIRY_KEY = "pending_enquiry";
@@ -87,6 +88,7 @@ function EnquiryFormContent({
   onSuccess,
   initialMessage,
   initialCountry,
+  initialProductId,
   token,
   isAuthenticated,
   initialPending,
@@ -109,7 +111,7 @@ function EnquiryFormContent({
   const [productsLoaded, setProductsLoaded] = useState(false);
   const loadingProducts = !productsLoaded;
   const [selectedProductId, setSelectedProductId] = useState(
-    initialPending?.selectedProductId ?? "",
+    initialPending?.selectedProductId ?? (initialProductId ? String(initialProductId) : ""),
   );
 
   const [variants, setVariants] = useState<ProductVariant[]>([]);
