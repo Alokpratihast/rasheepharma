@@ -593,6 +593,18 @@ builder.Services.AddScoped<IImageStorageService>(sp =>
         connectionString);
 });
 
+builder.Services.AddScoped<IBlogImageStorageService>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("AzureStorage");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobBlogImageStorageService(connectionString);
+});
 builder.Services.AddScoped<IBulkUploadStorageService>(sp =>
 {
     var configuration =

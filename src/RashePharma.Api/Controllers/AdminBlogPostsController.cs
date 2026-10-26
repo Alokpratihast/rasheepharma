@@ -9,7 +9,7 @@ namespace RashePharma.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin")]
 [Route("api/admin/blog/posts")]
-public sealed class AdminBlogPostsController(IBlogPostService service, IImageStorageService imageStorage) : ControllerBase
+public sealed class AdminBlogPostsController(IBlogPostService service, IBlogImageStorageService imageStorage) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetPage([FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken cancellationToken = default)
