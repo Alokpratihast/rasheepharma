@@ -202,38 +202,19 @@ IConfiguration configuration)
             customerName = "Customer";
         }
 
-        customerName =
-            WebUtility.HtmlEncode(customerName);
-
-        var orderNumber =
-            WebUtility.HtmlEncode(order.OrderNumber);
-
         var subject =
             $"Rashe Pharma - Invoice {order.OrderNumber}";
 
-        var htmlBody = $"""
-            <p>Dear {customerName},</p>
-
-            <p>
-                Thank you for your order with Rashe Pharma.
-            </p>
-
-            <p>
-                Your payment has been successfully received.
-                Please find your invoice attached to this email.
-            </p>
-
-            <p>
-                <strong>Order Number:</strong> {orderNumber}<br />
-                <strong>Amount:</strong> ${order.TotalAmount:N2}<br />
-                <strong>Currency:</strong> USD
-            </p>
-
-            <p>
-                Regards,<br />
-                Rashe Pharma
-            </p>
-            """;
+        var htmlBody = InvoiceEmailTemplate.Render(
+            order,
+            customerName,
+            user.Email,
+            _configuration["Frontend:BaseUrl"],
+            _configuration["Company:Name"] ?? "Rashe Pharma",
+            _configuration["Company:Phone"] ?? "+91 91104 56656",
+            _configuration["Company:Email"] ?? "hr.rashelifescience@gmail.com",
+            _configuration["Company:WebsiteUrl"] ?? "https://rashelifesciences.com",
+            _configuration["Company:Address"] ?? "01, B Byraveshwara Nagar, Magadi Road, Sunkadakatte, Bangalore, Karnataka 560091");
 
         var fileName =
             $"Invoice-{order.OrderNumber}.pdf";
