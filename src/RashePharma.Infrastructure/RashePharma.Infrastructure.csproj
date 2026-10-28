@@ -1,6 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\frontend\public\images\Rashelifescience.png"
+                      LogicalName="RashePharma.Infrastructure.Assets.Rashelifescience.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RashePharma.Domain\RashePharma.Domain.csproj" />
     <ProjectReference Include="..\RashePharma.Application\RashePharma.Application.csproj" />
   </ItemGroup>
