@@ -6,7 +6,8 @@ public interface IEmailService
         string toEmail,
         string toName,
         string subject,
-        string htmlBody);
+        string htmlBody,
+        EmailAttachment? attachment = null);
 
     Task SendOrderInvoiceAsync(
         string toEmail,

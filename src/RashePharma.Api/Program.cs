@@ -593,6 +593,35 @@ builder.Services.AddScoped<IImageStorageService>(sp =>
         connectionString);
 });
 
+builder.Services.AddScoped<IBlogImageStorageService>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("AzureStorage");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobBlogImageStorageService(connectionString);
+});
+
+builder.Services.AddScoped<IBrochureStorageService>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("AzureStorage");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("ConnectionStrings:AzureStorage is not configured.");
+    }
+
+    return new AzureBlobBrochureStorageService(
+        connectionString,
+        configuration["Email:QuotationBrochure:ContainerName"] ?? "brochures",
+        configuration["Email:QuotationBrochure:BlobName"] ?? "Rashe_Lifesciences_Client_Brochure_v2.pdf",
+        configuration.GetValue<long?>("Email:QuotationBrochure:MaxBytes") ?? 10 * 1024 * 1024);
+});
+
 builder.Services.AddScoped<IBulkUploadStorageService>(sp =>
 {
     var configuration =

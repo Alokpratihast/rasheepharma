@@ -19,7 +19,8 @@ public class EmailService : IEmailService
         string toEmail,
         string toName,
         string subject,
-        string htmlBody)
+        string htmlBody,
+        EmailAttachment? attachment = null)
     {
         var smtpHost =
             _configuration["Brevo:SmtpHost"];
@@ -63,10 +64,26 @@ public class EmailService : IEmailService
 
         message.Subject = subject;
 
-        message.Body = new BodyBuilder
+        var bodyBuilder = new BodyBuilder
         {
             HtmlBody = htmlBody
-        }.ToMessageBody();
+        };
+
+        if (attachment is not null)
+        {
+            if (attachment.Content.Length == 0 ||
+                !string.Equals(attachment.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Email attachment must be a non-empty PDF.", nameof(attachment));
+            }
+
+            bodyBuilder.Attachments.Add(
+                Path.GetFileName(attachment.FileName),
+                attachment.Content,
+                new ContentType("application", "pdf"));
+        }
+
+        message.Body = bodyBuilder.ToMessageBody();
 
         using var smtp = new SmtpClient();
 

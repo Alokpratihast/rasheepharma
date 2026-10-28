@@ -9,7 +9,7 @@ namespace RashePharma.Api.Controllers;
 [Route("api/blog/posts")]
 public sealed class BlogPostsController(
     IBlogPostService service,
-    IImageStorageService imageStorage,
+    IBlogImageStorageService imageStorage,
     ILogger<BlogPostsController> logger) : ControllerBase
 {
     [HttpGet]
