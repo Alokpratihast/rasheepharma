@@ -25,6 +25,7 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IEnquiryRepository _enquiryRepository;
     private readonly IInvoiceService _invoiceService;
     private readonly IEmailService _emailService;
+    private readonly IBrochureStorageService _brochureStorageService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmailNotificationService> _logger;
 
@@ -38,6 +39,7 @@ public class EmailNotificationService : IEmailNotificationService
         IEnquiryRepository enquiryRepository,
         IInvoiceService invoiceService,
         IEmailService emailService,
+        IBrochureStorageService brochureStorageService,
         IUnitOfWork unitOfWork,
         ILogger<EmailNotificationService> logger,
 IConfiguration configuration)
@@ -49,6 +51,7 @@ IConfiguration configuration)
         _enquiryRepository = enquiryRepository;
         _invoiceService = invoiceService;
         _emailService = emailService;
+        _brochureStorageService = brochureStorageService;
         _unitOfWork = unitOfWork;
         _logger = logger;
         _configuration = configuration;
@@ -331,11 +334,14 @@ IConfiguration configuration)
             quotation.QuoteNumber,
             notification.AttemptCount);
 
+        var brochure = await _brochureStorageService.DownloadAsync();
+
         await _emailService.SendAsync(
             customerEmail,
             customerName,
             subject,
-            htmlBody);
+            htmlBody,
+            brochure);
 
         notification.Status = "Sent";
         notification.SentAt = DateTime.UtcNow;

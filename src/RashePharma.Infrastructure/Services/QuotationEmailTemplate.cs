@@ -113,7 +113,7 @@ internal static class QuotationEmailTemplate
                         <td style="padding:28px 28px 18px;">
                           <p style="margin:0 0 8px;color:#0b8b68;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Prepared for {safeCustomerName}</p>
                           <h1 style="margin:0;color:#172b4d;font-size:25px;line-height:32px;">Your quotation is ready</h1>
-                          <p style="margin:12px 0 0;color:#64748b;font-size:14px;line-height:22px;">Thank you for your enquiry. Please review the product and pricing details below.</p>
+                          <p style="margin:12px 0 0;color:#64748b;font-size:14px;line-height:22px;">Thank you for your enquiry. Please review the product and pricing details below. Our company brochure is attached for your reference.</p>
                         </td>
                       </tr>
                       <tr>
