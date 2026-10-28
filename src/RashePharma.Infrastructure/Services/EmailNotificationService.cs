@@ -311,140 +311,18 @@ IConfiguration configuration)
             customerName = "Customer";
         }
 
-        customerName =
-            WebUtility.HtmlEncode(customerName);
-
-        var quoteNumber =
-            WebUtility.HtmlEncode(
-                quotation.QuoteNumber);
-
-        var currency =
-            WebUtility.HtmlEncode(
-                quotation.Currency);
-
-        var formattedTotalAmount =
-            quotation.TotalAmount.ToString(
-                "N2",
-                CultureInfo.GetCultureInfo("en-US"));
-
-        var itemDetails = string.Join(
-            "",
-            quotation.Items.Select(item =>
-            {
-                var productName =
-                    WebUtility.HtmlEncode(
-                        item.ProductVariant.Product.Name);
-
-                var strength =
-                    WebUtility.HtmlEncode(
-                        item.ProductVariant.Strength ?? "-");
-
-                var packSize =
-                    WebUtility.HtmlEncode(
-                        item.ProductVariant.PackSize ?? "-");
-
-                var unitPrice =
-                    item.UnitPrice.ToString(
-                        "N2",
-                        CultureInfo.GetCultureInfo("en-US"));
-
-                var totalPrice =
-                    item.TotalPrice.ToString(
-                        "N2",
-                        CultureInfo.GetCultureInfo("en-US"));
-
-                var quantity =
-                    item.Quantity.ToString(
-                        "N0",
-                        CultureInfo.GetCultureInfo("en-US"));
-
-                return $"""
-                    <div style="margin-bottom: 20px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
-
-                        <p style="margin: 0 0 8px 0;">
-                            <strong>Product:</strong>
-                            {productName}
-                        </p>
-
-                        <p style="margin: 0 0 8px 0;">
-                            <strong>Strength / Pack:</strong>
-                            {strength} - {packSize}
-                        </p>
-
-                        <p style="margin: 0 0 8px 0;">
-                            <strong>Quantity:</strong>
-                            {quantity}
-                        </p>
-
-                        <p style="margin: 0 0 8px 0;">
-                            <strong>Unit Price:</strong>
-                            {currency} {unitPrice}
-                        </p>
-
-                        <p style="margin: 0;">
-                            <strong>Total:</strong>
-                            {currency} {totalPrice}
-                        </p>
-
-                    </div>
-                    """;
-            }));
-
-        var notes =
-            string.IsNullOrWhiteSpace(quotation.Notes)
-                ? string.Empty
-                : $"""
-                    <p>
-                        <strong>Notes:</strong><br />
-                        {WebUtility.HtmlEncode(quotation.Notes)}
-                    </p>
-                    """;
-
         var subject =
             $"Rashe Pharma - Quotation {quotation.QuoteNumber}";
 
-        var htmlBody = $"""
-            <p>Dear {customerName},</p>
-
-            <p>
-                Thank you for your enquiry with Rashe Pharma.
-            </p>
-
-            <p>
-                Please find your quotation details below.
-            </p>
-
-            <p>
-                <strong>Quotation Number:</strong> {quoteNumber}<br />
-                <strong>Valid Until:</strong> {quotation.ValidUntil:dd MMM yyyy}<br />
-                <strong>Currency:</strong> {currency}
-            </p>
-
-            <h3>
-                Quotation Details
-            </h3>
-
-            {itemDetails}
-
-            <p style="font-size: 16px;">
-                <strong>
-                    Total Amount:
-                </strong>
-                {currency} {formattedTotalAmount}
-            </p>
-
-            {notes}
-
-            <p>
-                Please contact us if you have any questions regarding
-                this quotation.
-            </p>
-
-            <p>
-                Regards,<br />
-                Rashe Pharma
-            </p>
-            """;
+        var htmlBody = QuotationEmailTemplate.Render(
+            quotation,
+            customerName,
+            _configuration["Frontend:BaseUrl"],
+            _configuration["Company:Name"] ?? "Rashe Pharma",
+            _configuration["Company:Phone"] ?? "+91 91104 56656",
+            _configuration["Company:Email"] ?? "hr.rashelifescience@gmail.com",
+            _configuration["Company:WebsiteUrl"] ?? "https://rashelifesciences.com",
+            _configuration["Company:Address"] ?? "01, B Byraveshwara Nagar, Magadi Road, Sunkadakatte, Bangalore, Karnataka 560091");
 
         _logger.LogInformation(
             "Sending quotation email. NotificationId: {NotificationId}, QuotationId: {QuotationId}, QuoteNumber: {QuoteNumber}, Attempt: {Attempt}",
