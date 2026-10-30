@@ -37,12 +37,63 @@ export function LeadOutreachManager() {
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not load leads."); }
     finally { setLoading(false); }
   }, [search, permission, page, pageSize]);
+
+
   const loadCampaigns = useCallback(async () => {
     try { setCampaigns(await leadOutreachService.getCampaigns()); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Could not load outreach history."); }
   }, []);
-  useEffect(() => { void loadLeads(); }, [loadLeads]);
-  useEffect(() => { void loadCampaigns(); }, [loadCampaigns]);
+  // Initial load and filter changes: update state only after the async request
+  // resolves, avoiding synchronous setState calls from inside an effect.
+  useEffect(() => {
+    let active = true;
+
+    const fetchLeads = async () => {
+      try {
+        const result = await leadOutreachService.getLeads({ search, permission, page, pageSize });
+        if (!active) return;
+        setLeads(result);
+        setSelected((current) =>
+          current.filter((id) =>
+            result.leads.some((lead) => lead.id === id && lead.canReceiveMarketingEmail),
+          ),
+        );
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Could not load leads.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void fetchLeads();
+    return () => {
+      active = false;
+    };
+  }, [search, permission, page, pageSize]);
+
+  // Load campaign history once on mount. The callback remains available
+  // for the Refresh button and after a campaign is queued.
+  useEffect(() => {
+    let active = true;
+
+    const fetchCampaigns = async () => {
+      try {
+        const result = await leadOutreachService.getCampaigns();
+        if (active) setCampaigns(result);
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Could not load outreach history.");
+        }
+      }
+    };
+
+    void fetchCampaigns();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const eligibleIds = useMemo(() => (leads?.leads ?? []).filter((lead) => lead.canReceiveMarketingEmail).map((lead) => lead.id), [leads]);
   const selectedEligible = selected.filter((id) => eligibleIds.includes(id));
@@ -119,10 +170,10 @@ export function LeadOutreachManager() {
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 p-5"><div><h2 className="text-lg font-semibold text-slate-900">Lead records</h2><p className="text-sm text-slate-500">Import confirmation enables outreach in bulk. You can deny individual leads; unsubscribe state is always enforced.</p></div><div className="flex flex-wrap gap-2"><label className="relative"><span className="sr-only">Search leads</span><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"/><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search leads" className={`${inputClass} pl-9 sm:w-64`}/></label><select value={permission} onChange={(event) => { setPermission(event.target.value); setPage(1); setSelected([]); }} className={`${inputClass} sm:w-44`} aria-label="Filter by permission"><option value="All">All permissions</option><option value="Allowed">Allowed</option><option value="Unknown">Unknown</option><option value="Blocked">Blocked</option></select>{(leads?.counts.unknownEmail ?? 0) > 0 && <button type="button" onClick={() => void confirmUnknownLeads()} className="min-h-10 rounded-lg border border-emerald-700 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Confirm {leads?.counts.unknownEmail.toLocaleString()} Unknown emails</button>}</div></div>
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 p-5"><div><h2 className="text-lg font-semibold text-slate-900">Lead records</h2><p className="text-sm text-slate-500">Import confirmation enables outreach in bulk. You can deny individual leads; unsubscribe state is always enforced.</p></div><div className="flex flex-wrap gap-2"><label className="relative"><span className="sr-only">Search leads</span><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"/><input value={search} onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} placeholder="Search leads" className={`${inputClass} pl-9 sm:w-64`}/></label><select value={permission} onChange={(event) => { setLoading(true); setPermission(event.target.value); setPage(1); setSelected([]); }} className={`${inputClass} sm:w-44`} aria-label="Filter by permission"><option value="All">All permissions</option><option value="Allowed">Allowed</option><option value="Unknown">Unknown</option><option value="Blocked">Blocked</option></select>{(leads?.counts.unknownEmail ?? 0) > 0 && <button type="button" onClick={() => void confirmUnknownLeads()} className="min-h-10 rounded-lg border border-emerald-700 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Confirm {leads?.counts.unknownEmail.toLocaleString()} Unknown emails</button>}</div></div>
       {loading ? <div className="space-y-3 p-5" aria-label="Loading leads">{[1, 2, 3, 4].map((row) => <div key={row} className="h-14 animate-pulse rounded-lg bg-slate-100"/>)}</div> : !leads?.leads.length ? <div className="p-12 text-center"><Users className="mx-auto size-8 text-slate-300"/><p className="mt-3 font-medium text-slate-700">No leads found</p><p className="text-sm text-slate-500">Import a workbook or change the search/filter.</p></div> : <>
         <div className="overflow-x-auto"><table className="min-w-[1000px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="w-12 px-4 py-3"><input type="checkbox" aria-label="Select eligible leads on this page" checked={allPageSelected} onChange={(event) => setSelected((current) => event.target.checked ? [...new Set([...current, ...eligibleIds])] : current.filter((id) => !eligibleIds.includes(id)))} /></th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Product interest</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Permission</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{leads.leads.map((lead) => <tr key={lead.id} className="hover:bg-slate-50/70"><td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${lead.name}`} disabled={!lead.canReceiveMarketingEmail} checked={selected.includes(lead.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, lead.id] : current.filter((id) => id !== lead.id))}/></td><td className="px-4 py-4"><p className="font-semibold text-slate-900">{lead.name}</p><p className="text-slate-600">{lead.email || "No email"}</p><p className="text-xs text-slate-500">{lead.company || lead.phone || lead.country || ""}</p></td><td className="max-w-72 px-4 py-4 text-slate-600">{lead.productInterest || "—"}</td><td className="px-4 py-4 text-slate-600">{lead.source}</td><td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${lead.isSuppressed ? "bg-rose-50 text-rose-700" : lead.permissionStatus === "Allowed" ? "bg-emerald-50 text-emerald-700" : lead.permissionStatus === "Blocked" ? "bg-slate-200 text-slate-700" : "bg-amber-50 text-amber-800"}`}>{lead.isSuppressed ? "Unsubscribed" : lead.permissionStatus}</span>{lead.permissionEvidence && <p className="mt-1 max-w-64 truncate text-xs text-slate-500" title={lead.permissionEvidence}>{lead.permissionEvidence}</p>}</td><td className="px-4 py-4">{lead.isSuppressed ? <span className="text-xs text-slate-500">Unsubscribed</span> : lead.permissionStatus === "Allowed" ? <button type="button" onClick={() => void denyLead(lead)} className="text-xs font-semibold text-rose-700 hover:underline">Deny outreach</button> : <span className="text-xs text-slate-500">{lead.permissionStatus === "Blocked" ? "Denied" : "Not eligible"}</span>}</td></tr>)}</tbody></table></div>
-        <div className="p-4"><Pagination page={page} pageSize={pageSize} totalItems={leads.total} itemLabel="leads" disabled={loading} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }}/></div>
+        <div className="p-4"><Pagination page={page} pageSize={pageSize} totalItems={leads.total} itemLabel="leads" disabled={loading} onPageChange={(nextPage) => { setLoading(true); setPage(nextPage); }} onPageSizeChange={(value) => { setLoading(true); setPageSize(value); setPage(1); }}/></div>
       </>}
     </section>
 
