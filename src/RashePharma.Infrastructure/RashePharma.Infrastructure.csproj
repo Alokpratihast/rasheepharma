@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\frontend\public\images\Rashelifescience.png"
-                      LogicalName="RashePharma.Infrastructure.Assets.Rashelifescience.png" />
+    <EmbeddedResource Include="..\..\frontend\public\images\Rashelifescience.png" LogicalName="RashePharma.Infrastructure.Assets.Rashelifescience.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -11,6 +10,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="MailKit" Version="4.18.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">

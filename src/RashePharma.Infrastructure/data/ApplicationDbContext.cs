@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.Email;
 
 namespace RashePharma.Infrastructure.Data;
 
@@ -95,12 +96,38 @@ public class ApplicationDbContext : DbContext
     public DbSet<LeadOutreachRecipient> LeadOutreachRecipients => Set<LeadOutreachRecipient>();
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
 
+
+    public DbSet<EmailJob> EmailJobs
+        => Set<EmailJob>();
+
+    public DbSet<EmailOutboxMessage> EmailOutboxMessages
+        => Set<EmailOutboxMessage>();
+
+    public DbSet<EmailDeliveryEvent> EmailDeliveryEvents
+        => Set<EmailDeliveryEvent>();
+
+    public DbSet<EmailQuotaBucket> EmailQuotaBuckets
+        => Set<EmailQuotaBucket>();
+
+    public DbSet<EmailQuotaReservation> EmailQuotaReservations
+        => Set<EmailQuotaReservation>();
+
+    public DbSet<EmailSuppression> EmailSuppressions
+        => Set<EmailSuppression>();
+
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
-    
-    
+
+
+
+
     {
         base.OnModelCreating(modelBuilder);
+
+         // Discover and apply all IEntityTypeConfiguration classes.
+        modelBuilder.ApplyConfigurationsFromAssembly(
+        typeof(ApplicationDbContext).Assembly);
 
         modelBuilder.Entity<ExternalLead>(entity =>
         {
@@ -119,7 +146,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(lead => lead.PermissionEvidence).HasMaxLength(500);
             entity.Property(lead => lead.HistoricalMailSentOn).HasMaxLength(200);
             entity.Property(lead => lead.RowVersion).IsRowVersion();
+
         });
+
 
         modelBuilder.Entity<LeadImportBatch>(entity =>
         {
@@ -250,7 +279,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(e => e.BulkUploadJob)
             .WithMany(j=> j.Errors)
             .HasForeignKey(e => e.BulkUploadJobId)
-            .OnDelete(DeleteBehavior.Cascade);  
+            .OnDelete(DeleteBehavior.Cascade);
 
         // =====================================================
         // Role → User
@@ -493,7 +522,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(f => f.BulkUploadJob)
             .WithMany(j => j.Files)
             .HasForeignKey(f => f.BulkUploadJobId)
-            .OnDelete(DeleteBehavior.Cascade);  
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<RefreshToken>()
             .HasOne(t => t.User)
@@ -593,7 +622,7 @@ public class ApplicationDbContext : DbContext
             .IsUnique()
             .HasFilter("[StripePaymentIntentId] IS NOT NULL");
 
-        
+
 
         // =====================================================
         // Email Notification Unique Indexes
@@ -641,7 +670,7 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<StripeWebhookEvent>()
         .HasIndex(e => e.StripeEventId)
-        .IsUnique();    
+        .IsUnique();
 
         // =====================================================
         // Decimal Precision
@@ -688,8 +717,6 @@ public class ApplicationDbContext : DbContext
             .HasOne(t => t.User)
             .WithMany(u => u.PasswordResetTokens)
             .HasForeignKey(t => t.UserId)
-            .OnDelete(DeleteBehavior.Cascade);  
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
-
-

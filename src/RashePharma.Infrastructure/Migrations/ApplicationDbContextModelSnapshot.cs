@@ -403,6 +403,348 @@ namespace RashePharma.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailDeliveryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EmailJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProviderEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RawPayloadJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailJobId", "OccurredAtUtc");
+
+                    b.HasIndex("Provider", "ProviderEventId")
+                        .IsUnique()
+                        .HasFilter("[ProviderEventId] IS NOT NULL");
+
+                    b.ToTable("EmailDeliveryEvents", (string)null);
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AcceptedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeliveryStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("EmailType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LastErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ProcessingLeaseUntilUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("TemplateKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TemplateVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ProviderMessageId")
+                        .IsUnique()
+                        .HasFilter("[ProviderMessageId] IS NOT NULL");
+
+                    b.HasIndex("Category", "Status", "CreatedAtUtc");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("EmailJobs", (string)null);
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EmailJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailJobId", "EventType")
+                        .IsUnique()
+                        .HasFilter("[EventType] = 'EmailRequested'");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("EmailOutboxMessages", (string)null);
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailQuotaBucket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DailyLimit")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ReservedCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("WindowEndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("WindowStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Provider", "WindowEndUtc");
+
+                    b.HasIndex("Provider", "WindowStartUtc", "WindowEndUtc")
+                        .IsUnique();
+
+                    b.ToTable("EmailQuotaBuckets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmailQuotaBuckets_ValidCounts", "[DailyLimit] >= 0 AND [ReservedCount] >= 0 AND [ReservedCount] <= [DailyLimit]");
+
+                            t.HasCheckConstraint("CK_EmailQuotaBuckets_ValidWindow", "[WindowEndUtc] > [WindowStartUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailQuotaReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EmailJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuotaBucketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ReservedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailJobId", "AttemptNumber")
+                        .IsUnique();
+
+                    b.HasIndex("QuotaBucketId", "Status");
+
+                    b.ToTable("EmailQuotaReservations", (string)null);
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailSuppression", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EmailNormalized")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<DateTime?>("LiftedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SuppressionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailNormalized", "SuppressionType")
+                        .IsUnique()
+                        .HasFilter("[LiftedAtUtc] IS NULL");
+
+                    b.ToTable("EmailSuppressions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmailSuppressions_Type", "[SuppressionType] IN ('Unsubscribed', 'HardBounce', 'Complaint')");
+                        });
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.EmailNotification", b =>
                 {
                     b.Property<int>("Id")
@@ -1833,6 +2175,45 @@ namespace RashePharma.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentCategory");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailDeliveryEvent", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.Email.EmailJob", "EmailJob")
+                        .WithMany()
+                        .HasForeignKey("EmailJobId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EmailJob");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailOutboxMessage", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.Email.EmailJob", null)
+                        .WithMany()
+                        .HasForeignKey("EmailJobId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailQuotaReservation", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.Email.EmailJob", "EmailJob")
+                        .WithMany()
+                        .HasForeignKey("EmailJobId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RashePharma.Domain.Entities.Email.EmailQuotaBucket", "QuotaBucket")
+                        .WithMany()
+                        .HasForeignKey("QuotaBucketId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EmailJob");
+
+                    b.Navigation("QuotaBucket");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.EmailNotification", b =>
