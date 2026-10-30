@@ -4,6 +4,7 @@ using Xunit;
 
 namespace RashePharma.Api.Tests;
 
+[Trait("Category", "AzureIntegration")]
 public class AzureServiceBusConnectivityTests
 {
     [Fact]

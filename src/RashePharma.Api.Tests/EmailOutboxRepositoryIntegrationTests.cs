@@ -11,6 +11,7 @@ using Xunit;
 
 namespace RashePharma.Api.Tests;
 
+[Collection("Database integration")]
 public sealed class EmailOutboxRepositoryIntegrationTests
 {
     private const string RequiredDatabase = "RashePharmaDb_IntegrationTests";
