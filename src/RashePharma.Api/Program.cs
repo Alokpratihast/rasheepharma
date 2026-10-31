@@ -16,6 +16,7 @@ using QuestPDF.Infrastructure;
 using RashePharma.Infrastructure.Workers;
 using Stripe;
 using System.Threading.RateLimiting;
+using RashePharma.Infrastructure;
 
 // =========================================================
 // Create application builder
@@ -35,6 +36,17 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 
 
+
+
+
+
+
+
+// Capture the process-level connection string before loading .env.
+// This allows an explicitly supplied CMD/CI value to take priority over .env.
+var processConnectionString =
+    Environment.GetEnvironmentVariable(
+        "ConnectionStrings__DefaultConnection");
 
 // =========================================================
 // Load .env for local development only
@@ -62,6 +74,7 @@ if (builder.Environment.IsDevelopment())
         rootDirectory = rootDirectory.Parent;
     }
 }
+
 
 // =========================================================
 // Stripe
@@ -107,9 +120,13 @@ if (!string.IsNullOrWhiteSpace(jwtKeyFromEnv))
 }
 
 // Database Connection String
+// Prefer the process value captured before .env was loaded.
+// If no process value was supplied, fall back to the value loaded from .env.
 var connectionStringFromEnv =
-    Environment.GetEnvironmentVariable(
-        "ConnectionStrings__DefaultConnection");
+    !string.IsNullOrWhiteSpace(processConnectionString)
+        ? processConnectionString
+        : Environment.GetEnvironmentVariable(
+            "ConnectionStrings__DefaultConnection");
 
 if (!string.IsNullOrWhiteSpace(connectionStringFromEnv))
 {
@@ -255,6 +272,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy("lead-unsubscribe", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddOpenApi();
@@ -370,6 +398,22 @@ if (!builder.Environment.IsEnvironment("Testing"))
         options =>
             options.UseSqlServer(connectionString!));
 }
+
+
+// =========================================================
+// Azure Service Bus
+// =========================================================
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddAzureServiceBus(builder.Configuration);
+    builder.Services.AddOutboxDispatcher(builder.Configuration);
+}
+
+
+
+
+
 
 // =========================================================
 // JWT Authentication
@@ -644,7 +688,7 @@ builder.Services.AddScoped<
     IBulkUploadExcelParser,
     ClosedXmlBulkUploadExcelParser>();
 
-    
+
 
 builder.Services.AddScoped<
     ICategoryService,
@@ -684,8 +728,36 @@ builder.Services.AddHostedService<
 
 builder.Services.AddHostedService<BulkUploadWorker>();
 
+builder.Services.AddHostedService<LeadOutreachWorker>();
+
 builder.Services.AddHostedService<
     RevokedAccessTokenCleanupService>();
+
+
+builder.Services.AddScoped<
+    IEmailJobRepository,
+    EmailJobRepository>();
+
+builder.Services.AddScoped<
+    IEmailOutboxRepository,
+    EmailOutboxRepository>();
+
+builder.Services.AddScoped<
+    IEmailDeliveryEventRepository,
+    EmailDeliveryEventRepository>();
+
+builder.Services.AddScoped<
+    IEmailQuotaBucketRepository,
+    EmailQuotaBucketRepository>();
+
+builder.Services.AddScoped<
+    IEmailQuotaReservationRepository,
+    EmailQuotaReservationRepository>();
+
+builder.Services.AddScoped<
+    IEmailSuppressionRepository,
+    EmailSuppressionRepository>();
+
 
 
 
@@ -733,11 +805,21 @@ builder.Services.AddScoped<
     IStripeWebhookEventRepository,
     StripeWebhookEventRepository>();
 
+
+builder.Services.AddScoped<
+    IEmailJobService,
+    EmailJobService>();
+
+
 // =========================================================
 // Build Application
 // =========================================================
 
 var app = builder.Build();
+
+
+
+
 
 // =========================================================
 // Database Seed

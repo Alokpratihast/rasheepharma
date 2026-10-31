@@ -1,3 +1,4 @@
+
 name: Automated tests
 
 on:
@@ -14,32 +15,76 @@ jobs:
   api-tests:
     name: API tests
     runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: "Rashe_CI_Only!2026"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Rashe_CI_Only!2026' -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+
+    env:
+      ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=RashePharmaDb_IntegrationTests;User ID=sa;Password=Rashe_CI_Only!2026;TrustServerCertificate=True;Encrypt=True"
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.x
+
       - name: Restore
         run: dotnet restore RashePharma.slnx
-      - name: Test
-        run: dotnet test RashePharma.slnx --no-restore --configuration Release
+
+      - name: Install EF Core CLI
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.11
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Apply database migrations
+        run: >
+          dotnet ef database update
+          --project src/RashePharma.Infrastructure/RashePharma.Infrastructure.csproj
+          --startup-project src/RashePharma.Api/RashePharma.Api.csproj
+          --configuration Release
+
+      - name: Run API tests
+        run: >
+          dotnet test RashePharma.slnx
+          --no-restore
+          --configuration Release
+          --filter "Category!=AzureIntegration"
 
   frontend-tests:
     name: Frontend tests and lint
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: frontend
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
       - name: Install dependencies
         run: npm ci
+
       - name: Test
         run: npm test -- --reporter=dot
+
       - name: Lint
         run: npm run lint
