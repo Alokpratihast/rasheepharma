@@ -207,6 +207,9 @@ public sealed class EmailJobConcurrencyIntegrationTests
         public Task<EmailJob?> GetByIdAsync(Guid id) =>
             _inner.GetByIdAsync(id);
 
+        public Task<EmailJob?> GetByLeadOutreachRecipientIdAsync(int recipientId) =>
+            _inner.GetByLeadOutreachRecipientIdAsync(recipientId);
+
         public Task AddAsync(EmailJob emailJob) =>
             _inner.AddAsync(emailJob);
 

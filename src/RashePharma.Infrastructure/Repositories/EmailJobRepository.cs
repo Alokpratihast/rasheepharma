@@ -29,6 +29,12 @@ public sealed class EmailJobRepository : IEmailJobRepository
                 x => x.IdempotencyKey == idempotencyKey);
     }
 
+    public async Task<EmailJob?> GetByLeadOutreachRecipientIdAsync(int recipientId)
+    {
+        return await _context.Set<EmailJob>()
+            .FirstOrDefaultAsync(x => x.LeadOutreachRecipientId == recipientId);
+    }
+
     public async Task AddAsync(EmailJob emailJob)
     {
         await _context.Set<EmailJob>().AddAsync(emailJob);

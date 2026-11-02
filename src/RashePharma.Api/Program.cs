@@ -401,21 +401,6 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 
 // =========================================================
-// Azure Service Bus
-// =========================================================
-
-if (!builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddAzureServiceBus(builder.Configuration);
-    builder.Services.AddOutboxDispatcher(builder.Configuration);
-}
-
-
-
-
-
-
-// =========================================================
 // JWT Authentication
 // =========================================================
 

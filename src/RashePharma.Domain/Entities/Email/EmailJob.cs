@@ -13,6 +13,10 @@ public sealed class EmailJob
 
     public string EmailType { get; set; } = string.Empty;
 
+    // Links campaign mail to the CRM recipient record without coupling the
+    // email job to campaign-specific status handling.
+    public int? LeadOutreachRecipientId { get; set; }
+
     public string RecipientEmail { get; set; } = string.Empty;
 
     public string TemplateKey { get; set; } = string.Empty;

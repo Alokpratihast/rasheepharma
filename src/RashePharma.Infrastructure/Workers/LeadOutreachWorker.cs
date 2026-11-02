@@ -1,21 +1,30 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.Email;
+using RashePharma.Domain.Enums.Email;
 using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Services;
 
 namespace RashePharma.Infrastructure.Workers;
 
+/// <summary>
+/// Turns queued campaign recipients into durable EmailJob + Outbox records.
+/// It does not contact the mail provider; the EmailWorker owns delivery.
+/// </summary>
 public sealed class LeadOutreachWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
     ILogger<LeadOutreachWorker> logger) : BackgroundService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private DateTime _lastPreviewCleanupUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -29,9 +38,9 @@ public sealed class LeadOutreachWorker(
                     await DeleteExpiredImportPreviewsAsync(stoppingToken);
                     _lastPreviewCleanupUtc = DateTime.UtcNow;
                 }
+
                 var processed = await ProcessOneAsync(stoppingToken);
-                if (!processed) await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-                else await Task.Delay(TimeSpan.FromMilliseconds(200), stoppingToken);
+                await Task.Delay(processed ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromSeconds(5), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -39,7 +48,7 @@ public sealed class LeadOutreachWorker(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Lead outreach worker encountered an error.");
+                logger.LogError(exception, "Lead outreach job producer encountered an error.");
                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
             }
         }
@@ -58,102 +67,174 @@ public sealed class LeadOutreachWorker(
 
     private async Task<bool> ProcessOneAsync(CancellationToken ct)
     {
-        LeadOutreachRecipient? recipient;
-        await using (var claimScope = scopeFactory.CreateAsyncScope())
+        await RecoverStaleClaimsAsync(ct);
+
+        int recipientId;
+        await using (var scope = scopeFactory.CreateAsyncScope())
         {
-            var db = claimScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
-            var staleBefore = DateTime.UtcNow.AddMinutes(-10);
-            await db.LeadOutreachRecipients.Where(row => row.Status == "Processing" && row.ProcessingAtUtc < staleBefore)
-                .ExecuteUpdateAsync(updates => updates
-                    .SetProperty(row => row.Status, "Failed")
-                    .SetProperty(row => row.ErrorMessage, "Worker interrupted; verify provider logs before retrying.")
-                    .SetProperty(row => row.ProcessingAtUtc, (DateTime?)null), ct);
-            recipient = await db.LeadOutreachRecipients
+            var recipient = await db.LeadOutreachRecipients
                 .FromSqlRaw("SELECT TOP (1) * FROM [LeadOutreachRecipients] WITH (UPDLOCK, READPAST, ROWLOCK) WHERE [Status] = 'Pending' ORDER BY [CreatedAtUtc], [Id]")
                 .FirstOrDefaultAsync(ct);
             if (recipient is null) return false;
+
             recipient.Status = "Processing";
             recipient.ProcessingAtUtc = DateTime.UtcNow;
             recipient.AttemptCount++;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            recipientId = recipient.Id;
         }
 
-        using (var sendScope = scopeFactory.CreateScope())
+        await using (var scope = scopeFactory.CreateAsyncScope())
         {
-            var db = sendScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var emailService = sendScope.ServiceProvider.GetRequiredService<IEmailService>();
-            var item = await db.LeadOutreachRecipients.Include(row => row.Lead).Include(row => row.Campaign)
-                .FirstOrDefaultAsync(row => row.Id == recipient.Id, ct);
-            if (item is null) return true;
+            var services = scope.ServiceProvider;
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var jobs = services.GetRequiredService<IEmailJobService>();
+            var jobRepository = services.GetRequiredService<IEmailJobRepository>();
+            var recipient = await db.LeadOutreachRecipients
+                .Include(row => row.Lead)
+                .Include(row => row.Campaign)
+                .FirstOrDefaultAsync(row => row.Id == recipientId, ct);
+            if (recipient is null) return true;
 
-            try
+            if (!IsEligible(recipient.Lead))
             {
-                if (item.Lead.IsSuppressed || item.Lead.PermissionStatus != "Allowed" || string.IsNullOrWhiteSpace(item.Lead.Email))
-                {
-                    item.Status = "Skipped";
-                    item.ErrorMessage = "Lead is no longer eligible for email outreach.";
-                }
-                else
-                {
-                    var baseUrl = configuration["Frontend:BaseUrl"] ?? configuration["Company:WebsiteUrl"];
-                    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var origin) ||
-                        (origin.Scheme != Uri.UriSchemeHttps && !IsLocalHttp(origin)))
-                        throw new InvalidOperationException("Frontend:BaseUrl must be a valid HTTPS URL for unsubscribe links.");
-
-                    var secret = configuration["Jwt:Key"];
-                    if (string.IsNullOrWhiteSpace(secret)) throw new InvalidOperationException("JWT signing key is not configured.");
-                    var token = LeadUnsubscribeToken.Create(item.Id, item.LeadId, secret);
-                    var unsubscribeUrl = $"{origin.ToString().TrimEnd('/')}/unsubscribe?token={Uri.EscapeDataString(token)}";
-                    var body = RenderTemplate(item.Campaign, item.Lead.Name, unsubscribeUrl, origin.ToString().TrimEnd('/'));
-                    await emailService.SendAsync(item.Lead.Email, item.Lead.Name, item.Campaign.Subject, body);
-                    item.Status = "Sent";
-                    item.SentAtUtc = DateTime.UtcNow;
-                    item.Lead.UpdatedAtUtc = DateTime.UtcNow;
-                    db.LeadActivities.Add(new LeadActivity
-                    {
-                        LeadId = item.LeadId,
-                        Type = "OutreachSent",
-                        Details = $"Campaign {item.CampaignId} ({item.Campaign.Subject}) sent.",
-                        Actor = item.Campaign.CreatedBy
-                    });
-                }
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                // Do not retry SMTP errors automatically: a timeout can occur after provider acceptance.
-                item.Status = "Failed";
-                item.ErrorMessage = "Delivery failed; check the email provider log before retrying.";
-                logger.LogWarning(exception, "Outreach delivery failed. CampaignId={CampaignId} RecipientId={RecipientId}", item.CampaignId, item.Id);
+                recipient.Status = "Skipped";
+                recipient.ProcessingAtUtc = null;
+                recipient.ErrorMessage = "Lead is no longer eligible for email outreach.";
+                await db.SaveChangesAsync(ct);
+                await RefreshCampaignAsync(db, recipient.CampaignId, ct);
+                return true;
             }
 
-            // Persist the recipient terminal status before querying campaign totals.
-            item.ProcessingAtUtc = null;
+            var existing = await jobRepository.GetByLeadOutreachRecipientIdAsync(recipient.Id);
+            if (existing is not null)
+            {
+                ApplyJobState(recipient, existing);
+                await db.SaveChangesAsync(ct);
+                await RefreshCampaignAsync(db, recipient.CampaignId, ct);
+                return true;
+            }
+
+            var origin = GetFrontendOrigin();
+            var secret = configuration["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(secret))
+                throw new InvalidOperationException("JWT signing key is not configured for outreach email links.");
+
+            var unsubscribeToken = LeadUnsubscribeToken.Create(recipient.Id, recipient.LeadId, secret);
+            var responseToken = LeadOutreachResponseToken.Create(recipient.Id, recipient.LeadId, DateTime.UtcNow.AddDays(30), secret);
+            var originUrl = origin.ToString().TrimEnd('/');
+            var unsubscribeUrl = $"{originUrl}/unsubscribe?token={Uri.EscapeDataString(unsubscribeToken)}";
+            var responseUrl = $"{originUrl}/outreach/respond?token={Uri.EscapeDataString(responseToken)}";
+            var payload = new EmailJobMessagePayload
+            {
+                ToName = recipient.Lead.Name,
+                Subject = recipient.Campaign.Subject,
+                HtmlBody = RenderTemplate(recipient.Campaign, recipient.Lead.Name, unsubscribeUrl, responseUrl, origin)
+            };
+            var serializedPayload = JsonSerializer.Serialize(payload, JsonOptions);
+            var job = await jobs.CreateJobAsync(new EmailJob
+            {
+                IdempotencyKey = $"lead-outreach-recipient:{recipient.Id}",
+                Category = EmailCategory.Bulk,
+                EmailType = "LeadOutreach",
+                LeadOutreachRecipientId = recipient.Id,
+                RecipientEmail = recipient.Lead.Email!,
+                TemplateKey = "lead-outreach",
+                TemplateVersion = 1,
+                PayloadJson = serializedPayload,
+                CorrelationId = $"lead-campaign:{recipient.CampaignId}:recipient:{recipient.Id}",
+                Status = EmailJobStatus.Pending,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            }, ct);
+
+            ApplyJobState(recipient, job);
             await db.SaveChangesAsync(ct);
-
-            item.Campaign.SentCount = await db.LeadOutreachRecipients.CountAsync(
-                row => row.CampaignId == item.CampaignId && row.Status == "Sent", ct);
-            item.Campaign.FailedCount = await db.LeadOutreachRecipients.CountAsync(
-                row => row.CampaignId == item.CampaignId && row.Status == "Failed", ct);
-            var remaining = await db.LeadOutreachRecipients.AnyAsync(row => row.CampaignId == item.CampaignId &&
-                (row.Status == "Pending" || row.Status == "Processing"), ct);
-            if (!remaining)
-            {
-                item.Campaign.Status = item.Campaign.FailedCount > 0 ? "CompletedWithErrors" : "Completed";
-                item.Campaign.CompletedAtUtc = DateTime.UtcNow;
-            }
-            else
-            {
-                item.Campaign.Status = "Queued";
-                item.Campaign.CompletedAtUtc = null;
-            }
-            await db.SaveChangesAsync(ct);
+            await RefreshCampaignAsync(db, recipient.CampaignId, ct);
+            logger.LogInformation("Queued EmailJob {EmailJobId} for outreach campaign {CampaignId}, recipient {RecipientId}.", job.Id, recipient.CampaignId, recipient.Id);
         }
+
         return true;
     }
 
-    private static string RenderTemplate(LeadOutreachCampaign campaign, string recipientName, string unsubscribeUrl, string websiteUrl)
+    private async Task RecoverStaleClaimsAsync(CancellationToken ct)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var jobs = scope.ServiceProvider.GetRequiredService<IEmailJobRepository>();
+        var cutoff = DateTime.UtcNow.AddMinutes(-10);
+        var stale = await db.LeadOutreachRecipients
+            .Where(row => row.Status == "Processing" && row.ProcessingAtUtc < cutoff)
+            .OrderBy(row => row.Id)
+            .Take(50)
+            .ToListAsync(ct);
+        foreach (var recipient in stale)
+        {
+            var existing = await jobs.GetByLeadOutreachRecipientIdAsync(recipient.Id);
+            if (existing is null)
+            {
+                recipient.Status = "Pending";
+                recipient.ErrorMessage = "Queue creation was interrupted; safe to retry using the same idempotency key.";
+            }
+            else
+            {
+                ApplyJobState(recipient, existing);
+            }
+            recipient.ProcessingAtUtc = null;
+        }
+        if (stale.Count > 0) await db.SaveChangesAsync(ct);
+    }
+
+    private static bool IsEligible(ExternalLead lead) =>
+        !lead.IsSuppressed &&
+        string.Equals(lead.PermissionStatus, "Allowed", StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(lead.Email);
+
+    private static void ApplyJobState(LeadOutreachRecipient recipient, EmailJob job)
+    {
+        recipient.Status = job.Status switch
+        {
+            EmailJobStatus.ProviderAccepted => "Sent",
+            EmailJobStatus.FailedPermanent or EmailJobStatus.DeadLettered or EmailJobStatus.OutcomeUnknown => "Failed",
+            EmailJobStatus.Suppressed or EmailJobStatus.Cancelled => "Skipped",
+            _ => "Queued"
+        };
+        recipient.SentAtUtc = job.AcceptedAtUtc;
+        recipient.ProcessingAtUtc = null;
+        recipient.ErrorMessage = recipient.Status switch
+        {
+            "Failed" => "Delivery outcome needs review in the email provider/job log before any retry.",
+            "Skipped" => "Email job is suppressed or cancelled.",
+            _ => null
+        };
+    }
+
+    private async Task RefreshCampaignAsync(ApplicationDbContext db, int campaignId, CancellationToken ct)
+    {
+        var campaign = await db.LeadOutreachCampaigns.FirstOrDefaultAsync(row => row.Id == campaignId, ct);
+        if (campaign is null) return;
+        campaign.SentCount = await db.LeadOutreachRecipients.CountAsync(row => row.CampaignId == campaignId && row.Status == "Sent", ct);
+        campaign.FailedCount = await db.LeadOutreachRecipients.CountAsync(row => row.CampaignId == campaignId && row.Status == "Failed", ct);
+        var hasRemaining = await db.LeadOutreachRecipients.AnyAsync(row => row.CampaignId == campaignId &&
+            (row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued"), ct);
+        campaign.Status = hasRemaining ? "Queued" : campaign.FailedCount > 0 ? "CompletedWithErrors" : "Completed";
+        campaign.CompletedAtUtc = hasRemaining ? null : DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private Uri GetFrontendOrigin()
+    {
+        var baseUrl = configuration["Frontend:BaseUrl"] ?? configuration["Company:WebsiteUrl"];
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var origin) ||
+            (origin.Scheme != Uri.UriSchemeHttps && !IsLocalHttp(origin)))
+            throw new InvalidOperationException("Frontend:BaseUrl must be HTTPS for outreach response links.");
+        return origin;
+    }
+
+    private static string RenderTemplate(LeadOutreachCampaign campaign, string recipientName, string unsubscribeUrl, string responseUrl, Uri websiteUrl)
     {
         var safeName = WebUtility.HtmlEncode(recipientName);
         var paragraphs = campaign.BodyText.Split("\n", StringSplitOptions.TrimEntries)
@@ -165,8 +246,8 @@ public sealed class LeadOutreachWorker(
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px"><tr><td align="center">
             <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:14px;overflow:hidden">
             <tr><td style="background:#064e3b;padding:24px 32px;color:#fff"><strong style="font-size:20px">Rashe Lifesciences</strong><br><span style="font-size:12px;color:#a7f3d0">Healthcare & pharmaceutical solutions</span></td></tr>
-            <tr><td style="padding:32px"><p style="margin:0 0 18px">Hello {safeName},</p>{content}<p style="margin:24px 0 0;color:#334155">Regards,<br><strong>Rashe Lifesciences Team</strong></p></td></tr>
-            <tr><td style="border-top:1px solid #e2e8f0;padding:18px 32px;color:#64748b;font-size:12px">You are receiving this business email because your contact is recorded in our lead system. <a href="{WebUtility.HtmlEncode(unsubscribeUrl)}" style="color:#047857">Unsubscribe</a> · <a href="{WebUtility.HtmlEncode(websiteUrl)}" style="color:#047857">Website</a></td></tr>
+            <tr><td style="padding:32px"><p style="margin:0 0 18px">Hello {safeName},</p>{content}<p style="margin:24px 0 0;color:#334155">Regards,<br><strong>Rashe Lifesciences Team</strong></p><p style="margin:24px 0 0"><a href="{WebUtility.HtmlEncode(responseUrl)}" style="display:inline-block;background:#047857;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Reply to this message</a></p></td></tr>
+            <tr><td style="border-top:1px solid #e2e8f0;padding:18px 32px;color:#64748b;font-size:12px">You are receiving this business email because your contact is recorded in our lead system. <a href="{WebUtility.HtmlEncode(unsubscribeUrl)}" style="color:#047857">Unsubscribe</a> · <a href="{WebUtility.HtmlEncode(websiteUrl.ToString().TrimEnd('/'))}" style="color:#047857">Website</a></td></tr>
             </table></td></tr></table></body></html>
             """;
     }

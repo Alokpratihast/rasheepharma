@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { ExternalLead, LeadCampaign, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
+import type { ExternalLead, LeadCampaign, LeadCampaignResponse, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
 
 export const leadOutreachService = {
   importWorkbook(file: File) {
@@ -44,5 +44,8 @@ export const leadOutreachService = {
   },
   getCampaigns() {
     return apiClient<LeadCampaign[]>("/admin/lead-campaigns");
+  },
+  getCampaignResponses(campaignId: number) {
+    return apiClient<LeadCampaignResponse[]>(`/admin/lead-campaigns/${campaignId}/responses`);
   },
 };

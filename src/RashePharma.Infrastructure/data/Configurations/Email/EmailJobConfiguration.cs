@@ -1,6 +1,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using RashePharma.Domain.Entities;
 using RashePharma.Domain.Entities.Email;
 
 namespace RashePharma.Infrastructure.Data.Configurations.Email;
@@ -39,6 +40,15 @@ public sealed class EmailJobConfiguration
         builder.Property(x => x.EmailType)
             .HasMaxLength(60)
             .IsRequired();
+
+        builder.HasIndex(x => x.LeadOutreachRecipientId)
+            .IsUnique()
+            .HasFilter("[LeadOutreachRecipientId] IS NOT NULL");
+
+        builder.HasOne<LeadOutreachRecipient>()
+            .WithMany()
+            .HasForeignKey(x => x.LeadOutreachRecipientId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.RecipientEmail)
             .HasMaxLength(320)

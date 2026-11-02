@@ -494,6 +494,9 @@ namespace RashePharma.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<int?>("LeadOutreachRecipientId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("NextAttemptAtUtc")
                         .HasColumnType("datetime2");
 
@@ -539,6 +542,10 @@ namespace RashePharma.Infrastructure.Migrations
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
+
+                    b.HasIndex("LeadOutreachRecipientId")
+                        .IsUnique()
+                        .HasFilter("[LeadOutreachRecipientId] IS NOT NULL");
 
                     b.HasIndex("ProviderMessageId")
                         .IsUnique()
@@ -1226,6 +1233,33 @@ namespace RashePharma.Infrastructure.Migrations
                     b.HasIndex("Status", "CreatedAtUtc");
 
                     b.ToTable("LeadOutreachRecipients");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.LeadOutreachResponse", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecipientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientId")
+                        .IsUnique();
+
+                    b.ToTable("LeadOutreachResponses");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.LocationSeoPage", b =>
@@ -2188,6 +2222,14 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("EmailJob");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailJob", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.LeadOutreachRecipient", null)
+                        .WithMany()
+                        .HasForeignKey("LeadOutreachRecipientId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.Email.EmailOutboxMessage", b =>
                 {
                     b.HasOne("RashePharma.Domain.Entities.Email.EmailJob", null)
@@ -2306,6 +2348,17 @@ namespace RashePharma.Infrastructure.Migrations
                     b.Navigation("Campaign");
 
                     b.Navigation("Lead");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.LeadOutreachResponse", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.LeadOutreachRecipient", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipient");
                 });
 
             modelBuilder.Entity("RashePharma.Domain.Entities.Order", b =>

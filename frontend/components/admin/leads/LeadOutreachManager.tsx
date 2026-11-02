@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Mail, Search, Send, ShieldCheck, Upload, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Mail, MessageSquareReply, Search, Send, ShieldCheck, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Pagination } from "@/components/admin/Pagination";
 import { leadOutreachService } from "@/services/lead-outreach.service";
-import type { ExternalLead, LeadCampaign, LeadImportPreview, LeadPage } from "@/types/lead-outreach";
+import type { ExternalLead, LeadCampaign, LeadCampaignResponse, LeadImportPreview, LeadPage } from "@/types/lead-outreach";
 
 const inputClass = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 
@@ -158,6 +158,7 @@ export function LeadOutreachManager() {
       { label: "Permission allowed", value: leads?.counts.allowed ?? 0, Icon: CheckCircle2 },
       { label: "Permission unknown", value: leads?.counts.unknown ?? 0, Icon: AlertTriangle },
       { label: "Unsubscribed", value: leads?.counts.suppressed ?? 0, Icon: Mail },
+      { label: "Campaign replies", value: campaigns.reduce((total, campaign) => total + campaign.respondedCount, 0), Icon: MessageSquareReply },
     ].map(({ label, value, Icon }) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-600">{label}</p><Icon className="size-5 text-emerald-700"/></div><p className="mt-2 text-2xl font-bold text-slate-900">{value.toLocaleString()}</p></article>)}</section>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -185,5 +186,23 @@ export function LeadOutreachManager() {
 }
 
 function CampaignCard({ campaign }: { campaign: LeadCampaign }) {
-  return <article className="rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{campaign.name}</p><p className="mt-1 truncate text-sm text-slate-600">{campaign.subject}</p></div><span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{campaign.status}</span></div><p className="mt-3 text-xs text-slate-500">{campaign.sentCount}/{campaign.recipientCount} sent · {campaign.failedCount} failed · {new Date(campaign.createdAtUtc).toLocaleString()}</p></article>;
+  const [expanded, setExpanded] = useState(false);
+  const [responses, setResponses] = useState<LeadCampaignResponse[] | null>(null);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+  const [responseError, setResponseError] = useState("");
+
+  const toggleResponses = async () => {
+    if (expanded) { setExpanded(false); return; }
+    setExpanded(true);
+    if (responses !== null || campaign.respondedCount === 0) return;
+    setLoadingResponses(true); setResponseError("");
+    try { setResponses(await leadOutreachService.getCampaignResponses(campaign.id)); }
+    catch (error) { setResponseError(error instanceof Error ? error.message : "Could not load campaign replies."); }
+    finally { setLoadingResponses(false); }
+  };
+
+  return <article className="rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{campaign.name}</p><p className="mt-1 truncate text-sm text-slate-600">{campaign.subject}</p></div><span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{campaign.status}</span></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><p className="rounded-lg bg-emerald-50 p-2 text-emerald-800"><strong>{campaign.sentCount}</strong><br/>sent</p><p className="rounded-lg bg-rose-50 p-2 text-rose-800"><strong>{campaign.failedCount}</strong><br/>failed</p><p className="rounded-lg bg-blue-50 p-2 text-blue-800"><strong>{campaign.respondedCount}</strong><br/>replies</p></div><p className="mt-3 text-xs text-slate-500">{campaign.sentCount}/{campaign.recipientCount} sent · {new Date(campaign.createdAtUtc).toLocaleString()}</p>
+    <button type="button" onClick={() => void toggleResponses()} disabled={campaign.respondedCount === 0} className="mt-3 text-sm font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-400">{expanded ? "Hide replies" : `View replies (${campaign.respondedCount})`}</button>
+    {expanded && campaign.respondedCount > 0 && <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">{loadingResponses ? <div className="h-16 animate-pulse rounded-lg bg-slate-100" aria-label="Loading campaign replies"/> : responseError ? <p role="alert" className="text-sm text-rose-700">{responseError}</p> : responses?.length ? responses.map((response) => <div key={response.id} className="rounded-lg bg-slate-50 p-3"><p className="font-medium text-slate-900">{response.name} <span className="font-normal text-slate-500">{response.email ? `· ${response.email}` : ""}</span></p><p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{response.message}</p><p className="mt-2 text-xs text-slate-500">{new Date(response.submittedAtUtc).toLocaleString()}</p></div>) : <p className="text-sm text-slate-500">No replies recorded yet.</p>}</div>}
+  </article>;
 }

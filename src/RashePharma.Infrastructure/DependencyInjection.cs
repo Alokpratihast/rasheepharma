@@ -79,6 +79,18 @@ public static class DependencyInjection
 
         services.AddHostedService<OutboxDispatcher>();
 
+        services
+            .AddOptions<EmailJobConsumerOptions>()
+            .Bind(configuration.GetSection(EmailJobConsumerOptions.SectionName))
+            .Validate(options => options.MaxConcurrentCalls > 0,
+                "Email consumer concurrency must be greater than zero.")
+            .Validate(options => options.ProcessingLeaseMinutes > 0,
+                "Email processing lease must be greater than zero.")
+            .ValidateOnStart();
+
+        services.AddScoped<EmailJobMessageHandler>();
+        services.AddHostedService<EmailJobQueueConsumer>();
+
         return services;
     }
 }
