@@ -97,11 +97,12 @@ public sealed class AdminBlogPostsController(IBlogPostService service, IBlogImag
         => await service.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 
     [HttpPost("images")]
-    [RequestSizeLimit(17 * 1024 * 1024)]
-    public async Task<IActionResult> UploadImage(
-        [FromForm] IFormFile file,
-        [FromForm] IFormFile displayFile,
-        CancellationToken cancellationToken)
+[Consumes("multipart/form-data")]
+[RequestSizeLimit(17 * 1024 * 1024)]
+public async Task<IActionResult> UploadImage(
+    IFormFile file,
+    IFormFile displayFile,
+    CancellationToken cancellationToken)
     {
         var originalError = await ValidateImageAsync(file, cancellationToken);
         if (originalError is not null)

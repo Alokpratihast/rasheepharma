@@ -34,39 +34,76 @@ public sealed class EmailJobQueueConsumer : BackgroundService
             throw new InvalidOperationException("EmailJobConsumer configuration is invalid.");
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        var processorOptions = new ServiceBusProcessorOptions
-        {
-            AutoCompleteMessages = false,
-            MaxConcurrentCalls = _consumerOptions.MaxConcurrentCalls,
-            PrefetchCount = 0,
-            MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(_consumerOptions.ProcessingLeaseMinutes)
-        };
 
-        foreach (var queueName in new[] { _queueOptions.TransactionalQueueName, _queueOptions.BulkQueueName }.Distinct(StringComparer.Ordinal))
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+{
+    var processorOptions = new ServiceBusProcessorOptions
+    {
+        AutoCompleteMessages = false,
+        MaxConcurrentCalls = _consumerOptions.MaxConcurrentCalls,
+        PrefetchCount = 0,
+        MaxAutoLockRenewalDuration =
+            TimeSpan.FromMinutes(_consumerOptions.ProcessingLeaseMinutes)
+    };
+
+    try
+    {
+        foreach (var queueName in new[]
+                 {
+                     _queueOptions.TransactionalQueueName,
+                     _queueOptions.BulkQueueName
+                 }.Distinct(StringComparer.Ordinal))
         {
-            var processor = _client.CreateProcessor(queueName, processorOptions);
+            var processor = _client.CreateProcessor(
+                queueName,
+                processorOptions);
+
             processor.ProcessMessageAsync += ProcessMessageAsync;
             processor.ProcessErrorAsync += ProcessErrorAsync;
+
             _processors.Add(processor);
+
             await processor.StartProcessingAsync(stoppingToken);
-            _logger.LogInformation("Email job consumer started for queue {QueueName}.", queueName);
+
+            _logger.LogInformation(
+                "Email job consumer started for queue {QueueName}.",
+                queueName);
         }
 
-        try
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-        }
-        finally
-        {
-            foreach (var processor in _processors)
-                await processor.StopProcessingAsync(CancellationToken.None);
-        }
+        await Task.Delay(
+            Timeout.InfiniteTimeSpan,
+            stoppingToken);
     }
+    catch (OperationCanceledException)
+        when (stoppingToken.IsCancellationRequested)
+    {
+        // Expected during application shutdown.
+    }
+    finally
+    {
+        foreach (var processor in _processors)
+        {
+            try
+            {
+                await processor.StopProcessingAsync(
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Error stopping Service Bus processor.");
+            }
+            finally
+            {
+                await processor.DisposeAsync();
+            }
+        }
+
+        _processors.Clear();
+    }
+}
+
 
     private async Task ProcessMessageAsync(ProcessMessageEventArgs args)
     {
@@ -133,13 +170,5 @@ public sealed class EmailJobQueueConsumer : BackgroundService
         return false;
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        foreach (var processor in _processors)
-        {
-            await processor.StopProcessingAsync(cancellationToken);
-            await processor.DisposeAsync();
-        }
-        await base.StopAsync(cancellationToken);
-    }
+
 }
