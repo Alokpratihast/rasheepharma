@@ -15,91 +15,91 @@ public class EmailService : IEmailService
         _configuration = configuration;
     }
 
-    public async Task SendAsync(
-        string toEmail,
-        string toName,
-        string subject,
-        string htmlBody,
-        EmailAttachment? attachment = null)
+
+public async Task SendAsync(
+    string toEmail,
+    string toName,
+    string subject,
+    string htmlBody,
+    EmailAttachment? attachment = null,
+    CancellationToken cancellationToken = default)
+{
+    var smtpHost = _configuration["Brevo:SmtpHost"];
+    var smtpPort = _configuration.GetValue<int>("Brevo:SmtpPort");
+    var smtpUsername = _configuration["Brevo:SmtpUsername"];
+    var smtpPassword = _configuration["Brevo:SmtpPassword"];
+    var fromEmail = _configuration["Brevo:FromEmail"];
+    var fromName = _configuration["Brevo:FromName"];
+
+    if (string.IsNullOrWhiteSpace(smtpHost) ||
+        string.IsNullOrWhiteSpace(smtpUsername) ||
+        string.IsNullOrWhiteSpace(smtpPassword) ||
+        string.IsNullOrWhiteSpace(fromEmail))
     {
-        var smtpHost =
-            _configuration["Brevo:SmtpHost"];
-
-        var smtpPort =
-            _configuration.GetValue<int>(
-                "Brevo:SmtpPort");
-
-        var smtpUsername =
-            _configuration["Brevo:SmtpUsername"];
-
-        var smtpPassword =
-            _configuration["Brevo:SmtpPassword"];
-
-        var fromEmail =
-            _configuration["Brevo:FromEmail"];
-
-        var fromName =
-            _configuration["Brevo:FromName"];
-
-        if (string.IsNullOrWhiteSpace(smtpHost) ||
-            string.IsNullOrWhiteSpace(smtpUsername) ||
-            string.IsNullOrWhiteSpace(smtpPassword) ||
-            string.IsNullOrWhiteSpace(fromEmail))
-        {
-            throw new InvalidOperationException(
-                "Brevo SMTP configuration is missing.");
-        }
-
-        var message = new MimeMessage();
-
-        message.From.Add(
-            new MailboxAddress(
-                fromName ?? "Rashe Pharma",
-                fromEmail));
-
-        message.To.Add(
-            new MailboxAddress(
-                toName,
-                toEmail));
-
-        message.Subject = subject;
-
-        var bodyBuilder = new BodyBuilder
-        {
-            HtmlBody = htmlBody
-        };
-
-        if (attachment is not null)
-        {
-            if (attachment.Content.Length == 0 ||
-                !string.Equals(attachment.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new ArgumentException("Email attachment must be a non-empty PDF.", nameof(attachment));
-            }
-
-            bodyBuilder.Attachments.Add(
-                Path.GetFileName(attachment.FileName),
-                attachment.Content,
-                new ContentType("application", "pdf"));
-        }
-
-        message.Body = bodyBuilder.ToMessageBody();
-
-        using var smtp = new SmtpClient();
-
-        await smtp.ConnectAsync(
-            smtpHost,
-            smtpPort == 0 ? 587 : smtpPort,
-            SecureSocketOptions.StartTls);
-
-        await smtp.AuthenticateAsync(
-            smtpUsername,
-            smtpPassword);
-
-        await smtp.SendAsync(message);
-
-        await smtp.DisconnectAsync(true);
+        throw new InvalidOperationException(
+            "Brevo SMTP configuration is missing.");
     }
+
+    var message = new MimeMessage();
+
+    message.From.Add(
+        new MailboxAddress(
+            fromName ?? "Rashe Pharma",
+            fromEmail));
+
+    message.To.Add(
+        new MailboxAddress(toName, toEmail));
+
+    message.Subject = subject;
+
+    var bodyBuilder = new BodyBuilder
+    {
+        HtmlBody = htmlBody
+    };
+
+    if (attachment is not null)
+    {
+        if (attachment.Content.Length == 0 ||
+            !string.Equals(
+                attachment.ContentType,
+                "application/pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Email attachment must be a non-empty PDF.",
+                nameof(attachment));
+        }
+
+        bodyBuilder.Attachments.Add(
+            Path.GetFileName(attachment.FileName),
+            attachment.Content,
+            new ContentType("application", "pdf"));
+    }
+
+    message.Body = bodyBuilder.ToMessageBody();
+
+    using var smtp = new SmtpClient();
+
+    await smtp.ConnectAsync(
+        smtpHost,
+        smtpPort == 0 ? 587 : smtpPort,
+        SecureSocketOptions.StartTls,
+        cancellationToken);
+
+    await smtp.AuthenticateAsync(
+        smtpUsername,
+        smtpPassword,
+        cancellationToken);
+
+    await smtp.SendAsync(
+        message,
+        cancellationToken);
+
+    await smtp.DisconnectAsync(
+        true,
+        cancellationToken);
+}
+
 
     public async Task SendOrderInvoiceAsync(
         string toEmail,
@@ -178,7 +178,6 @@ public class EmailService : IEmailService
                 "pdf"));
 
         message.Body = bodyBuilder.ToMessageBody();
-
         using var smtp = new SmtpClient();
 
         await smtp.ConnectAsync(

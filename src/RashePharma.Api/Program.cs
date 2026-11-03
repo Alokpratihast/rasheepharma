@@ -796,6 +796,14 @@ builder.Services.AddScoped<
     EmailJobService>();
 
 
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    // Azure Service Bus publisher and API-owned outbox dispatcher.
+    builder.Services.AddAzureServiceBus(builder.Configuration);
+    builder.Services.AddOutboxDispatcher(builder.Configuration);
+}
+
+
 // =========================================================
 // Build Application
 // =========================================================

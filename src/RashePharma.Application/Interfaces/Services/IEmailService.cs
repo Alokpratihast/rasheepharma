@@ -1,3 +1,4 @@
+
 namespace RashePharma.Application.Interfaces.Services;
 
 public interface IEmailService
@@ -7,7 +8,8 @@ public interface IEmailService
         string toName,
         string subject,
         string htmlBody,
-        EmailAttachment? attachment = null);
+        EmailAttachment? attachment = null,
+        CancellationToken cancellationToken = default);
 
     Task SendOrderInvoiceAsync(
         string toEmail,

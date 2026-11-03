@@ -1,3 +1,4 @@
+
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,10 @@ public enum EmailJobMessageResult
     Invalid
 }
 
+public sealed record EmailJobMessageHandlingResult(
+    EmailJobMessageResult Result,
+    DateTime? RetryAtUtc = null);
+
 public sealed class EmailJobMessageHandler(
     ApplicationDbContext db,
     IEmailService emailService,
@@ -30,141 +35,216 @@ public sealed class EmailJobMessageHandler(
         PropertyNameCaseInsensitive = true
     };
 
-    public async Task<EmailJobMessageResult> HandleAsync(
+    public async Task<EmailJobMessageHandlingResult> HandleAsync(
         Guid emailJobId,
         CancellationToken cancellationToken)
     {
         if (emailJobId == Guid.Empty)
-            return EmailJobMessageResult.Invalid;
+        {
+            return new(EmailJobMessageResult.Invalid);
+        }
 
         EmailJob? job;
-        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+
+        await using (var transaction =
+            await db.Database.BeginTransactionAsync(cancellationToken))
         {
             job = await db.EmailJobs
-                .FromSqlInterpolated($"SELECT * FROM [EmailJobs] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {emailJobId}")
+                .FromSqlInterpolated(
+                    $"SELECT * FROM [EmailJobs] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {emailJobId}")
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (job is null)
-                return EmailJobMessageResult.NotFound;
-
-            if (IsTerminal(job.Status))
-                return EmailJobMessageResult.Completed;
-
-            var now = DateTime.UtcNow;
-            if (job.Status == EmailJobStatus.Processing &&
-                job.ProcessingLeaseUntilUtc > now)
             {
-                return EmailJobMessageResult.Busy;
+                return new(EmailJobMessageResult.NotFound);
             }
 
-            // If a previous worker lost its lock while SMTP was in progress, the
-            // provider may already have accepted the email. Never resend it blindly.
+            if (IsTerminal(job.Status))
+            {
+                return new(EmailJobMessageResult.Completed);
+            }
+
+            var now = DateTime.UtcNow;
+
+            if (job.Status == EmailJobStatus.Processing &&
+                job.ProcessingLeaseUntilUtc.HasValue &&
+                job.ProcessingLeaseUntilUtc.Value > now)
+            {
+                return new(
+                    EmailJobMessageResult.Busy,
+                    job.ProcessingLeaseUntilUtc.Value);
+            }
+
+            // An expired processing lease means that SMTP delivery may
+            // already have been accepted. Never resend blindly.
             if (job.Status == EmailJobStatus.Processing)
             {
                 job.Status = EmailJobStatus.OutcomeUnknown;
                 job.ProcessingLeaseUntilUtc = null;
                 job.UpdatedAtUtc = now;
                 job.LastErrorCode = "WORKER_LEASE_EXPIRED";
-                job.LastErrorMessage = "Delivery outcome could not be confirmed; check the provider log before retrying.";
-                await MarkOutreachFailedAsync(job, job.LastErrorMessage, cancellationToken);
+                job.LastErrorMessage =
+                    "Delivery outcome could not be confirmed; check the provider log before retrying.";
+
+                await MarkOutreachFailedAsync(
+                    job,
+                    job.LastErrorMessage,
+                    cancellationToken);
+
                 await db.SaveChangesAsync(cancellationToken);
                 await RefreshCampaignForJobAsync(job, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return EmailJobMessageResult.Completed;
+
+                return new(EmailJobMessageResult.Completed);
             }
 
             if (job.Status == EmailJobStatus.RetryScheduled &&
-                job.NextAttemptAtUtc > now)
+                job.NextAttemptAtUtc.HasValue &&
+                job.NextAttemptAtUtc.Value > now)
             {
-                return EmailJobMessageResult.Busy;
+                return new(
+                    EmailJobMessageResult.Busy,
+                    job.NextAttemptAtUtc.Value);
             }
 
-            if (job.Status is not (EmailJobStatus.Pending or EmailJobStatus.Queued or EmailJobStatus.RetryScheduled))
-                return EmailJobMessageResult.Completed;
+            if (job.Status is not (
+                EmailJobStatus.Pending or
+                EmailJobStatus.Queued or
+                EmailJobStatus.RetryScheduled))
+            {
+                return new(EmailJobMessageResult.Completed);
+            }
 
             job.Status = EmailJobStatus.Processing;
             job.AttemptCount++;
-            job.ProcessingLeaseUntilUtc = now.AddMinutes(options.Value.ProcessingLeaseMinutes);
+            job.ProcessingLeaseUntilUtc =
+                now.AddMinutes(options.Value.ProcessingLeaseMinutes);
             job.NextAttemptAtUtc = null;
             job.UpdatedAtUtc = now;
+
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 
         EmailJobMessagePayload? payload;
+
         try
         {
-            payload = JsonSerializer.Deserialize<EmailJobMessagePayload>(job.PayloadJson, JsonOptions);
+            payload = JsonSerializer.Deserialize<EmailJobMessagePayload>(
+                job.PayloadJson,
+                JsonOptions);
         }
         catch (JsonException exception)
         {
-            logger.LogWarning(exception, "Email job {EmailJobId} has an invalid payload.", job.Id);
-            await MarkPermanentFailureAsync(job, "INVALID_PAYLOAD", cancellationToken);
-            return EmailJobMessageResult.Invalid;
+            logger.LogWarning(
+                exception,
+                "Email job {EmailJobId} has an invalid payload.",
+                job.Id);
+
+            await MarkPermanentFailureAsync(
+                job,
+                "INVALID_PAYLOAD",
+                cancellationToken);
+
+            return new(EmailJobMessageResult.Invalid);
         }
 
-        if (payload is null || string.IsNullOrWhiteSpace(payload.Subject) || string.IsNullOrWhiteSpace(payload.HtmlBody))
+        if (payload is null ||
+            string.IsNullOrWhiteSpace(payload.Subject) ||
+            string.IsNullOrWhiteSpace(payload.HtmlBody))
         {
-            await MarkPermanentFailureAsync(job, "INVALID_PAYLOAD", cancellationToken);
-            return EmailJobMessageResult.Invalid;
+            await MarkPermanentFailureAsync(
+                job,
+                "INVALID_PAYLOAD",
+                cancellationToken);
+
+            return new(EmailJobMessageResult.Invalid);
         }
 
         if (job.LeadOutreachRecipientId.HasValue)
         {
             var recipient = await db.LeadOutreachRecipients
                 .Include(row => row.Lead)
-                .FirstOrDefaultAsync(row => row.Id == job.LeadOutreachRecipientId.Value, cancellationToken);
+                .FirstOrDefaultAsync(
+                    row => row.Id == job.LeadOutreachRecipientId.Value,
+                    cancellationToken);
 
-            if (recipient is null || recipient.Lead.IsSuppressed ||
-                recipient.Lead.PermissionStatus != "Allowed" ||
+            if (recipient is null ||
+                recipient.Lead.IsSuppressed ||
+                !string.Equals(
+                    recipient.Lead.PermissionStatus,
+                    "Allowed",
+                    StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(recipient.Lead.Email))
             {
-                await MarkSuppressedAsync(job, recipient, cancellationToken);
-                return EmailJobMessageResult.Completed;
+                await MarkSuppressedAsync(
+                    job,
+                    recipient,
+                    cancellationToken);
+
+                return new(EmailJobMessageResult.Completed);
             }
         }
 
         try
         {
-            await emailService.SendAsync(job.RecipientEmail, payload.ToName, payload.Subject, payload.HtmlBody);
+            await emailService.SendAsync(
+    job.RecipientEmail,
+    payload.ToName,
+    payload.Subject,
+    payload.HtmlBody,
+    cancellationToken: cancellationToken);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
         {
-            // The queue lock will be released and the lease-expiry path will
-            // convert this to OutcomeUnknown rather than risking a duplicate.
+            // Delivery outcome may be unknown. Do not blindly retry.
             throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Email job {EmailJobId} failed during provider delivery.", job.Id);
+            logger.LogError(
+                exception,
+                "Email job {EmailJobId} failed during provider delivery.",
+                job.Id);
+
             job.Status = EmailJobStatus.OutcomeUnknown;
             job.ProcessingLeaseUntilUtc = null;
             job.UpdatedAtUtc = DateTime.UtcNow;
             job.LastErrorCode = "PROVIDER_OUTCOME_UNKNOWN";
-            job.LastErrorMessage = "Delivery outcome could not be confirmed; check the provider log before retrying.";
-            await MarkOutreachFailedAsync(job, job.LastErrorMessage, cancellationToken);
+            job.LastErrorMessage =
+                "Delivery outcome could not be confirmed; check the provider log before retrying.";
+
+            await MarkOutreachFailedAsync(
+                job,
+                job.LastErrorMessage,
+                cancellationToken);
+
             await db.SaveChangesAsync(cancellationToken);
             await RefreshCampaignForJobAsync(job, cancellationToken);
-            return EmailJobMessageResult.Completed;
+
+            return new(EmailJobMessageResult.Completed);
         }
 
-        // Persist provider acceptance outside the send exception handler. If a
-        // later SQL operation fails, Service Bus can redeliver; ProviderAccepted
-        // is terminal, so that redelivery will not send a duplicate email.
+        // Persist provider acceptance outside the SMTP exception handler.
         await MarkAcceptedAsync(job, cancellationToken);
 
-        return EmailJobMessageResult.Completed;
+        return new(EmailJobMessageResult.Completed);
     }
 
-    private async Task MarkAcceptedAsync(EmailJob job, CancellationToken ct)
+    private async Task MarkAcceptedAsync(
+        EmailJob job,
+        CancellationToken ct)
     {
         var now = DateTime.UtcNow;
+
         job.Status = EmailJobStatus.ProviderAccepted;
         job.AcceptedAtUtc = now;
         job.ProcessingLeaseUntilUtc = null;
         job.UpdatedAtUtc = now;
         job.LastErrorCode = null;
         job.LastErrorMessage = null;
+
         db.EmailDeliveryEvents.Add(new EmailDeliveryEvent
         {
             EmailJobId = job.Id,
@@ -179,7 +259,10 @@ public sealed class EmailJobMessageHandler(
             var recipient = await db.LeadOutreachRecipients
                 .Include(row => row.Lead)
                 .Include(row => row.Campaign)
-                .FirstOrDefaultAsync(row => row.Id == job.LeadOutreachRecipientId.Value, ct);
+                .FirstOrDefaultAsync(
+                    row => row.Id == job.LeadOutreachRecipientId.Value,
+                    ct);
+
             if (recipient is not null)
             {
                 recipient.Status = "Sent";
@@ -187,11 +270,13 @@ public sealed class EmailJobMessageHandler(
                 recipient.ProcessingAtUtc = null;
                 recipient.ErrorMessage = null;
                 recipient.Lead.UpdatedAtUtc = now;
+
                 db.LeadActivities.Add(new LeadActivity
                 {
                     LeadId = recipient.LeadId,
                     Type = "OutreachSent",
-                    Details = $"Campaign {recipient.CampaignId} ({recipient.Campaign.Subject}) accepted by the email provider.",
+                    Details =
+                        $"Campaign {recipient.CampaignId} ({recipient.Campaign.Subject}) accepted by the email provider.",
                     Actor = recipient.Campaign.CreatedBy
                 });
             }
@@ -201,71 +286,130 @@ public sealed class EmailJobMessageHandler(
         await RefreshCampaignForJobAsync(job, ct);
     }
 
-    private async Task MarkSuppressedAsync(EmailJob job, LeadOutreachRecipient? recipient, CancellationToken ct)
+    private async Task MarkSuppressedAsync(
+        EmailJob job,
+        LeadOutreachRecipient? recipient,
+        CancellationToken ct)
     {
         job.Status = EmailJobStatus.Suppressed;
         job.ProcessingLeaseUntilUtc = null;
         job.UpdatedAtUtc = DateTime.UtcNow;
+
         if (recipient is not null)
         {
             recipient.Status = "Skipped";
             recipient.ProcessingAtUtc = null;
-            recipient.ErrorMessage = "Lead is no longer eligible for email outreach.";
+            recipient.ErrorMessage =
+                "Lead is no longer eligible for email outreach.";
         }
+
         await db.SaveChangesAsync(ct);
         await RefreshCampaignForJobAsync(job, ct);
     }
 
-    private async Task MarkOutreachFailedAsync(EmailJob job, string message, CancellationToken ct)
+    private async Task MarkOutreachFailedAsync(
+        EmailJob job,
+        string message,
+        CancellationToken ct)
     {
         if (!job.LeadOutreachRecipientId.HasValue)
             return;
+
         var recipient = await db.LeadOutreachRecipients
-            .FirstOrDefaultAsync(row => row.Id == job.LeadOutreachRecipientId.Value, ct);
+            .FirstOrDefaultAsync(
+                row => row.Id == job.LeadOutreachRecipientId.Value,
+                ct);
+
         if (recipient is null)
             return;
+
         recipient.Status = "Failed";
         recipient.ProcessingAtUtc = null;
         recipient.ErrorMessage = message;
     }
 
-    private async Task MarkPermanentFailureAsync(EmailJob job, string code, CancellationToken ct)
+    private async Task MarkPermanentFailureAsync(
+        EmailJob job,
+        string code,
+        CancellationToken ct)
     {
         job.Status = EmailJobStatus.FailedPermanent;
         job.ProcessingLeaseUntilUtc = null;
         job.UpdatedAtUtc = DateTime.UtcNow;
         job.LastErrorCode = code;
-        job.LastErrorMessage = "The email job payload is invalid and requires correction.";
-        await MarkOutreachFailedAsync(job, job.LastErrorMessage, ct);
+        job.LastErrorMessage =
+            "The email job payload is invalid and requires correction.";
+
+        await MarkOutreachFailedAsync(
+            job,
+            job.LastErrorMessage,
+            ct);
+
         await db.SaveChangesAsync(ct);
         await RefreshCampaignForJobAsync(job, ct);
     }
 
-    private async Task RefreshCampaignForJobAsync(EmailJob job, CancellationToken ct)
+    private async Task RefreshCampaignForJobAsync(
+        EmailJob job,
+        CancellationToken ct)
     {
-        if (!job.LeadOutreachRecipientId.HasValue) return;
+        if (!job.LeadOutreachRecipientId.HasValue)
+            return;
+
         var campaignId = await db.LeadOutreachRecipients
             .Where(row => row.Id == job.LeadOutreachRecipientId.Value)
             .Select(row => (int?)row.CampaignId)
             .FirstOrDefaultAsync(ct);
-        if (!campaignId.HasValue) return;
-        var campaign = await db.LeadOutreachCampaigns.FirstOrDefaultAsync(row => row.Id == campaignId, ct);
+
+        if (!campaignId.HasValue)
+            return;
+
+        var campaign = await db.LeadOutreachCampaigns
+            .FirstOrDefaultAsync(
+                row => row.Id == campaignId,
+                ct);
+
         if (campaign is null)
             return;
-        campaign.SentCount = await db.LeadOutreachRecipients.CountAsync(
-            row => row.CampaignId == campaignId && row.Status == "Sent", ct);
-        campaign.FailedCount = await db.LeadOutreachRecipients.CountAsync(
-            row => row.CampaignId == campaignId && row.Status == "Failed", ct);
-        var hasRemaining = await db.LeadOutreachRecipients.AnyAsync(
-            row => row.CampaignId == campaignId &&
-                (row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued"), ct);
-        campaign.Status = hasRemaining ? "Queued" : campaign.FailedCount > 0 ? "CompletedWithErrors" : "Completed";
-        campaign.CompletedAtUtc = hasRemaining ? null : DateTime.UtcNow;
+
+        campaign.SentCount =
+            await db.LeadOutreachRecipients.CountAsync(
+                row => row.CampaignId == campaignId &&
+                       row.Status == "Sent",
+                ct);
+
+        campaign.FailedCount =
+            await db.LeadOutreachRecipients.CountAsync(
+                row => row.CampaignId == campaignId &&
+                       row.Status == "Failed",
+                ct);
+
+        var hasRemaining =
+            await db.LeadOutreachRecipients.AnyAsync(
+                row => row.CampaignId == campaignId &&
+                       (row.Status == "Pending" ||
+                        row.Status == "Processing" ||
+                        row.Status == "Queued"),
+                ct);
+
+        campaign.Status = hasRemaining
+            ? "Queued"
+            : campaign.FailedCount > 0
+                ? "CompletedWithErrors"
+                : "Completed";
+
+        campaign.CompletedAtUtc =
+            hasRemaining ? null : DateTime.UtcNow;
+
         await db.SaveChangesAsync(ct);
     }
 
-    private static bool IsTerminal(EmailJobStatus status) => status is
-        EmailJobStatus.OutcomeUnknown or EmailJobStatus.ProviderAccepted or
-        EmailJobStatus.FailedPermanent or EmailJobStatus.DeadLettered or
-        EmailJobStatus.Suppressed or EmailJobStatus.Cancelled;
+    private static bool IsTerminal(EmailJobStatus status) =>
+        status is
+            EmailJobStatus.OutcomeUnknown or
+            EmailJobStatus.ProviderAccepted or
+            EmailJobStatus.FailedPermanent or
+            EmailJobStatus.DeadLettered or
+            EmailJobStatus.Suppressed or
+            EmailJobStatus.Cancelled;
 }

@@ -22,6 +22,6 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailJobService, EmailJobService>();
 
 builder.Services.AddAzureServiceBus(builder.Configuration);
-builder.Services.AddOutboxDispatcher(builder.Configuration);
+builder.Services.AddEmailJobConsumer(builder.Configuration);
 
 await builder.Build().RunAsync();
