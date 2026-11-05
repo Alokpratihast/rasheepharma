@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.Email;
 using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Services;
 
@@ -23,24 +25,49 @@ public sealed class LeadUnsubscribeController(ApplicationDbContext db, IConfigur
         if (string.IsNullOrWhiteSpace(secret) ||
             !LeadUnsubscribeToken.TryRead(request.Token, secret, out var recipientId, out var leadId))
             return Ok(new { message = "If this link is valid, the address has been unsubscribed." });
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var recipient = await db.LeadOutreachRecipients.Include(item => item.Lead)
             .FirstOrDefaultAsync(item => item.Id == recipientId && item.LeadId == leadId, ct);
         // Same response for unknown tokens avoids leaking whether an address is on the list.
         if (recipient is null) return Ok(new { message = "If this link is valid, the address has been unsubscribed." });
-        if (!recipient.Lead.IsSuppressed)
+        if (recipient.Lead.Email is { Length: > 0 } email)
         {
-            recipient.Lead.IsSuppressed = true;
-            recipient.Lead.SuppressedAtUtc = DateTime.UtcNow;
-            recipient.Lead.UpdatedAtUtc = DateTime.UtcNow;
-            db.LeadActivities.Add(new LeadActivity
+            var now = DateTime.UtcNow;
+            var normalizedEmail = string.IsNullOrWhiteSpace(recipient.Lead.EmailNormalized)
+                ? email.Trim().ToLowerInvariant()
+                : recipient.Lead.EmailNormalized;
+            var alreadySuppressed = await db.EmailSuppressions.AnyAsync(
+                item => item.EmailNormalized == normalizedEmail &&
+                        item.SuppressionType == "Unsubscribed" &&
+                        item.LiftedAtUtc == null, ct);
+            if (!alreadySuppressed)
             {
-                LeadId = recipient.LeadId,
-                Type = "Unsubscribed",
-                Details = "Recipient opted out through an outreach email.",
-                Actor = "recipient"
-            });
+                db.EmailSuppressions.Add(new EmailSuppression
+                {
+                    EmailNormalized = normalizedEmail,
+                    SuppressionType = "Unsubscribed",
+                    Source = "OutreachUnsubscribe",
+                    Reason = "Recipient opted out through an outreach email.",
+                    CreatedAtUtc = now
+                });
+            }
+
+            if (!recipient.Lead.IsSuppressed)
+            {
+                recipient.Lead.IsSuppressed = true;
+                recipient.Lead.SuppressedAtUtc = now;
+                recipient.Lead.UpdatedAtUtc = now;
+                db.LeadActivities.Add(new LeadActivity
+                {
+                    LeadId = recipient.LeadId,
+                    Type = "Unsubscribed",
+                    Details = "Recipient opted out through an outreach email.",
+                    Actor = "recipient"
+                });
+            }
             await db.SaveChangesAsync(ct);
         }
+        await transaction.CommitAsync(ct);
         return Ok(new { message = "If this link is valid, the address has been unsubscribed." });
     }
 }

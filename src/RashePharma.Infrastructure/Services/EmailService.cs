@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace RashePharma.Infrastructure.Services;
 
-public class EmailService : IEmailService
+public class EmailService : IEmailService, IEmailJobSender
 {
     private readonly IConfiguration _configuration;
 
@@ -101,6 +101,43 @@ public async Task SendAsync(
 }
 
 
+    public async Task<string> SendAsync(
+        Guid emailJobId,
+        string toEmail,
+        string toName,
+        string subject,
+        string htmlBody,
+        CancellationToken cancellationToken = default)
+    {
+        if (emailJobId == Guid.Empty)
+            throw new ArgumentException("Email job ID is required for provider event correlation.", nameof(emailJobId));
+
+        var smtpHost = _configuration["Brevo:SmtpHost"];
+        var smtpPort = _configuration.GetValue<int>("Brevo:SmtpPort");
+        var smtpUsername = _configuration["Brevo:SmtpUsername"];
+        var smtpPassword = _configuration["Brevo:SmtpPassword"];
+        var fromEmail = _configuration["Brevo:FromEmail"];
+        var fromName = _configuration["Brevo:FromName"];
+        if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUsername) ||
+            string.IsNullOrWhiteSpace(smtpPassword) || string.IsNullOrWhiteSpace(fromEmail))
+            throw new InvalidOperationException("Brevo SMTP configuration is missing.");
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName ?? "Rashe Pharma", fromEmail));
+        message.To.Add(new MailboxAddress(toName ?? string.Empty, toEmail));
+        message.Subject = subject;
+        // Brevo echoes this custom header in transactional webhook payloads.
+        message.Headers.Add("X-Mailin-custom", emailJobId.ToString("D"));
+        message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
+
+        using var smtp = new SmtpClient();
+        await smtp.ConnectAsync(smtpHost, smtpPort == 0 ? 587 : smtpPort,
+            SecureSocketOptions.StartTls, cancellationToken);
+        await smtp.AuthenticateAsync(smtpUsername, smtpPassword, cancellationToken);
+        var providerMessageId = await smtp.SendAsync(message, cancellationToken);
+        await smtp.DisconnectAsync(true, cancellationToken);
+        return providerMessageId;
+    }
     public async Task SendOrderInvoiceAsync(
         string toEmail,
         string toName,

@@ -106,6 +106,14 @@ public static class DependencyInjection
                 "Service Bus lock renewal duration must be greater than zero.")
             .ValidateOnStart();
 
+        services
+            .AddOptions<EmailQuotaOptions>()
+            .Bind(configuration.GetSection(EmailQuotaOptions.SectionName))
+            .Validate(options => options.OutreachDailyLimit > 0,
+                "Outreach daily quota must be greater than zero.")
+            .ValidateOnStart();
+        services.AddScoped<IEmailOutreachQuotaService, EmailOutreachQuotaService>();
+        services.AddScoped<IEmailJobSender, EmailService>();
         services.AddScoped<EmailJobMessageHandler>();
         services.AddHostedService<EmailJobQueueConsumer>();
 

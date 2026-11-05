@@ -26,7 +26,8 @@ public sealed record EmailJobMessageHandlingResult(
 
 public sealed class EmailJobMessageHandler(
     ApplicationDbContext db,
-    IEmailService emailService,
+    IEmailJobSender emailJobSender,
+    IEmailOutreachQuotaService quotaService,
     IOptions<EmailJobConsumerOptions> options,
     ILogger<EmailJobMessageHandler> logger)
 {
@@ -98,7 +99,7 @@ public sealed class EmailJobMessageHandler(
                 return new(EmailJobMessageResult.Completed);
             }
 
-            if (job.Status == EmailJobStatus.RetryScheduled &&
+            if ((job.Status is EmailJobStatus.RetryScheduled or EmailJobStatus.DeferredQuota) &&
                 job.NextAttemptAtUtc.HasValue &&
                 job.NextAttemptAtUtc.Value > now)
             {
@@ -110,7 +111,8 @@ public sealed class EmailJobMessageHandler(
             if (job.Status is not (
                 EmailJobStatus.Pending or
                 EmailJobStatus.Queued or
-                EmailJobStatus.RetryScheduled))
+                EmailJobStatus.RetryScheduled or
+                EmailJobStatus.DeferredQuota))
             {
                 return new(EmailJobMessageResult.Completed);
             }
@@ -161,39 +163,51 @@ public sealed class EmailJobMessageHandler(
             return new(EmailJobMessageResult.Invalid);
         }
 
+        LeadOutreachRecipient? outreachRecipient = null;
         if (job.LeadOutreachRecipientId.HasValue)
         {
-            var recipient = await db.LeadOutreachRecipients
+            var normalizedEmail = NormalizeEmail(job.RecipientEmail);
+            var globallySuppressed = await db.EmailSuppressions.AnyAsync(
+                row => row.EmailNormalized == normalizedEmail && row.LiftedAtUtc == null,
+                cancellationToken);
+            outreachRecipient = await db.LeadOutreachRecipients
                 .Include(row => row.Lead)
-                .FirstOrDefaultAsync(
-                    row => row.Id == job.LeadOutreachRecipientId.Value,
-                    cancellationToken);
+                .FirstOrDefaultAsync(row => row.Id == job.LeadOutreachRecipientId.Value, cancellationToken);
 
-            if (recipient is null ||
-                recipient.Lead.IsSuppressed ||
+            if (outreachRecipient is null || globallySuppressed || outreachRecipient.Lead.IsSuppressed ||
+                !string.Equals(outreachRecipient.Lead.PermissionStatus, "Allowed", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(outreachRecipient.Lead.Email) ||
                 !string.Equals(
-                    recipient.Lead.PermissionStatus,
-                    "Allowed",
-                    StringComparison.OrdinalIgnoreCase) ||
-                string.IsNullOrWhiteSpace(recipient.Lead.Email))
+                    NormalizeEmail(outreachRecipient.Lead.Email),
+                    normalizedEmail,
+                    StringComparison.Ordinal))
             {
-                await MarkSuppressedAsync(
-                    job,
-                    recipient,
-                    cancellationToken);
-
+                await MarkSuppressedAsync(job, outreachRecipient, cancellationToken);
                 return new(EmailJobMessageResult.Completed);
             }
-        }
 
+            var quotaResult = await quotaService.ReserveAsync(job.Id, job.AttemptCount, DateTime.UtcNow, cancellationToken);
+            if (quotaResult == EmailQuotaReserveResult.LimitReached)
+            {
+                var retryAt = DateTime.UtcNow.Date.AddDays(1);
+                job.Status = EmailJobStatus.DeferredQuota;
+                job.NextAttemptAtUtc = retryAt;
+                job.ProcessingLeaseUntilUtc = null;
+                job.UpdatedAtUtc = DateTime.UtcNow;
+                outreachRecipient.Status = "Queued";
+                outreachRecipient.ProcessingAtUtc = null;
+                outreachRecipient.ErrorMessage = "Daily outreach sending limit reached; queued for the next UTC day.";
+                await db.SaveChangesAsync(cancellationToken);
+                await RefreshCampaignForJobAsync(job, cancellationToken);
+                return new(EmailJobMessageResult.Busy, retryAt);
+            }
+        }
+        string providerMessageId;
         try
         {
-            await emailService.SendAsync(
-    job.RecipientEmail,
-    payload.ToName,
-    payload.Subject,
-    payload.HtmlBody,
-    cancellationToken: cancellationToken);
+            providerMessageId = await emailJobSender.SendAsync(
+                job.Id, job.RecipientEmail, payload.ToName, payload.Subject, payload.HtmlBody,
+                cancellationToken);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -227,18 +241,25 @@ public sealed class EmailJobMessageHandler(
         }
 
         // Persist provider acceptance outside the SMTP exception handler.
-        await MarkAcceptedAsync(job, cancellationToken);
+        await MarkAcceptedAsync(job, providerMessageId, cancellationToken);
+        if (job.LeadOutreachRecipientId.HasValue)
+            await quotaService.ConsumeAsync(job.Id, job.AttemptCount, DateTime.UtcNow, cancellationToken);
 
         return new(EmailJobMessageResult.Completed);
     }
 
     private async Task MarkAcceptedAsync(
         EmailJob job,
+        string providerMessageId,
         CancellationToken ct)
     {
         var now = DateTime.UtcNow;
 
         job.Status = EmailJobStatus.ProviderAccepted;
+        job.DeliveryStatus = EmailDeliveryStatus.Accepted;
+        job.ProviderMessageId = string.IsNullOrWhiteSpace(providerMessageId)
+            ? null
+            : providerMessageId[..Math.Min(providerMessageId.Length, 200)];
         job.AcceptedAtUtc = now;
         job.ProcessingLeaseUntilUtc = null;
         job.UpdatedAtUtc = now;
@@ -403,6 +424,8 @@ public sealed class EmailJobMessageHandler(
 
         await db.SaveChangesAsync(ct);
     }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
     private static bool IsTerminal(EmailJobStatus status) =>
         status is

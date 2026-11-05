@@ -283,6 +283,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy("brevo-webhook", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddOpenApi();
@@ -794,6 +805,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmailJobService,
     EmailJobService>();
+
+builder.Services.AddScoped<BrevoWebhookProcessor>();
 
 
 if (!builder.Environment.IsEnvironment("Testing"))
