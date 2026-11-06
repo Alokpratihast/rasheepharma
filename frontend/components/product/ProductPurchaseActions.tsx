@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { cartService } from "@/services/cart.service";
 import { formatPrice } from "@/lib/format";
+import { calculateQuantityTotal } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
 interface ProductVariant {
@@ -47,21 +48,66 @@ export function ProductPurchaseActions({
     activeVariants.length > 0 ? activeVariants[0].id : null,
   );
   const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState("1");
   const [isAdding, setIsAdding] = useState(false);
 
   const selectedVariant = activeVariants.find(
     (variant) => variant.id === selectedVariantId,
   );
+  const parsedQuantity = Number(quantityInput);
+  const isQuantityInputValid = Boolean(
+    selectedVariant &&
+      /^\d+$/.test(quantityInput) &&
+      Number.isSafeInteger(parsedQuantity) &&
+      parsedQuantity >= 1 &&
+      parsedQuantity <= selectedVariant.stockQuantity,
+  );
+  const estimatedTotal = selectedVariant
+    ? calculateQuantityTotal(
+        selectedVariant.price,
+        parsedQuantity,
+        selectedVariant.stockQuantity,
+      )
+    : null;
 
   const decreaseQuantity = () => {
-    setQuantity((current) => Math.max(1, current - 1));
+    const next = Math.max(1, quantity - 1);
+    setQuantity(next);
+    setQuantityInput(String(next));
   };
 
   const increaseQuantity = () => {
     if (!selectedVariant) return;
-    setQuantity((current) =>
-      Math.min(selectedVariant.stockQuantity, current + 1),
-    );
+    const next = Math.min(selectedVariant.stockQuantity, quantity + 1);
+    setQuantity(next);
+    setQuantityInput(String(next));
+  };
+
+  const handleQuantityChange = (value: string) => {
+    if (!/^\d*$/.test(value)) return;
+
+    setQuantityInput(value);
+    const next = Number(value);
+    if (
+      value.length > 0 &&
+      Number.isSafeInteger(next) &&
+      next >= 1 &&
+      selectedVariant &&
+      next <= selectedVariant.stockQuantity
+    ) {
+      setQuantity(next);
+    }
+  };
+
+  const normalizeQuantityInput = () => {
+    if (!selectedVariant) return;
+    const parsed = Number(quantityInput);
+    const normalized =
+      Number.isSafeInteger(parsed) && parsed >= 1
+        ? Math.min(parsed, selectedVariant.stockQuantity)
+        : quantity;
+    setQuantity(normalized);
+    setQuantityInput(String(normalized));
   };
 
   const handleAddToCart = async () => {
@@ -86,12 +132,17 @@ export function ProductPurchaseActions({
       return;
     }
 
+    if (!isQuantityInputValid) {
+      toast.error(`Enter a quantity from 1 to ${selectedVariant.stockQuantity}.`);
+      return;
+    }
+
     try {
       setIsAdding(true);
 
       await cartService.addToCart({
         productVariantId: selectedVariant.id,
-        quantity,
+        quantity: parsedQuantity,
       });
 
       toast.success("Product added to cart.");
@@ -144,6 +195,7 @@ export function ProductPurchaseActions({
                 onClick={() => {
                   setSelectedVariantId(variant.id);
                   setQuantity(1);
+                  setQuantityInput("1");
                 }}
                 className={cn(
                   "relative flex flex-col justify-start rounded-2xl border-2 p-4 text-left transition-all duration-200",
@@ -206,9 +258,23 @@ export function ProductPurchaseActions({
                   <Minus className="size-4" />
                 </button>
 
-                <span className="min-w-12 text-center text-sm font-bold text-foreground">
-                  {quantity}
-                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  aria-label="Order quantity"
+                  aria-describedby="quantity-help"
+                  value={quantityInput}
+                  onChange={(event) => handleQuantityChange(event.target.value)}
+                  onBlur={normalizeQuantityInput}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  disabled={isAdding}
+                  className="h-10 w-16 rounded-lg bg-transparent text-center text-sm font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                />
 
                 <button
                   type="button"
@@ -222,16 +288,41 @@ export function ProductPurchaseActions({
                   <Plus className="size-4" />
                 </button>
               </div>
+              <p
+                id="quantity-help"
+                aria-live="polite"
+                className={cn(
+                  "mt-2 text-xs",
+                  isQuantityInputValid
+                    ? "text-muted-foreground"
+                    : "text-destructive",
+                )}
+              >
+                {isQuantityInputValid
+                  ? `Enter a whole number up to ${selectedVariant.stockQuantity} in stock.`
+                  : `Enter a whole number from 1 to ${selectedVariant.stockQuantity}.`}
+              </p>
             </div>
 
             {/* Total */}
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Estimated total</p>
               <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">
-                {selectedVariant.price > 0
-                  ? formatPrice(selectedVariant.price * quantity)
-                  : "Contact"}
+                {!isQuantityInputValid
+                  ? "—"
+                  : selectedVariant.price > 0
+                    ? formatPrice(estimatedTotal ?? 0)
+                    : "Contact"}
               </p>
+              {isQuantityInputValid && selectedVariant.price > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatPrice(selectedVariant.price)} × {parsedQuantity} packs
+                </p>
+              ) : !isQuantityInputValid ? (
+                <p className="mt-1 text-xs text-destructive">
+                  Total updates when the quantity is valid.
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -240,7 +331,9 @@ export function ProductPurchaseActions({
               type="button"
               size="lg"
               onClick={handleAddToCart}
-              disabled={authLoading || isAdding || !selectedVariant}
+              disabled={
+                authLoading || isAdding || !selectedVariant || !isQuantityInputValid
+              }
               className="h-12 flex-1 rounded-full bg-gradient-to-r from-primary to-teal-600 text-base font-semibold text-white shadow-[0_10px_26px_rgba(8,127,91,0.32)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(8,127,91,0.42)] disabled:translate-y-0"
             >
               <ShoppingCart className="mr-2 size-5" />
