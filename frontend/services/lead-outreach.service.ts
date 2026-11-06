@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { ExternalLead, LeadCampaign, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
+import type { ExternalLead, LeadCampaign, LeadCampaignResponse, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
 
 export const leadOutreachService = {
   importWorkbook(file: File) {
@@ -37,12 +37,15 @@ export const leadOutreachService = {
       body: JSON.stringify({ confirmEmailEligibility }),
     });
   },
-  queueCampaign(input: { name: string; subject: string; bodyText: string; leadIds: number[]; confirmSend: boolean }) {
+  queueCampaign(input: { name: string; subject: string; bodyText: string; attachBrochure: boolean; leadIds: number[]; confirmSend: boolean }) {
     return apiClient<{ id: number; status: string; recipientCount: number; excludedCount: number; message: string }>(
       "/admin/lead-campaigns/send", { method: "POST", body: JSON.stringify(input) },
     );
   },
   getCampaigns() {
     return apiClient<LeadCampaign[]>("/admin/lead-campaigns");
+  },
+  getCampaignResponses(campaignId: number) {
+    return apiClient<LeadCampaignResponse[]>(`/admin/lead-campaigns/${campaignId}/responses`);
   },
 };

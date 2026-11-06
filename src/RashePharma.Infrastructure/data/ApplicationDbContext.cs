@@ -94,6 +94,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<LeadImportRow> LeadImportRows => Set<LeadImportRow>();
     public DbSet<LeadOutreachCampaign> LeadOutreachCampaigns => Set<LeadOutreachCampaign>();
     public DbSet<LeadOutreachRecipient> LeadOutreachRecipients => Set<LeadOutreachRecipient>();
+    public DbSet<LeadOutreachResponse> LeadOutreachResponses => Set<LeadOutreachResponse>();
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
 
 
@@ -179,6 +180,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(campaign => campaign.Name).HasMaxLength(160).IsRequired();
             entity.Property(campaign => campaign.Subject).HasMaxLength(200).IsRequired();
             entity.Property(campaign => campaign.BodyText).HasMaxLength(12000).IsRequired();
+            entity.Property(campaign => campaign.AttachBrochure).HasDefaultValue(false);
             entity.Property(campaign => campaign.Status).HasMaxLength(20).IsRequired();
             entity.Property(campaign => campaign.CreatedBy).HasMaxLength(320).IsRequired();
             entity.HasIndex(campaign => new { campaign.Status, campaign.CreatedAtUtc });
@@ -203,6 +205,14 @@ public class ApplicationDbContext : DbContext
             entity.Property(activity => activity.Actor).HasMaxLength(320).IsRequired();
             entity.HasIndex(activity => new { activity.LeadId, activity.CreatedAtUtc });
             entity.HasOne<ExternalLead>().WithMany().HasForeignKey(activity => activity.LeadId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LeadOutreachResponse>(entity =>
+        {
+            entity.Property(response => response.Message).HasMaxLength(5000).IsRequired();
+            entity.HasIndex(response => response.RecipientId).IsUnique();
+            entity.HasOne(response => response.Recipient).WithMany().HasForeignKey(response => response.RecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

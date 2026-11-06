@@ -60,11 +60,21 @@ export interface LeadCampaign {
   id: number;
   name: string;
   subject: string;
+  attachBrochure: boolean;
   status: string;
   recipientCount: number;
   sentCount: number;
   failedCount: number;
+  respondedCount: number;
   createdAtUtc: string;
   queuedAtUtc: string | null;
   completedAtUtc: string | null;
+}
+
+export interface LeadCampaignResponse {
+  id: number;
+  name: string;
+  email: string | null;
+  message: string;
+  submittedAtUtc: string;
 }

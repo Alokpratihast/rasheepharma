@@ -161,6 +161,10 @@ public sealed class EmailJobServiceTests
                 Items.FirstOrDefault(
                     x => x.IdempotencyKey == idempotencyKey));
 
+        public Task<EmailJob?> GetByLeadOutreachRecipientIdAsync(int recipientId) =>
+            Task.FromResult(
+                Items.FirstOrDefault(x => x.LeadOutreachRecipientId == recipientId));
+
         public Task AddAsync(EmailJob emailJob)
         {
             Items.Add(emailJob);

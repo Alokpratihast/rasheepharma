@@ -12,6 +12,7 @@ namespace RashePharma.Infrastructure;
 
 public static class DependencyInjection
 {
+    // Shared: Azure Service Bus client and publisher
     public static IServiceCollection AddAzureServiceBus(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -55,6 +56,7 @@ public static class DependencyInjection
         return services;
     }
 
+    // API: Only Outbox Dispatcher
     public static IServiceCollection AddOutboxDispatcher(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -62,13 +64,17 @@ public static class DependencyInjection
         services
             .AddOptions<OutboxDispatcherOptions>()
             .Bind(configuration.GetSection(OutboxDispatcherOptions.SectionName))
-            .Validate(options => options.BatchSize > 0,
+            .Validate(
+                options => options.BatchSize > 0,
                 "Outbox batch size must be greater than zero.")
-            .Validate(options => options.PollingIntervalSeconds > 0,
+            .Validate(
+                options => options.PollingIntervalSeconds > 0,
                 "Polling interval must be greater than zero.")
-            .Validate(options => options.LeaseDurationSeconds > 0,
+            .Validate(
+                options => options.LeaseDurationSeconds > 0,
                 "Lease duration must be greater than zero.")
-            .Validate(options => options.MaxAttempts > 0,
+            .Validate(
+                options => options.MaxAttempts > 0,
                 "Maximum attempts must be greater than zero.")
             .Validate(
                 options =>
@@ -78,6 +84,38 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services.AddHostedService<OutboxDispatcher>();
+
+        return services;
+    }
+
+    // EmailWorker: Only Service Bus Consumer
+    public static IServiceCollection AddEmailJobConsumer(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services
+            .AddOptions<EmailJobConsumerOptions>()
+            .Bind(configuration.GetSection(EmailJobConsumerOptions.SectionName))
+            .Validate(
+                options => options.MaxConcurrentCalls > 0,
+                "Email consumer concurrency must be greater than zero.")
+            .Validate(
+                options => options.ProcessingLeaseMinutes > 0,
+                "Email processing lease must be greater than zero.")
+            .Validate(options => options.ServiceBusLockRenewalMinutes > 0,
+                "Service Bus lock renewal duration must be greater than zero.")
+            .ValidateOnStart();
+
+        services
+            .AddOptions<EmailQuotaOptions>()
+            .Bind(configuration.GetSection(EmailQuotaOptions.SectionName))
+            .Validate(options => options.OutreachDailyLimit > 0,
+                "Outreach daily quota must be greater than zero.")
+            .ValidateOnStart();
+        services.AddScoped<IEmailOutreachQuotaService, EmailOutreachQuotaService>();
+        services.AddScoped<IEmailJobSender, EmailService>();
+        services.AddScoped<EmailJobMessageHandler>();
+        services.AddHostedService<EmailJobQueueConsumer>();
 
         return services;
     }

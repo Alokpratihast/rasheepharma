@@ -21,16 +21,39 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
                 campaign.Id,
                 campaign.Name,
                 campaign.Subject,
-                Status = campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing")
+                campaign.AttachBrochure,
+                Status = campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")
                     ? "Queued"
                     : campaign.Recipients.Any(row => row.Status == "Failed") ? "CompletedWithErrors" : "Completed",
                 campaign.RecipientCount,
                 SentCount = campaign.Recipients.Count(row => row.Status == "Sent"),
                 FailedCount = campaign.Recipients.Count(row => row.Status == "Failed"),
+                RespondedCount = db.LeadOutreachResponses.Count(response => response.Recipient.CampaignId == campaign.Id),
                 campaign.CreatedAtUtc,
                 campaign.QueuedAtUtc,
                 campaign.CompletedAtUtc
             }).ToListAsync(ct));
+
+    [HttpGet("{campaignId:int}/responses")]
+    public async Task<IActionResult> GetResponses(int campaignId, CancellationToken ct)
+    {
+        var campaignExists = await db.LeadOutreachCampaigns.AsNoTracking().AnyAsync(campaign => campaign.Id == campaignId, ct);
+        if (!campaignExists) return NotFound(new { message = "Campaign not found." });
+
+        var responses = await db.LeadOutreachResponses.AsNoTracking()
+            .Where(response => response.Recipient.CampaignId == campaignId)
+            .OrderByDescending(response => response.SubmittedAtUtc)
+            .Take(500)
+            .Select(response => new
+            {
+                response.Id,
+                response.Recipient.Lead.Name,
+                response.Recipient.Lead.Email,
+                response.Message,
+                response.SubmittedAtUtc
+            }).ToListAsync(ct);
+        return Ok(responses);
+    }
 
     [HttpPost("send")]
     public async Task<IActionResult> Queue(QueueLeadCampaignRequest request, CancellationToken ct)
@@ -52,6 +75,7 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
             Name = request.Name.Trim(),
             Subject = request.Subject.Trim(),
             BodyText = request.BodyText.Trim(),
+            AttachBrochure = request.AttachBrochure,
             Status = "Queued",
             RecipientCount = eligible.Count,
             CreatedBy = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin",
@@ -78,6 +102,7 @@ public sealed class QueueLeadCampaignRequest
     [Required, StringLength(160)] public string Name { get; set; } = string.Empty;
     [Required, StringLength(200)] public string Subject { get; set; } = string.Empty;
     [Required, StringLength(12000)] public string BodyText { get; set; } = string.Empty;
+    public bool AttachBrochure { get; set; }
     [Required, MinLength(1), MaxLength(5000)] public List<int> LeadIds { get; set; } = [];
     public bool ConfirmSend { get; set; }
 }

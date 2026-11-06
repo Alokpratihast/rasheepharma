@@ -10,6 +10,8 @@ public interface IEmailJobRepository
     Task<EmailJob?> GetByIdempotencyKeyAsync(
         string idempotencyKey);
 
+    Task<EmailJob?> GetByLeadOutreachRecipientIdAsync(int recipientId);
+
     Task AddAsync(EmailJob emailJob);
 
     Task UpdateAsync(EmailJob emailJob);

@@ -6,6 +6,7 @@ public sealed class LeadOutreachCampaign
     public string Name { get; set; } = string.Empty;
     public string Subject { get; set; } = string.Empty;
     public string BodyText { get; set; } = string.Empty;
+    public bool AttachBrochure { get; set; }
     public string Status { get; set; } = "Draft";
     public int RecipientCount { get; set; }
     public int SentCount { get; set; }

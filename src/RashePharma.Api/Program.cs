@@ -283,6 +283,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy("brevo-webhook", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddOpenApi();
@@ -398,21 +409,6 @@ if (!builder.Environment.IsEnvironment("Testing"))
         options =>
             options.UseSqlServer(connectionString!));
 }
-
-
-// =========================================================
-// Azure Service Bus
-// =========================================================
-
-if (!builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddAzureServiceBus(builder.Configuration);
-    builder.Services.AddOutboxDispatcher(builder.Configuration);
-}
-
-
-
-
 
 
 // =========================================================
@@ -809,6 +805,16 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmailJobService,
     EmailJobService>();
+
+builder.Services.AddScoped<BrevoWebhookProcessor>();
+
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    // Azure Service Bus publisher and API-owned outbox dispatcher.
+    builder.Services.AddAzureServiceBus(builder.Configuration);
+    builder.Services.AddOutboxDispatcher(builder.Configuration);
+}
 
 
 // =========================================================

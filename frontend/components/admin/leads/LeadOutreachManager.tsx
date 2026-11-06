@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Mail, Search, Send, ShieldCheck, Upload, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Mail, MessageSquareReply, Search, Send, ShieldCheck, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Pagination } from "@/components/admin/Pagination";
 import { leadOutreachService } from "@/services/lead-outreach.service";
-import type { ExternalLead, LeadCampaign, LeadImportPreview, LeadPage } from "@/types/lead-outreach";
+import type { ExternalLead, LeadCampaign, LeadCampaignResponse, LeadImportPreview, LeadPage } from "@/types/lead-outreach";
 
 const inputClass = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 
@@ -26,6 +26,7 @@ export function LeadOutreachManager() {
   const [campaignName, setCampaignName] = useState("");
   const [subject, setSubject] = useState("A message from Rashe Lifesciences");
   const [bodyText, setBodyText] = useState("We would be glad to help with your pharmaceutical product requirements.\n\nReply to this email to speak with our team.");
+  const [attachBrochure, setAttachBrochure] = useState(false);
   const [sending, setSending] = useState(false);
 
   const loadLeads = useCallback(async () => {
@@ -143,7 +144,7 @@ export function LeadOutreachManager() {
     if (!window.confirm(`Queue this email for ${selectedEligible.length} permission-verified leads?`)) return;
     setSending(true);
     try {
-      const result = await leadOutreachService.queueCampaign({ name: campaignName.trim(), subject: subject.trim(), bodyText: bodyText.trim(), leadIds: selectedEligible, confirmSend: true });
+      const result = await leadOutreachService.queueCampaign({ name: campaignName.trim(), subject: subject.trim(), bodyText: bodyText.trim(), attachBrochure, leadIds: selectedEligible, confirmSend: true });
       toast.success(`${result.recipientCount} emails queued. Follow the progress below.`);
       setSelected([]); setCampaignName(""); await loadCampaigns();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not queue this campaign."); }
@@ -158,6 +159,7 @@ export function LeadOutreachManager() {
       { label: "Permission allowed", value: leads?.counts.allowed ?? 0, Icon: CheckCircle2 },
       { label: "Permission unknown", value: leads?.counts.unknown ?? 0, Icon: AlertTriangle },
       { label: "Unsubscribed", value: leads?.counts.suppressed ?? 0, Icon: Mail },
+      { label: "Campaign replies", value: campaigns.reduce((total, campaign) => total + campaign.respondedCount, 0), Icon: MessageSquareReply },
     ].map(({ label, value, Icon }) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-600">{label}</p><Icon className="size-5 text-emerald-700"/></div><p className="mt-2 text-2xl font-bold text-slate-900">{value.toLocaleString()}</p></article>)}</section>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -178,12 +180,30 @@ export function LeadOutreachManager() {
     </section>
 
     <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-2.5 text-blue-800"><Send className="size-5"/></div><div><h2 className="text-lg font-semibold">Compose outreach</h2><p className="text-sm text-slate-500">Selected eligible leads: {selectedEligible.length}</p></div></div><label className="block text-sm font-medium">Campaign name<input maxLength={160} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="e.g. Product follow-up" className={`${inputClass} mt-1`}/></label><label className="block text-sm font-medium">Email subject<input maxLength={200} value={subject} onChange={(event) => setSubject(event.target.value)} className={`${inputClass} mt-1`}/></label><label className="block text-sm font-medium">Message<textarea maxLength={12000} rows={6} value={bodyText} onChange={(event) => setBodyText(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/><span className="text-xs font-normal text-slate-500">Plain text only; message values are HTML-encoded in the branded email.</span></label><div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Each recipient gets an individual email with an unsubscribe link. Uncertain SMTP failures are not retried automatically to avoid duplicate messages.</div><button type="button" disabled={sending || selectedEligible.length === 0} onClick={() => void queueCampaign()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Send className="size-4"/>{sending ? "Queueing…" : "Review and queue email"}</button></div>
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-2.5 text-blue-800"><Send className="size-5"/></div><div><h2 className="text-lg font-semibold">Compose outreach</h2><p className="text-sm text-slate-500">Selected eligible leads: {selectedEligible.length}</p></div></div><label className="block text-sm font-medium">Campaign name<input maxLength={160} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="e.g. Product follow-up" className={`${inputClass} mt-1`}/></label><label className="block text-sm font-medium">Email subject<input maxLength={200} value={subject} onChange={(event) => setSubject(event.target.value)} className={`${inputClass} mt-1`}/></label><label className="block text-sm font-medium">Message<textarea maxLength={12000} rows={6} value={bodyText} onChange={(event) => setBodyText(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/><span className="text-xs font-normal text-slate-500">Plain text only; message values are HTML-encoded in the branded email.</span></label><label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm"><input type="checkbox" checked={attachBrochure} onChange={(event) => setAttachBrochure(event.target.checked)} className="mt-0.5 size-4 accent-emerald-700"/><span><span className="block font-semibold text-slate-800">Attach company brochure PDF</span><span className="mt-1 block text-xs font-normal text-slate-500">The email worker securely fetches the configured brochure from private Azure storage.</span></span></label><div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Each recipient gets an individual email with an unsubscribe link. Uncertain SMTP failures are not retried automatically to avoid duplicate messages.</div><button type="button" disabled={sending || selectedEligible.length === 0} onClick={() => void queueCampaign()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Send className="size-4"/>{sending ? "Queueing…" : "Review and queue email"}</button></div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Recent campaigns</h2><p className="text-sm text-slate-500">Background worker delivery status</p></div><button type="button" onClick={() => void loadCampaigns()} className="text-sm font-semibold text-emerald-700">Refresh</button></div><div className="mt-4 space-y-3">{campaigns.length === 0 ? <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No outreach campaigns yet.</p> : campaigns.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign}/>)}</div></div>
     </section>
   </main>;
 }
 
 function CampaignCard({ campaign }: { campaign: LeadCampaign }) {
-  return <article className="rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{campaign.name}</p><p className="mt-1 truncate text-sm text-slate-600">{campaign.subject}</p></div><span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{campaign.status}</span></div><p className="mt-3 text-xs text-slate-500">{campaign.sentCount}/{campaign.recipientCount} sent · {campaign.failedCount} failed · {new Date(campaign.createdAtUtc).toLocaleString()}</p></article>;
+  const [expanded, setExpanded] = useState(false);
+  const [responses, setResponses] = useState<LeadCampaignResponse[] | null>(null);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+  const [responseError, setResponseError] = useState("");
+
+  const toggleResponses = async () => {
+    if (expanded) { setExpanded(false); return; }
+    setExpanded(true);
+    if (responses !== null || campaign.respondedCount === 0) return;
+    setLoadingResponses(true); setResponseError("");
+    try { setResponses(await leadOutreachService.getCampaignResponses(campaign.id)); }
+    catch (error) { setResponseError(error instanceof Error ? error.message : "Could not load campaign replies."); }
+    finally { setLoadingResponses(false); }
+  };
+
+  return <article className="rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-slate-900">{campaign.name}</p><p className="mt-1 truncate text-sm text-slate-600">{campaign.subject}</p>{campaign.attachBrochure && <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">Brochure attached</span>}</div><span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{campaign.status}</span></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><p className="rounded-lg bg-emerald-50 p-2 text-emerald-800"><strong>{campaign.sentCount}</strong><br/>sent</p><p className="rounded-lg bg-rose-50 p-2 text-rose-800"><strong>{campaign.failedCount}</strong><br/>failed</p><p className="rounded-lg bg-blue-50 p-2 text-blue-800"><strong>{campaign.respondedCount}</strong><br/>replies</p></div><p className="mt-3 text-xs text-slate-500">{campaign.sentCount}/{campaign.recipientCount} sent · {new Date(campaign.createdAtUtc).toLocaleString()}</p>
+    <button type="button" onClick={() => void toggleResponses()} disabled={campaign.respondedCount === 0} className="mt-3 text-sm font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-400">{expanded ? "Hide replies" : `View replies (${campaign.respondedCount})`}</button>
+    {expanded && campaign.respondedCount > 0 && <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">{loadingResponses ? <div className="h-16 animate-pulse rounded-lg bg-slate-100" aria-label="Loading campaign replies"/> : responseError ? <p role="alert" className="text-sm text-rose-700">{responseError}</p> : responses?.length ? responses.map((response) => <div key={response.id} className="rounded-lg bg-slate-50 p-3"><p className="font-medium text-slate-900">{response.name} <span className="font-normal text-slate-500">{response.email ? `· ${response.email}` : ""}</span></p><p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{response.message}</p><p className="mt-2 text-xs text-slate-500">{new Date(response.submittedAtUtc).toLocaleString()}</p></div>) : <p className="text-sm text-slate-500">No replies recorded yet.</p>}</div>}
+  </article>;
 }
