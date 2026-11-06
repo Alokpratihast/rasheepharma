@@ -180,6 +180,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(campaign => campaign.Name).HasMaxLength(160).IsRequired();
             entity.Property(campaign => campaign.Subject).HasMaxLength(200).IsRequired();
             entity.Property(campaign => campaign.BodyText).HasMaxLength(12000).IsRequired();
+            entity.Property(campaign => campaign.AttachBrochure).HasDefaultValue(false);
             entity.Property(campaign => campaign.Status).HasMaxLength(20).IsRequired();
             entity.Property(campaign => campaign.CreatedBy).HasMaxLength(320).IsRequired();
             entity.HasIndex(campaign => new { campaign.Status, campaign.CreatedAtUtc });

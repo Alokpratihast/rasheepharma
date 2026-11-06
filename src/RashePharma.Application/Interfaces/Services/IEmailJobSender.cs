@@ -8,5 +8,6 @@ public interface IEmailJobSender
         string toName,
         string subject,
         string htmlBody,
+        EmailAttachment? attachment = null,
         CancellationToken cancellationToken = default);
 }

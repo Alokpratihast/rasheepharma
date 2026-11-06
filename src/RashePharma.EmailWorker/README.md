@@ -10,6 +10,7 @@ Provide these through the host's secret store or environment variables; do not c
 - Either `AzureServiceBus__ConnectionString` or `AzureServiceBus__FullyQualifiedNamespace` (with managed identity)
 - `Brevo__SmtpHost`, `Brevo__SmtpPort`, `Brevo__SmtpUsername`, `Brevo__SmtpPassword`, `Brevo__FromEmail`, and `Brevo__FromName`
 - `Jwt__Key` is only needed by the API recipient producer to make unsubscribe and reply links.
+- To enable the optional outreach brochure attachment, configure `ConnectionStrings__AzureStorage` and `Email__QuotationBrochure__ContainerName` (default `brochures`), `Email__QuotationBrochure__BlobName` (default `Rashe_Lifesciences_Client_Brochure_v2.pdf`), and `Email__QuotationBrochure__MaxBytes` (default `10485760`) on the EmailWorker host. The worker downloads only this configured PDF from private Blob Storage; campaign requests cannot supply a URL or filename.
 
 ## Local run
 

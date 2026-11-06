@@ -60,6 +60,7 @@ export interface LeadCampaign {
   id: number;
   name: string;
   subject: string;
+  attachBrochure: boolean;
   status: string;
   recipientCount: number;
   sentCount: number;

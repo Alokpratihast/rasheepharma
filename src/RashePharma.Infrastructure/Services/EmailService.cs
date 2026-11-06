@@ -107,6 +107,7 @@ public async Task SendAsync(
         string toName,
         string subject,
         string htmlBody,
+        EmailAttachment? attachment = null,
         CancellationToken cancellationToken = default)
     {
         if (emailJobId == Guid.Empty)
@@ -128,7 +129,19 @@ public async Task SendAsync(
         message.Subject = subject;
         // Brevo echoes this custom header in transactional webhook payloads.
         message.Headers.Add("X-Mailin-custom", emailJobId.ToString("D"));
-        message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
+        var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
+        if (attachment is not null)
+        {
+            if (attachment.Content.Length == 0 ||
+                !string.Equals(attachment.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Email attachment must be a non-empty PDF.", nameof(attachment));
+
+            bodyBuilder.Attachments.Add(
+                Path.GetFileName(attachment.FileName),
+                attachment.Content,
+                new ContentType("application", "pdf"));
+        }
+        message.Body = bodyBuilder.ToMessageBody();
 
         using var smtp = new SmtpClient();
         await smtp.ConnectAsync(smtpHost, smtpPort == 0 ? 587 : smtpPort,

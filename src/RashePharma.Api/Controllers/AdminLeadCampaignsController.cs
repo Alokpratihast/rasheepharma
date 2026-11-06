@@ -21,6 +21,7 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
                 campaign.Id,
                 campaign.Name,
                 campaign.Subject,
+                campaign.AttachBrochure,
                 Status = campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")
                     ? "Queued"
                     : campaign.Recipients.Any(row => row.Status == "Failed") ? "CompletedWithErrors" : "Completed",
@@ -74,6 +75,7 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
             Name = request.Name.Trim(),
             Subject = request.Subject.Trim(),
             BodyText = request.BodyText.Trim(),
+            AttachBrochure = request.AttachBrochure,
             Status = "Queued",
             RecipientCount = eligible.Count,
             CreatedBy = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin",
@@ -100,6 +102,7 @@ public sealed class QueueLeadCampaignRequest
     [Required, StringLength(160)] public string Name { get; set; } = string.Empty;
     [Required, StringLength(200)] public string Subject { get; set; } = string.Empty;
     [Required, StringLength(12000)] public string BodyText { get; set; } = string.Empty;
+    public bool AttachBrochure { get; set; }
     [Required, MinLength(1), MaxLength(5000)] public List<int> LeadIds { get; set; } = [];
     public bool ConfirmSend { get; set; }
 }

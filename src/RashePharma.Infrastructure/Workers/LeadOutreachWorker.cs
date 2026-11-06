@@ -132,7 +132,8 @@ public sealed class LeadOutreachWorker(
             {
                 ToName = recipient.Lead.Name,
                 Subject = recipient.Campaign.Subject,
-                HtmlBody = RenderTemplate(recipient.Campaign, recipient.Lead.Name, unsubscribeUrl, responseUrl, origin)
+                HtmlBody = RenderTemplate(recipient.Campaign, recipient.Lead.Name, unsubscribeUrl, responseUrl, origin),
+                AttachBrochure = recipient.Campaign.AttachBrochure
             };
             var serializedPayload = JsonSerializer.Serialize(payload, JsonOptions);
             var job = await jobs.CreateJobAsync(new EmailJob

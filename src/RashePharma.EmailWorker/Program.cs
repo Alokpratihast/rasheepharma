@@ -21,6 +21,16 @@ builder.Services.AddScoped<IEmailDeliveryEventRepository, EmailDeliveryEventRepo
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailJobService, EmailJobService>();
 
+var storageConnectionString = builder.Configuration.GetConnectionString("AzureStorage");
+if (!string.IsNullOrWhiteSpace(storageConnectionString))
+{
+    builder.Services.AddSingleton<IBrochureStorageService>(_ => new AzureBlobBrochureStorageService(
+        storageConnectionString,
+        builder.Configuration["Email:QuotationBrochure:ContainerName"] ?? "brochures",
+        builder.Configuration["Email:QuotationBrochure:BlobName"] ?? "Rashe_Lifesciences_Client_Brochure_v2.pdf",
+        builder.Configuration.GetValue<long?>("Email:QuotationBrochure:MaxBytes") ?? 10 * 1024 * 1024));
+}
+
 builder.Services.AddAzureServiceBus(builder.Configuration);
 builder.Services.AddEmailJobConsumer(builder.Configuration);
 

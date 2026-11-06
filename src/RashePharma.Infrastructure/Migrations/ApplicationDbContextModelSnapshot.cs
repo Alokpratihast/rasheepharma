@@ -1138,6 +1138,11 @@ namespace RashePharma.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AttachBrochure")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("BodyText")
                         .IsRequired()
                         .HasMaxLength(12000)

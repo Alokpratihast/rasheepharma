@@ -27,10 +27,13 @@ public sealed record EmailJobMessageHandlingResult(
 public sealed class EmailJobMessageHandler(
     ApplicationDbContext db,
     IEmailJobSender emailJobSender,
+    IEnumerable<IBrochureStorageService> brochureStorageServices,
     IEmailOutreachQuotaService quotaService,
     IOptions<EmailJobConsumerOptions> options,
     ILogger<EmailJobMessageHandler> logger)
 {
+    private const int MaxBrochureDownloadAttempts = 5;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -202,12 +205,49 @@ public sealed class EmailJobMessageHandler(
                 return new(EmailJobMessageResult.Busy, retryAt);
             }
         }
+        EmailAttachment? attachment = null;
+        if (payload.AttachBrochure)
+        {
+            var brochureStorage = brochureStorageServices.FirstOrDefault();
+            var retryAt = DateTime.UtcNow.AddMinutes(5);
+            if (brochureStorage is null)
+            {
+                logger.LogError("Email job {EmailJobId} requests a brochure, but brochure storage is not configured.", job.Id);
+                await quotaService.ReleaseAsync(job.Id, job.AttemptCount, DateTime.UtcNow, cancellationToken);
+                await MarkPermanentFailureAsync(job, "BROCHURE_STORAGE_NOT_CONFIGURED", cancellationToken);
+                return new(EmailJobMessageResult.Completed);
+            }
+
+            try
+            {
+                attachment = await brochureStorage.DownloadAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Could not fetch the configured brochure for email job {EmailJobId}; scheduling a safe pre-send retry.", job.Id);
+                await quotaService.ReleaseAsync(job.Id, job.AttemptCount, DateTime.UtcNow, cancellationToken);
+                if (job.AttemptCount >= MaxBrochureDownloadAttempts)
+                {
+                    logger.LogError("Brochure download failed {AttemptCount} times for email job {EmailJobId}; marking it failed.", job.AttemptCount, job.Id);
+                    await MarkPermanentFailureAsync(job, "BROCHURE_FETCH_FAILED", cancellationToken);
+                    return new(EmailJobMessageResult.Completed);
+                }
+
+                await MarkRetryScheduledAsync(job, outreachRecipient, "BROCHURE_FETCH_FAILED", "The brochure could not be fetched; this email has not been sent and will retry.", retryAt, cancellationToken);
+                return new(EmailJobMessageResult.Busy, retryAt);
+            }
+        }
+
         string providerMessageId;
         try
         {
             providerMessageId = await emailJobSender.SendAsync(
                 job.Id, job.RecipientEmail, payload.ToName, payload.Subject, payload.HtmlBody,
-                cancellationToken);
+                attachment, cancellationToken);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -365,6 +405,32 @@ public sealed class EmailJobMessageHandler(
             job,
             job.LastErrorMessage,
             ct);
+
+        await db.SaveChangesAsync(ct);
+        await RefreshCampaignForJobAsync(job, ct);
+    }
+
+    private async Task MarkRetryScheduledAsync(
+        EmailJob job,
+        LeadOutreachRecipient? recipient,
+        string code,
+        string message,
+        DateTime retryAtUtc,
+        CancellationToken ct)
+    {
+        job.Status = EmailJobStatus.RetryScheduled;
+        job.ProcessingLeaseUntilUtc = null;
+        job.NextAttemptAtUtc = retryAtUtc;
+        job.UpdatedAtUtc = DateTime.UtcNow;
+        job.LastErrorCode = code;
+        job.LastErrorMessage = message;
+
+        if (recipient is not null)
+        {
+            recipient.Status = "Queued";
+            recipient.ProcessingAtUtc = null;
+            recipient.ErrorMessage = message;
+        }
 
         await db.SaveChangesAsync(ct);
         await RefreshCampaignForJobAsync(job, ct);

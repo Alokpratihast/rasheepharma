@@ -37,7 +37,7 @@ export const leadOutreachService = {
       body: JSON.stringify({ confirmEmailEligibility }),
     });
   },
-  queueCampaign(input: { name: string; subject: string; bodyText: string; leadIds: number[]; confirmSend: boolean }) {
+  queueCampaign(input: { name: string; subject: string; bodyText: string; attachBrochure: boolean; leadIds: number[]; confirmSend: boolean }) {
     return apiClient<{ id: number; status: string; recipientCount: number; excludedCount: number; message: string }>(
       "/admin/lead-campaigns/send", { method: "POST", body: JSON.stringify(input) },
     );
