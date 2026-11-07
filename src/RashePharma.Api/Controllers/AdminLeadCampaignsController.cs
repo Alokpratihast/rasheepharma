@@ -34,6 +34,134 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
                 campaign.CompletedAtUtc
             }).ToListAsync(ct));
 
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] string? search = null,
+        [FromQuery] string status = "All",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
+    {
+        page = Math.Clamp(page, 1, 100_000);
+        pageSize = Math.Clamp(pageSize, 10, 100);
+        var query = db.LeadOutreachCampaigns.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            term = term[..Math.Min(term.Length, 100)];
+            query = query.Where(campaign => campaign.Name.Contains(term) || campaign.Subject.Contains(term));
+        }
+        if (status == "Queued")
+            query = query.Where(campaign => campaign.Recipients.Any(row =>
+                row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued"));
+        else if (status == "CompletedWithErrors")
+            query = query.Where(campaign =>
+                !campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued") &&
+                campaign.Recipients.Any(row => row.Status == "Failed"));
+        else if (status == "Completed")
+            query = query.Where(campaign =>
+                !campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued") &&
+                !campaign.Recipients.Any(row => row.Status == "Failed"));
+
+        var total = await query.CountAsync(ct);
+        var campaigns = await query.OrderByDescending(campaign => campaign.CreatedAtUtc)
+            .ThenByDescending(campaign => campaign.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(campaign => new
+            {
+                campaign.Id,
+                campaign.Name,
+                campaign.Subject,
+                campaign.AttachBrochure,
+                Status = campaign.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")
+                    ? "Queued"
+                    : campaign.Recipients.Any(row => row.Status == "Failed") ? "CompletedWithErrors" : "Completed",
+                campaign.RecipientCount,
+                SentCount = campaign.Recipients.Count(row => row.Status == "Sent"),
+                FailedCount = campaign.Recipients.Count(row => row.Status == "Failed"),
+                RespondedCount = db.LeadOutreachResponses.Count(response => response.Recipient.CampaignId == campaign.Id),
+                campaign.CreatedAtUtc,
+                campaign.QueuedAtUtc,
+                campaign.CompletedAtUtc
+            }).ToListAsync(ct);
+
+        return Ok(new { campaigns, page, pageSize, total });
+    }
+
+    [HttpGet("{campaignId:int}")]
+    public async Task<IActionResult> GetCampaignDetail(
+        int campaignId,
+        [FromQuery] string? search = null,
+        [FromQuery] string status = "All",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
+    {
+        page = Math.Clamp(page, 1, 100_000);
+        pageSize = Math.Clamp(pageSize, 10, 100);
+
+        var campaign = await db.LeadOutreachCampaigns.AsNoTracking()
+            .Where(item => item.Id == campaignId)
+            .Select(item => new
+            {
+                item.Id,
+                item.Name,
+                item.Subject,
+                item.BodyText,
+                item.AttachBrochure,
+                Status = item.Recipients.Any(row => row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")
+                    ? "Queued"
+                    : item.Recipients.Any(row => row.Status == "Failed") ? "CompletedWithErrors" : "Completed",
+                item.RecipientCount,
+                SentCount = item.Recipients.Count(row => row.Status == "Sent"),
+                FailedCount = item.Recipients.Count(row => row.Status == "Failed"),
+                RespondedCount = db.LeadOutreachResponses.Count(response => response.Recipient.CampaignId == item.Id),
+                item.CreatedAtUtc,
+                item.QueuedAtUtc,
+                item.CompletedAtUtc
+            }).FirstOrDefaultAsync(ct);
+        if (campaign is null) return NotFound(new { message = "Campaign not found." });
+
+        var recipientsQuery = db.LeadOutreachRecipients.AsNoTracking()
+            .Where(recipient => recipient.CampaignId == campaignId);
+        var statusCounts = await recipientsQuery.GroupBy(recipient => recipient.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync(ct);
+
+        if (status is "Pending" or "Processing" or "Queued" or "Sent" or "Failed" or "Skipped")
+            recipientsQuery = recipientsQuery.Where(recipient => recipient.Status == status);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            term = term[..Math.Min(term.Length, 100)];
+            recipientsQuery = recipientsQuery.Where(recipient => recipient.Lead.Name.Contains(term) ||
+                (recipient.Lead.Email != null && recipient.Lead.Email.Contains(term)) ||
+                (recipient.Lead.ProductInterest != null && recipient.Lead.ProductInterest.Contains(term)));
+        }
+
+        var total = await recipientsQuery.CountAsync(ct);
+        var recipients = await recipientsQuery.OrderByDescending(recipient => recipient.CreatedAtUtc)
+            .ThenBy(recipient => recipient.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(recipient => new
+            {
+                recipient.Id,
+                Name = recipient.Lead.Name,
+                Email = recipient.Lead.Email,
+                ProductInterest = recipient.Lead.ProductInterest,
+                recipient.Status,
+                recipient.AttemptCount,
+                recipient.ErrorMessage,
+                recipient.CreatedAtUtc,
+                recipient.SentAtUtc
+            }).ToListAsync(ct);
+
+        return Ok(new { campaign, recipients, page, pageSize, total, statusCounts });
+    }
+
     [HttpGet("{campaignId:int}/responses")]
     public async Task<IActionResult> GetResponses(int campaignId, CancellationToken ct)
     {
