@@ -238,6 +238,7 @@ public sealed class LeadOutreachWorker(
     private static string RenderTemplate(LeadOutreachCampaign campaign, string recipientName, string unsubscribeUrl, string responseUrl, Uri websiteUrl)
     {
         var safeName = WebUtility.HtmlEncode(recipientName);
+        var logoUrl = WebUtility.HtmlEncode(new Uri(websiteUrl, "/images/Rashelifescience.png").AbsoluteUri);
         var paragraphs = campaign.BodyText.Split("\n", StringSplitOptions.TrimEntries)
             .Where(line => line.Length > 0)
             .Select(line => $"<p style=\"margin:0 0 14px;color:#334155;line-height:1.6\">{WebUtility.HtmlEncode(line)}</p>");
@@ -246,7 +247,7 @@ public sealed class LeadOutreachWorker(
             <!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px"><tr><td align="center">
             <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:14px;overflow:hidden">
-            <tr><td style="background:#064e3b;padding:24px 32px;color:#fff"><strong style="font-size:20px">Rashe Lifesciences</strong><br><span style="font-size:12px;color:#a7f3d0">Healthcare & pharmaceutical solutions</span></td></tr>
+            <tr><td style="background:#064e3b;padding:24px 32px;color:#fff"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="background:#fff;padding:8px 12px;border-radius:8px"><a href="{WebUtility.HtmlEncode(websiteUrl.ToString().TrimEnd('/'))}" style="text-decoration:none"><img src="{logoUrl}" alt="Rashe Lifesciences Pvt. Ltd. — A Pharmaceutical Company" width="210" style="display:block;width:210px;max-width:100%;height:auto;border:0"></a></td></tr><tr><td style="padding-top:12px;font-size:12px;color:#a7f3d0">Healthcare & pharmaceutical solutions</td></tr></table></td></tr>
             <tr><td style="padding:32px"><p style="margin:0 0 18px">Hello {safeName},</p>{content}<p style="margin:24px 0 0;color:#334155">Regards,<br><strong>Rashe Lifesciences Team</strong></p><p style="margin:24px 0 0"><a href="{WebUtility.HtmlEncode(responseUrl)}" style="display:inline-block;background:#047857;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Reply to this message</a></p></td></tr>
             <tr><td style="border-top:1px solid #e2e8f0;padding:18px 32px;color:#64748b;font-size:12px">You are receiving this business email because your contact is recorded in our lead system. <a href="{WebUtility.HtmlEncode(unsubscribeUrl)}" style="color:#047857">Unsubscribe</a> · <a href="{WebUtility.HtmlEncode(websiteUrl.ToString().TrimEnd('/'))}" style="color:#047857">Website</a></td></tr>
             </table></td></tr></table></body></html>

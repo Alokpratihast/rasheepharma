@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { ExternalLead, LeadCampaign, LeadCampaignResponse, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
+import type { ExternalLead, LeadCampaign, LeadCampaignDetailPage, LeadCampaignHistoryPage, LeadCampaignResponse, LeadImportPreview, LeadImportSummary, LeadPage, LeadPermissionStatus } from "@/types/lead-outreach";
 
 export const leadOutreachService = {
   importWorkbook(file: File) {
@@ -44,6 +44,24 @@ export const leadOutreachService = {
   },
   getCampaigns() {
     return apiClient<LeadCampaign[]>("/admin/lead-campaigns");
+  },
+  getCampaignHistory(params: { search: string; status: string; page: number; pageSize: number }) {
+    const query = new URLSearchParams({
+      search: params.search,
+      status: params.status,
+      page: String(params.page),
+      pageSize: String(params.pageSize),
+    });
+    return apiClient<LeadCampaignHistoryPage>(`/admin/lead-campaigns/history?${query.toString()}`);
+  },
+  getCampaignDetail(campaignId: number, params: { search: string; status: string; page: number; pageSize: number }) {
+    const query = new URLSearchParams({
+      search: params.search,
+      status: params.status,
+      page: String(params.page),
+      pageSize: String(params.pageSize),
+    });
+    return apiClient<LeadCampaignDetailPage>(`/admin/lead-campaigns/${campaignId}?${query.toString()}`);
   },
   getCampaignResponses(campaignId: number) {
     return apiClient<LeadCampaignResponse[]>(`/admin/lead-campaigns/${campaignId}/responses`);

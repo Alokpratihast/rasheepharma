@@ -78,3 +78,31 @@ export interface LeadCampaignResponse {
   message: string;
   submittedAtUtc: string;
 }
+
+export interface LeadCampaignHistoryPage {
+  campaigns: LeadCampaign[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface LeadCampaignRecipient {
+  id: number;
+  name: string;
+  email: string | null;
+  productInterest: string | null;
+  status: string;
+  attemptCount: number;
+  errorMessage: string | null;
+  createdAtUtc: string;
+  sentAtUtc: string | null;
+}
+
+export interface LeadCampaignDetailPage {
+  campaign: LeadCampaign & { bodyText: string };
+  recipients: LeadCampaignRecipient[];
+  page: number;
+  pageSize: number;
+  total: number;
+  statusCounts: Array<{ status: string; count: number }>;
+}
