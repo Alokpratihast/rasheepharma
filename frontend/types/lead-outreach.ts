@@ -1,4 +1,5 @@
 export type LeadPermissionStatus = "Unknown" | "Allowed" | "Blocked";
+export type LeadOutreachStatus = "NeverSent" | "InProgress" | "Sent" | "Failed" | "Skipped";
 
 export interface ExternalLead {
   id: number;
@@ -15,6 +16,7 @@ export interface ExternalLead {
   historicalMailSentOn: string | null;
   isSuppressed: boolean;
   canReceiveMarketingEmail: boolean;
+  outreachStatus: LeadOutreachStatus;
   updatedAtUtc: string;
 }
 

@@ -17,6 +17,8 @@ public sealed class AdminLeadsController(ApplicationDbContext db) : ControllerBa
     public async Task<IActionResult> GetPage(
         [FromQuery] string? search = null,
         [FromQuery] string permission = "All",
+        [FromQuery] string productInterest = "All",
+        [FromQuery] string outreachStatus = "All",
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         CancellationToken ct = default)
@@ -26,6 +28,35 @@ public sealed class AdminLeadsController(ApplicationDbContext db) : ControllerBa
         var query = db.ExternalLeads.AsNoTracking();
         if (permission is "Unknown" or "Allowed" or "Blocked")
             query = query.Where(lead => lead.PermissionStatus == permission);
+        if (!string.IsNullOrWhiteSpace(productInterest) && productInterest != "All")
+        {
+            var product = productInterest.Trim()[..Math.Min(productInterest.Trim().Length, 200)];
+            query = query.Where(lead => lead.ProductInterest != null &&
+                (lead.ProductInterest == product ||
+                 lead.ProductInterest.StartsWith(product + ";") ||
+                 lead.ProductInterest.Contains("; " + product + ";") ||
+                 lead.ProductInterest.EndsWith("; " + product)));
+        }
+
+        if (outreachStatus == "Sent")
+            query = query.Where(lead => db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Sent"));
+        else if (outreachStatus == "InProgress")
+            query = query.Where(lead => db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id &&
+                (row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")));
+        else if (outreachStatus == "Failed")
+            query = query.Where(lead =>
+                !db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Sent") &&
+                !db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id &&
+                    (row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")) &&
+                db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Failed"));
+        else if (outreachStatus == "NeverSent")
+            query = query.Where(lead => !db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id &&
+                (row.Status == "Sent" || row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued" || row.Status == "Failed")));
+        else if (outreachStatus == "Skipped")
+            query = query.Where(lead =>
+                !db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id &&
+                    (row.Status == "Sent" || row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued" || row.Status == "Failed")) &&
+                db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Skipped"));
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim()[..Math.Min(search.Trim().Length, 100)];
@@ -44,6 +75,11 @@ public sealed class AdminLeadsController(ApplicationDbContext db) : ControllerBa
                 lead.BusinessType, lead.ProductInterest, lead.Source, lead.PermissionStatus,
                 lead.PermissionEvidence, lead.HistoricalMailSentOn, lead.IsSuppressed,
                 lead.CreatedAtUtc, lead.UpdatedAtUtc,
+                OutreachStatus = db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Sent") ? "Sent" :
+                    db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id &&
+                        (row.Status == "Pending" || row.Status == "Processing" || row.Status == "Queued")) ? "InProgress" :
+                    db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Failed") ? "Failed" :
+                    db.LeadOutreachRecipients.Any(row => row.LeadId == lead.Id && row.Status == "Skipped") ? "Skipped" : "NeverSent",
                 CanReceiveMarketingEmail = lead.PermissionStatus == "Allowed" && !lead.IsSuppressed && lead.Email != null
             }).ToListAsync(ct);
 
@@ -56,6 +92,26 @@ public sealed class AdminLeadsController(ApplicationDbContext db) : ControllerBa
             Suppressed = group.Count(lead => lead.IsSuppressed)
         }).FirstOrDefaultAsync(ct);
         return Ok(new { leads, page, pageSize, total, counts = counts ?? new { Total = 0, Allowed = 0, Unknown = 0, UnknownEmail = 0, Suppressed = 0 } });
+    }
+
+    [HttpGet("product-interests")]
+    public async Task<IActionResult> GetProductInterests(CancellationToken ct)
+    {
+        var interests = await db.ExternalLeads.AsNoTracking()
+            .Where(lead => lead.ProductInterest != null && lead.ProductInterest != "")
+            .Select(lead => lead.ProductInterest!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var products = interests
+            .SelectMany(value => value.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(value => value.Trim())
+            .Where(value => value.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value)
+            .ToArray();
+
+        return Ok(products);
     }
 
     [HttpPut("{id:int}/permission")]
