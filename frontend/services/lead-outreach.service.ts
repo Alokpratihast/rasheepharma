@@ -16,14 +16,19 @@ export const leadOutreachService = {
       body: JSON.stringify({ confirmEmailEligibility }),
     });
   },
-  getLeads(params: { search: string; permission: string; page: number; pageSize: number }) {
+  getLeads(params: { search: string; permission: string; productInterest: string; outreachStatus: string; page: number; pageSize: number }) {
     const query = new URLSearchParams({
       search: params.search,
       permission: params.permission,
+      productInterest: params.productInterest,
+      outreachStatus: params.outreachStatus,
       page: String(params.page),
       pageSize: String(params.pageSize),
     });
     return apiClient<LeadPage>(`/admin/leads?${query.toString()}`);
+  },
+  getProductInterests() {
+    return apiClient<string[]>("/admin/leads/product-interests");
   },
   updatePermission(id: number, permissionStatus: LeadPermissionStatus, evidence?: string) {
     return apiClient<Pick<ExternalLead, "id" | "permissionStatus" | "permissionEvidence" | "isSuppressed" | "canReceiveMarketingEmail">>(
