@@ -1,35 +1,57 @@
 import { cn } from "@/lib/utils";
 
 interface SectionHeadingProps {
+  /** Two-digit section index, e.g. "01". */
+  index?: string;
   eyebrow: string;
   title: string;
   description?: string;
+  /** Use on dark backgrounds. */
+  invert?: boolean;
   align?: "left" | "center";
   className?: string;
 }
 
 export function SectionHeading({
+  index,
   eyebrow,
   title,
   description,
+  invert = false,
   align = "left",
   className,
 }: SectionHeadingProps) {
   return (
-    <div
-      className={cn(
-        align === "center" && "mx-auto max-w-3xl text-center",
-        className,
-      )}
-    >
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
-        {eyebrow}
+    <div className={cn(align === "center" && "text-center", className)}>
+      <p
+        className={cn(
+          "flex items-center gap-3 font-mono text-xs font-medium uppercase tracking-[0.16em]",
+          align === "center" && "justify-center",
+          invert ? "text-emerald-300" : "text-primary",
+        )}
+      >
+        {index && <span>{index}</span>}
+        <span
+          aria-hidden="true"
+          className={cn("h-px w-8", invert ? "bg-white/30" : "bg-primary/40")}
+        />
+        <span>{eyebrow}</span>
       </p>
-      <h2 className="mt-3 text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-4xl">
+      <h2
+        className={cn(
+          "mt-5 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] sm:text-4xl lg:text-[44px]",
+          invert ? "text-white" : "text-foreground",
+        )}
+      >
         {title}
       </h2>
       {description && (
-        <p className="mt-4 text-sm leading-7 text-muted-foreground sm:text-base">
+        <p
+          className={cn(
+            "mt-5 max-w-xl text-base leading-7",
+            invert ? "text-white/65" : "text-muted-foreground",
+          )}
+        >
           {description}
         </p>
       )}
