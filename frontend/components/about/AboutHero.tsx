@@ -1,181 +1,166 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ChevronRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
-
-// float animations (shared with the home hero)
-import "@/components/home/hero.css";
+import { FOUNDED_YEAR } from "@/components/about/constants";
 
 const enter =
-  "animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-fill-mode:backwards]";
+  "animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-fill-mode:backwards]";
+
+const facts = [
+  { label: "Established", value: FOUNDED_YEAR },
+  { label: "Team experience", value: "15 years" },
+  { label: "Markets covered", value: "Worldwide" },
+  { label: "Certified plants", value: "ISO · WHO-GMP" },
+];
+
+/* Dividers: 2x2 grid on mobile, single row with vertical rules on desktop. */
+const factBorders = [
+  "pr-4",
+  "border-l pl-5 lg:pl-8",
+  "border-t pr-4 lg:border-l lg:border-t-0 lg:pl-8",
+  "border-l border-t pl-5 lg:border-t-0 lg:pl-8",
+];
+
+/* Company story shown below the fact strip. */
+const story = [
+  "Rashe Lifesciences Pvt Ltd is an emerging pharmaceutical company based in Bangalore. It was started in 2017 by an expert team with 15 years of experience in the field of pharmacy. We are committed to supplying high quality products that serve healthcare, and to providing excellent customer service. Our reliability, quality and wide distribution network ensure timely delivery of goods, and have helped us earn many satisfied clients.",
+  "With the experience gained working in the field, we are associated with ISO and WHO-GMP certified plants that manufacture essential drugs to help improve patients' health. Our long-term bond and trust with customers reflect our product quality and consistent service. We pursue excellence by adopting superior processes that add value to what we deliver.",
+  "Rashe Lifesciences Pvt Ltd is a renowned trademark for the marketing and supply of medicines used in treating serious illnesses. We ensure our products are consistently produced to meet quality standards.",
+];
 
 export function AboutHero() {
   return (
-    <section className="relative isolate overflow-hidden bg-brand-dark text-white">
-      {/* Background */}
+    <section className="relative overflow-hidden bg-background">
+      {/* soft brand wash, top right */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-      >
-        <div className="absolute -left-40 -top-40 size-[520px] rounded-full bg-primary/50 blur-[110px]" />
-        <div className="absolute -bottom-48 -right-32 size-[480px] rounded-full bg-sky-600/35 blur-[110px]" />
-        <div
-          className="absolute inset-0 opacity-60"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-            maskImage:
-              "radial-gradient(circle at 50% 35%, #000, transparent 72%)",
-            WebkitMaskImage:
-              "radial-gradient(circle at 50% 35%, #000, transparent 72%)",
-          }}
-        />
-      </div>
+        className="pointer-events-none absolute -right-40 -top-40 size-[560px] rounded-full bg-primary-light blur-3xl dark:bg-primary/10"
+      />
 
-      <Container>
-        <div className="grid items-center gap-14 pb-32 pt-10 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-36">
+      <Container className="relative">
+        <div className="grid items-center gap-14 pb-20 pt-8 sm:pt-10 lg:grid-cols-12 lg:gap-12 lg:pb-28">
           {/* LEFT */}
-          <div className="max-w-[620px]">
-            <nav aria-label="Breadcrumb" className="text-xs text-white/60">
+          <div className="lg:col-span-7">
+            <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
               <ol className="flex items-center gap-1.5">
                 <li>
-                  <Link href="/" className="transition-colors hover:text-white">
+                  <Link href="/" className="transition-colors hover:text-foreground">
                     Home
                   </Link>
                 </li>
                 <ChevronRight className="size-3.5" />
-                <li aria-current="page" className="text-white/90">
+                <li aria-current="page" className="text-foreground">
                   About
                 </li>
               </ol>
             </nav>
 
-            <span
-              className={`${enter} mt-7 inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/90 backdrop-blur`}
+            <p
+              className={`${enter} mt-10 flex items-center gap-3 font-mono text-xs font-medium uppercase tracking-[0.16em] text-primary`}
             >
-              <span className="size-2 rounded-full bg-emerald-400" />
+              <span aria-hidden="true" className="h-px w-8 bg-primary/40" />
               About RashePharma
-            </span>
+            </p>
 
             <h1
-              className={`${enter} mt-6 text-4xl font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-5xl lg:text-[60px]`}
+              className={`${enter} mt-6 text-[40px] font-semibold leading-[1.02] tracking-[-0.045em] text-foreground sm:text-6xl lg:text-[76px]`}
               style={{ animationDelay: "100ms" }}
             >
-              Building trust through
-              <span className="block bg-gradient-to-r from-teal-300 to-emerald-200 bg-clip-text text-transparent">
-                quality healthcare.
-              </span>
+              Quality healthcare,{" "}
+              <span className="text-primary">built on trust.</span>
             </h1>
 
             <p
-              className={`${enter} mt-6 text-base leading-8 text-white/75`}
+              className={`${enter} mt-7 max-w-xl text-lg leading-8 text-muted-foreground`}
               style={{ animationDelay: "200ms" }}
             >
-              RashePharma is focused on delivering quality pharmaceutical
-              products and dependable healthcare solutions for customers,
-              distributors and business partners.
-            </p>
-            <p
-              className={`${enter} mt-4 text-sm leading-7 text-white/60`}
-              style={{ animationDelay: "280ms" }}
-            >
-              Our approach combines product reliability, customer focus and
-              long-term business relationships to support healthcare
-              requirements across markets.
+              Rashe Lifesciences Pvt Ltd is an emerging pharmaceutical company
+              based in Bangalore, started in {FOUNDED_YEAR} by a team with 15
+              years of experience in pharmacy and committed to supplying high
+              quality healthcare products with excellent customer service.
             </p>
 
             <div
               className={`${enter} mt-9 flex flex-col gap-3 sm:flex-row`}
-              style={{ animationDelay: "360ms" }}
+              style={{ animationDelay: "300ms" }}
             >
               <Link
                 href="/products"
-                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-8 font-bold text-brand-dark shadow-[0_14px_34px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-0.5 hover:bg-emerald-50"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-7 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark"
               >
-                Explore Products
+                Explore products
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
                 href="/contact"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-white/35 px-8 font-bold text-white transition-all hover:-translate-y-0.5 hover:border-white hover:bg-white/10"
+                className="inline-flex h-12 items-center justify-center rounded-lg border border-foreground/20 px-7 text-sm font-semibold text-foreground transition-colors hover:border-foreground hover:bg-foreground/5"
               >
-                Contact Us
+                Contact us
               </Link>
             </div>
           </div>
 
-          {/* RIGHT: IMAGE */}
-          <div
-            className={`${enter} relative mx-auto w-full max-w-[500px] [animation-duration:900ms]`}
-            style={{ animationDelay: "250ms" }}
+          {/* RIGHT */}
+          <figure
+            className={`${enter} relative mx-auto w-full max-w-[440px] lg:col-span-5 lg:max-w-none`}
+            style={{ animationDelay: "200ms" }}
           >
             <div
               aria-hidden="true"
-              className="absolute inset-6 rounded-full bg-teal-400/30 blur-3xl"
+              className="absolute inset-0 translate-x-3 translate-y-3 rounded-2xl border border-primary/30 sm:translate-x-4 sm:translate-y-4"
             />
-
-            <div className="relative overflow-hidden rounded-[40px] border border-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
-              <div className="relative aspect-square">
-                <Image
-                  src="/images/rashepharma.jpg"
-                  alt="RashePharma"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 90vw, 500px"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
-
-                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
-                      RashePharma
-                    </p>
-                    <p className="mt-1 text-base font-bold">
-                      Better Health. Global Reach.
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-white/70">
-                      Quality-focused pharmaceutical solutions built around
-                      trust and reliability.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
+              <Image
+                src="/images/rashepharma.jpg"
+                alt="RashePharma"
+                fill
+                priority
+                sizes="(max-width: 1024px) 90vw, 40vw"
+                className="object-cover"
+              />
             </div>
+            <figcaption className="absolute -bottom-1 left-4 right-4 translate-y-1/2 rounded-xl bg-brand-dark px-5 py-4 text-white shadow-xl sm:left-6 sm:right-auto sm:max-w-[300px]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">
+                RashePharma
+              </span>
+              <span className="mt-1 block text-base font-semibold">
+                Better health. Global reach.
+              </span>
+            </figcaption>
+          </figure>
+        </div>
 
-            {/* Floating badges */}
-            <div className="hero-float absolute -left-3 top-10 hidden items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:flex">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-400/20">
-                <ShieldCheck className="size-5 text-emerald-300" />
-              </span>
-              <span>
-                <span className="block text-[10px] uppercase tracking-wider text-white/60">
-                  Our focus
-                </span>
-                <span className="block text-sm font-bold">Quality &amp; Trust</span>
-              </span>
+        {/* Fact strip (replaces the old stats section) */}
+        <dl className="grid grid-cols-2 border-t border-border lg:grid-cols-4">
+          {facts.map((fact, i) => (
+            <div
+              key={fact.label}
+              className={`border-border py-6 sm:py-8 ${factBorders[i]}`}
+            >
+              <dt className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                {fact.label}
+              </dt>
+              <dd className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {fact.value}
+              </dd>
             </div>
+          ))}
+        </dl>
 
-            <div className="hero-float-b absolute -right-3 -top-4 flex size-24 flex-col items-center justify-center rounded-full border border-white/25 bg-gradient-to-br from-emerald-400 to-teal-500 text-brand-dark shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                Since
-              </span>
-              <span className="text-2xl font-extrabold leading-none">2019</span>
-            </div>
+        {/* Company story */}
+        <div className="grid gap-6 border-t border-border py-12 lg:grid-cols-12 lg:gap-12 lg:py-16">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:col-span-4">
+            Who we are
+          </h2>
+          <div className="space-y-5 text-base leading-7 text-muted-foreground lg:col-span-8 lg:max-w-2xl">
+            {story.map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
           </div>
         </div>
       </Container>
-
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 1440 80"
-        preserveAspectRatio="none"
-        className="absolute inset-x-0 -bottom-px h-10 w-full fill-background sm:h-16"
-      >
-        <path d="M0,42 C240,92 480,2 720,32 C960,62 1200,92 1440,36 L1440,80 L0,80 Z" />
-      </svg>
     </section>
   );
 }
