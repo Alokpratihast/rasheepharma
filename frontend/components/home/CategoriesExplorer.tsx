@@ -12,6 +12,7 @@ import {
   Wind,
 } from "lucide-react";
 
+import { HomeHeading } from "@/components/home/HomeHeading";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Container } from "@/components/ui/container";
 import type { Category } from "@/types/category";
@@ -45,16 +46,11 @@ export function CategoriesExplorer({ categories, featuredProducts }: CategoriesE
     <section className="relative overflow-hidden bg-gradient-to-b from-[#f2faf7] via-white to-white py-16 sm:py-24">
       <Container>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <p className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">
-              <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
-              Browse by category
-            </p>
-            <h2 className="text-3xl font-bold tracking-[-0.035em] text-brand-dark sm:text-4xl">Explore our product range</h2>
-            <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Choose a category to preview products, then open the full catalogue when you&apos;re ready.
-            </p>
-          </div>
+          <HomeHeading
+            eyebrow="Browse by category"
+            title="Explore our product range"
+            description="Choose a category to preview products, then open the full catalogue when you're ready."
+          />
           <Link href="/categories" className="group inline-flex h-12 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-brand-dark px-6 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary hover:shadow-lg sm:self-auto">
             View all categories
             <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />

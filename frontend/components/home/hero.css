@@ -15,6 +15,13 @@
 @keyframes hero-shine {
   to { background-position: 200% center; }
 }
+@keyframes hero-flow {
+  to { stroke-dashoffset: -48; }
+}
+@keyframes hero-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
 @keyframes hero-spin {
   to { transform: rotate(360deg); }
 }
@@ -26,6 +33,8 @@
 .hero-drift     { animation: hero-drift 16s ease-in-out infinite; }
 .hero-drift-b   { animation: hero-drift 20s ease-in-out -7s infinite; }
 .hero-spin      { animation: hero-spin 28s linear infinite; }
+.hero-route     { animation: hero-flow 4s linear infinite; }
+.hero-ping      { transform-box: fill-box; transform-origin: center; animation: hero-ping 2.6s ease-out infinite; }
 
 .hero-grad {
   background: linear-gradient(90deg, #5eead4, #a7f3d0, #5eead4);
@@ -47,7 +56,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hero-float, .hero-float-b, .hero-float-c, .hero-float-alt,
-  .hero-drift, .hero-drift-b, .hero-spin, .hero-grad {
+  .hero-drift, .hero-drift-b, .hero-spin, .hero-grad, .hero-route, .hero-ping {
     animation: none !important;
   }
 }

@@ -5,6 +5,7 @@ import {
   Landmark,
 } from "lucide-react";
 
+import { Reveal } from "@/components/about/Reveal";
 import { Container } from "@/components/ui/container";
 
 /**
@@ -14,8 +15,8 @@ import { Container } from "@/components/ui/container";
 const facts = [
   {
     icon: Building2,
-    label: "Established",
-    value: "2019",
+    label: "Team experience",
+    value: "15 years",
   },
   {
     icon: Globe2,
@@ -38,6 +39,7 @@ export function TrustSection() {
   return (
     <section className="relative z-10 -mt-12 pb-6 sm:-mt-16 lg:pb-10">
       <Container>
+        <Reveal>
         <div className="rounded-3xl shadow-[0_24px_60px_rgba(7,63,50,0.16)]">
           {/* gap-px over a border-coloured background draws the dividers */}
           <dl className="grid gap-px overflow-hidden rounded-3xl bg-border sm:grid-cols-2 lg:grid-cols-4">
@@ -54,7 +56,7 @@ export function TrustSection() {
                   </span>
 
                   <div className="min-w-0">
-                    <dt className="text-sm text-muted-foreground">
+                    <dt className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                       {fact.label}
                     </dt>
                     <dd className="mt-1 break-words text-base font-semibold leading-6 text-brand-dark">
@@ -66,6 +68,7 @@ export function TrustSection() {
             })}
           </dl>
         </div>
+        </Reveal>
       </Container>
     </section>
   );

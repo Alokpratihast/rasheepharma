@@ -1,114 +1,93 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Boxes,
-  Globe2,
-  MessageSquareText,
-} from "lucide-react";
+import { ArrowRight, Boxes, Globe2, MessageSquareText } from "lucide-react";
 
+import { Reveal } from "@/components/about/Reveal";
 import { Container } from "@/components/ui/container";
 
 import "./hero.css";
 
 const benefits = [
-  {
-    title: "Bulk requirements",
-    description:
-      "Share your product and quantity requirements with our team.",
-    icon: Boxes,
-  },
-  {
-    title: "Global business",
-    description:
-      "Talk to us about international distribution and partnerships.",
-    icon: Globe2,
-  },
-  {
-    title: "Quick enquiry",
-    description:
-      "Get product information and business support through one simple enquiry.",
-    icon: MessageSquareText,
-  },
+  { title: "Bulk requirements", icon: Boxes },
+  { title: "Global business", icon: Globe2 },
+  { title: "One simple enquiry", icon: MessageSquareText },
 ];
 
 /**
- * Closing call to action. Mirrors the hero (dark green, drifting glows,
- * grid, glass cards) so the page starts and ends in the same voice.
+ * Two poster-style banners: a B2B enquiry banner (green) and an export
+ * banner (orange). The footer carries the closing call to action.
  */
 export function B2BSection() {
   return (
     <section className="bg-white py-14 sm:py-20">
       <Container>
-        <div className="relative isolate overflow-hidden rounded-[2rem] bg-brand-dark text-white">
-          {/* Background */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10"
-          >
-            <div className="hero-drift absolute -left-24 -top-24 size-80 rounded-full bg-primary/50 blur-[90px]" />
-            <div className="hero-drift-b absolute -bottom-32 -right-20 size-80 rounded-full bg-sky-600/30 blur-[90px]" />
-            <div className="hero-grid absolute inset-0" />
-          </div>
+        <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+          {/* Distributors */}
+          <Reveal className="h-full">
+            <div className="relative isolate h-full overflow-hidden rounded-[2rem] bg-brand-dark p-8 text-white sm:p-12">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10"
+              >
+                <div className="hero-drift absolute -left-24 -top-24 size-80 rounded-full bg-primary/50 blur-[90px]" />
+                <div className="hero-grid absolute inset-0" />
+              </div>
 
-          <div className="grid gap-10 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-14 lg:p-14">
-            {/* Content */}
-            <div>
-              <h2 className="max-w-xl text-3xl font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl lg:text-[44px]">
-                Looking for a reliable pharmaceutical partner?
+              <p className="font-mono text-xs font-medium uppercase tracking-[0.16em] text-orange-300">
+                For distributors and importers
+              </p>
+              <h2 className="mt-4 max-w-xl text-3xl font-bold leading-[1.08] tracking-[-0.03em] sm:text-4xl lg:text-[44px]">
+                Need bulk supply? Get a quote in one enquiry.
               </h2>
 
-              <p className="mt-5 max-w-xl text-base leading-7 text-white/75">
-                Contact RashePharma for bulk requirements, product
-                enquiries, distribution opportunities and long-term
+              <ul className="mt-6 flex flex-wrap gap-2.5">
+                {benefits.map((benefit) => {
+                  const Icon = benefit.icon;
+
+                  return (
+                    <li
+                      key={benefit.title}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/90"
+                    >
+                      <Icon aria-hidden="true" className="size-4 text-teal-300" />
+                      {benefit.title}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <Link
+                href="/b2b/enquiry"
+                className="group mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-7 font-bold text-brand-dark shadow-[0_14px_34px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-0.5 hover:bg-emerald-50"
+              >
+                Send B2B enquiry
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </Reveal>
+
+          {/* Export */}
+          <Reveal delay={120} className="h-full">
+            <div className="relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-orange-500 p-8 text-slate-950 sm:p-12">
+              <p className="font-mono text-xs font-medium uppercase tracking-[0.16em]">
+                Export ready
+              </p>
+              <h2 className="mt-4 text-3xl font-bold leading-[1.08] tracking-[-0.03em] sm:text-4xl">
+                Supplying partners across worldwide markets.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-slate-900/80">
+                Talk to us about international distribution and long-term
                 partnerships.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/b2b/enquiry"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-7 font-bold text-brand-dark shadow-[0_14px_34px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50"
-                >
-                  Request a quote
-                  <ArrowRight className="size-4" />
-                </Link>
-
-                <Link
-                  href="/contact"
-                  className="inline-flex h-12 items-center justify-center rounded-full border border-white/35 px-7 font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white hover:bg-white/10"
-                >
-                  Contact our team
-                </Link>
-              </div>
+              <Link
+                href="/contact"
+                className="group mt-8 inline-flex h-12 items-center justify-center gap-2 self-start rounded-full bg-slate-950 px-7 font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 sm:mt-auto"
+              >
+                Contact our team
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
-
-            {/* Benefits */}
-            <ul className="space-y-3">
-              {benefits.map((benefit) => {
-                const Icon = benefit.icon;
-
-                return (
-                  <li
-                    key={benefit.title}
-                    className="flex gap-4 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-xl"
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/20 text-emerald-300">
-                      <Icon aria-hidden="true" className="size-5" />
-                    </span>
-
-                    <div>
-                      <h3 className="text-base font-semibold">
-                        {benefit.title}
-                      </h3>
-
-                      <p className="mt-1 text-sm leading-6 text-white/70">
-                        {benefit.description}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          </Reveal>
         </div>
       </Container>
     </section>

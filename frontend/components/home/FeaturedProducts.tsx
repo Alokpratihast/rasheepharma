@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { HomeHeading } from "@/components/home/HomeHeading";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Container } from "@/components/ui/container";
 import { productService } from "@/services/product.service";
@@ -25,15 +26,11 @@ export async function FeaturedProducts() {
       <Container>
         {/* Heading */}
         <div className="flex items-end justify-between gap-4">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold tracking-[-0.025em] text-brand-dark sm:text-4xl">
-              Featured products
-            </h2>
-
-            <p className="mt-3 text-base leading-7 text-muted-foreground">
-              Selected products from our pharmaceutical portfolio.
-            </p>
-          </div>
+          <HomeHeading
+            eyebrow="From our range"
+            title="Featured products"
+            description="Selected products from our pharmaceutical portfolio."
+          />
 
           <Link
             href="/products"
