@@ -8,25 +8,26 @@ import {
 
 import { Container } from "@/components/ui/container";
 import { CertificateGallery } from "@/components/home/CertificateGallery";
+import { HomeHeading } from "@/components/home/HomeHeading";
 
 const points = [
   {
     icon: ShieldCheck,
-    title: "Quality products",
+    title: "Certified manufacturing",
     description:
-      "Pharmaceuticals backed by WHO-GMP and ISO 9001:2015 certificates.",
+      "Made at the ISO and WHO-GMP certified plants we are associated with.",
   },
   {
     icon: Globe2,
     title: "Reliable supply",
     description:
-      "Dependable supply to customers and partners across global markets.",
+      "A wide distribution network and on-time delivery for customers and partners worldwide.",
   },
   {
     icon: Handshake,
-    title: "Responsive service",
+    title: "Team of professionals",
     description:
-      "Product information and business support when you need it.",
+      "15 years of pharmacy experience, with high-calibre customer care and industry expertise.",
   },
 ];
 
@@ -40,20 +41,21 @@ export function AboutSection() {
 
           {/* Content */}
           <div>
-            <h2 className="max-w-xl text-3xl font-bold leading-[1.1] tracking-[-0.025em] text-brand-dark sm:text-4xl">
-              Building trusted pharmaceutical partnerships
-            </h2>
+            <HomeHeading
+              eyebrow="About Rashe Lifesciences"
+              title="An emerging Bangalore company with deep pharmacy experience."
+            />
 
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-              RashePharma operates in the pharmaceutical sector with a
-              focus on quality products, reliable supply and long-term
-              business relationships across global markets.
+              Rashe Lifesciences is a renowned name in the marketing and
+              supply of medicines that help treat serious illness. Our team
+              brings 15 years of experience in pharmacy, and we ensure our
+              products are consistently produced to meet quality standards.
             </p>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-              Our product portfolio supports customers and business
-              partners looking for dependable pharmaceutical solutions
-              and responsive service.
+              We started with the aim of reaching quality medications to all
+              people, without any difference in their economic conditions.
             </p>
 
             <ul className="mt-8 grid gap-5">
