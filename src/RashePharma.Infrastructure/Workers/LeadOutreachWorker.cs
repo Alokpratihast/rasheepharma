@@ -22,38 +22,40 @@ namespace RashePharma.Infrastructure.Workers;
 public sealed class LeadOutreachWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
-    ILogger<LeadOutreachWorker> logger) : BackgroundService
+    ILogger<LeadOutreachWorker> logger,
+    ILeadOutreachJobSignal jobSignal) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly TimeSpan _idlePollingInterval = TimeSpan.FromSeconds(
-        Math.Clamp(configuration.GetValue("LeadOutreachWorker:IdlePollingIntervalSeconds", 30), 5, 300));
-    private readonly TimeSpan _activePollingInterval = TimeSpan.FromMilliseconds(
-        Math.Clamp(configuration.GetValue("LeadOutreachWorker:ActivePollingIntervalMilliseconds", 200), 100, 5000));
-    private readonly TimeSpan _staleRecoveryInterval = TimeSpan.FromSeconds(
-        Math.Clamp(configuration.GetValue("LeadOutreachWorker:StaleRecoveryIntervalSeconds", 300), 30, 3600));
+    private static readonly TimeSpan RecoveryInterval = TimeSpan.FromMinutes(5);
     private DateTime _lastPreviewCleanupUtc = DateTime.MinValue;
-    private DateTime _lastStaleRecoveryUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        logger.LogInformation("Lead outreach producer started in signal-driven mode.");
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Drain all currently claimable recipients after startup or a wake-up.
+                var processedCount = 0;
+                while (await ProcessOneAsync(stoppingToken))
+                    processedCount++;
+
+                if (processedCount > 0)
+                    logger.LogInformation("Lead outreach producer queued or reconciled {Count} recipients.", processedCount);
+
+                // No SQL polling while idle. The timeout is a low-frequency recovery
+                // sweep for process restarts, missed in-memory signals, and stale claims.
+                await jobSignal.WaitForWorkAsync(RecoveryInterval, stoppingToken);
+
+                await RecoverStaleClaimsAsync(stoppingToken);
+
                 if (DateTime.UtcNow - _lastPreviewCleanupUtc >= TimeSpan.FromHours(1))
                 {
                     await DeleteExpiredImportPreviewsAsync(stoppingToken);
                     _lastPreviewCleanupUtc = DateTime.UtcNow;
                 }
-
-                if (DateTime.UtcNow - _lastStaleRecoveryUtc >= _staleRecoveryInterval)
-                {
-                    await RecoverStaleClaimsAsync(stoppingToken);
-                    _lastStaleRecoveryUtc = DateTime.UtcNow;
-                }
-
-                var processed = await ProcessOneAsync(stoppingToken);
-                await Task.Delay(processed ? _activePollingInterval : _idlePollingInterval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -62,9 +64,11 @@ public sealed class LeadOutreachWorker(
             catch (Exception exception)
             {
                 logger.LogError(exception, "Lead outreach job producer encountered an error.");
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
             }
         }
+
+        logger.LogInformation("Lead outreach producer stopped.");
     }
 
     private async Task DeleteExpiredImportPreviewsAsync(CancellationToken ct)
