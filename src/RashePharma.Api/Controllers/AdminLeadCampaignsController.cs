@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
 using RashePharma.Infrastructure.Data;
 
@@ -11,7 +12,7 @@ namespace RashePharma.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin")]
 [Route("api/admin/lead-campaigns")]
-public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : ControllerBase
+public sealed class AdminLeadCampaignsController(ApplicationDbContext db, ILeadOutreachJobSignal jobSignal) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetRecent(CancellationToken ct)
@@ -219,6 +220,7 @@ public sealed class AdminLeadCampaignsController(ApplicationDbContext db) : Cont
         }
         await db.LeadOutreachCampaigns.AddAsync(campaign, ct);
         await db.SaveChangesAsync(ct);
+        jobSignal.NotifyWorkAvailable();
         return Accepted(new { campaign.Id, campaign.Status, campaign.RecipientCount,
             excludedCount = ids.Length - eligible.Count,
             message = "Campaign queued. Only selected leads with Allowed permission are included." });
