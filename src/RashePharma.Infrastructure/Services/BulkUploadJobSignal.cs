@@ -4,9 +4,8 @@ using RashePharma.Application.Interfaces.Services;
 namespace RashePharma.Infrastructure.Services;
 
 /// <summary>
-/// Process-local, non-blocking wake-up signal. Channel notifications are
-/// intentionally coalesced: the worker drains all claimable SQL jobs after
-/// each wake-up, so one signal is sufficient for any number of queued jobs.
+/// Process-local, non-blocking wake-up signal. Notifications are coalesced;
+/// SQL remains the durable queue and periodic recovery handles missed signals.
 /// </summary>
 public sealed class BulkUploadJobSignal : IBulkUploadJobSignal
 {
@@ -20,13 +19,26 @@ public sealed class BulkUploadJobSignal : IBulkUploadJobSignal
 
     public void NotifyJobAvailable()
     {
-        // A full channel already represents a pending wake-up.
         _channel.Writer.TryWrite(0);
     }
 
-    public async ValueTask WaitForJobAsync(CancellationToken cancellationToken)
+    public async Task<bool> WaitForJobAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
     {
-        // ReadAsync returns the consumed byte; the worker only needs the wake-up.
-        await _channel.Reader.ReadAsync(cancellationToken);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeout);
+
+        try
+        {
+            if (!await _channel.Reader.WaitToReadAsync(timeoutCts.Token))
+                return false;
+
+            return _channel.Reader.TryRead(out _);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
     }
 }
