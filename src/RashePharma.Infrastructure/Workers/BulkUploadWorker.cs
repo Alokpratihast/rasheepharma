@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
@@ -9,20 +10,21 @@ namespace RashePharma.Infrastructure.Workers;
 
 public class BulkUploadWorker : BackgroundService
 {
-    private static readonly TimeSpan PollingInterval =
-        TimeSpan.FromSeconds(30);
-
     private const int MaxJobsPerCycle = 1;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BulkUploadWorker> _logger;
+    private readonly TimeSpan _idlePollingInterval;
 
     public BulkUploadWorker(
         IServiceScopeFactory scopeFactory,
-        ILogger<BulkUploadWorker> logger)
+        ILogger<BulkUploadWorker> logger,
+        IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _idlePollingInterval = TimeSpan.FromSeconds(
+            Math.Clamp(configuration.GetValue("BulkUploadWorker:IdlePollingIntervalSeconds", 60), 5, 600));
     }
 
     protected override async Task ExecuteAsync(
@@ -52,7 +54,7 @@ public class BulkUploadWorker : BackgroundService
             try
             {
                 await Task.Delay(
-                    PollingInterval,
+                    _idlePollingInterval,
                     stoppingToken);
             }
             catch (OperationCanceledException)
