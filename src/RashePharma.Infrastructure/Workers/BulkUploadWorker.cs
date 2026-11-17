@@ -8,19 +8,21 @@ using RashePharma.Infrastructure.Services;
 namespace RashePharma.Infrastructure.Workers;
 
 /// <summary>
-/// Event-driven bulk-upload processor. It performs one startup recovery scan,
-/// then sleeps on an in-process signal instead of continuously polling SQL.
-/// SQL claim/lease semantics remain the concurrency and ownership authority.
+/// Event-driven bulk-upload processor. SQL claim/lease semantics remain the
+/// concurrency authority; periodic reconciliation recovers missed signals.
 /// </summary>
 public sealed class BulkUploadWorker : BackgroundService
 {
+    private static readonly TimeSpan RecoveryInterval = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan ErrorRetryDelay = TimeSpan.FromSeconds(15);
+
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly BulkUploadJobSignal _jobSignal;
+    private readonly IBulkUploadJobSignal _jobSignal;
     private readonly ILogger<BulkUploadWorker> _logger;
 
     public BulkUploadWorker(
         IServiceScopeFactory scopeFactory,
-        BulkUploadJobSignal jobSignal,
+        IBulkUploadJobSignal jobSignal,
         ILogger<BulkUploadWorker> logger)
     {
         _scopeFactory = scopeFactory;
@@ -34,27 +36,21 @@ public sealed class BulkUploadWorker : BackgroundService
 
         try
         {
-            // Recover jobs left Pending (or with an expired lease) by a prior
-            // process before waiting for new in-process notifications.
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                var processed = await ProcessOnePendingJobAsync(stoppingToken);
-                if (!processed)
-                    break;
-            }
+            // Startup reconciliation also recovers jobs left behind by a restart.
+            await DrainPendingJobsSafelyAsync(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await _jobSignal.WaitForJobAsync(stoppingToken);
+                var signaled = await _jobSignal.WaitForJobAsync(
+                    RecoveryInterval,
+                    stoppingToken);
 
-                // One notification drains the queue; notifications are
-                // coalesced so processing scales with actual pending jobs.
-                while (!stoppingToken.IsCancellationRequested)
-                {
-                    var processed = await ProcessOnePendingJobAsync(stoppingToken);
-                    if (!processed)
-                        break;
-                }
+                if (signaled)
+                    _logger.LogDebug("Bulk upload worker received a job signal.");
+                else
+                    _logger.LogDebug("Bulk upload worker starting periodic recovery scan.");
+
+                await DrainPendingJobsSafelyAsync(stoppingToken);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -63,14 +59,36 @@ public sealed class BulkUploadWorker : BackgroundService
         }
         finally
         {
-            _logger.LogInformation("Event-driven bulk upload worker stopped.");
+            _logger.LogInformation("Bulk upload worker stopped.");
+        }
+    }
+
+    private async Task DrainPendingJobsSafelyAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var processed = await ProcessOnePendingJobAsync(cancellationToken);
+                if (!processed)
+                    return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // A transient SQL/repository failure must not terminate the hosted service.
+                _logger.LogError(exception, "Bulk upload worker failed while claiming or processing a job. Retrying after {RetryDelaySeconds} seconds.", ErrorRetryDelay.TotalSeconds);
+                await Task.Delay(ErrorRetryDelay, cancellationToken);
+            }
         }
     }
 
     private async Task<bool> ProcessOnePendingJobAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-
         var repository = scope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
         var service = scope.ServiceProvider.GetRequiredService<IBulkUploadService>();
 
@@ -89,7 +107,6 @@ public sealed class BulkUploadWorker : BackgroundService
 
         using var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
         var heartbeatTask = RenewLeaseLoopAsync(
             job.Id,
             claimToken,
@@ -111,9 +128,10 @@ public sealed class BulkUploadWorker : BackgroundService
                 "Bulk upload job {JobId} stopped because its lease was lost or processing was cancelled.",
                 job.Id);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Bulk upload job {JobId} failed during processing.", job.Id);
+            // ProcessAsync owns the job-level failure transition. Keep the worker alive.
+            _logger.LogError(exception, "Bulk upload job {JobId} failed during processing.", job.Id);
         }
         finally
         {
@@ -126,9 +144,9 @@ public sealed class BulkUploadWorker : BackgroundService
             {
                 // Expected when processing completes.
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(ex, "Lease heartbeat failed for bulk upload job {JobId}.", job.Id);
+                _logger.LogError(exception, "Lease heartbeat failed for bulk upload job {JobId}.", job.Id);
                 await processingCts.CancelAsync();
             }
         }
@@ -152,7 +170,6 @@ public sealed class BulkUploadWorker : BackgroundService
 
             using var scope = _scopeFactory.CreateScope();
             var repository = scope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
-
             var renewed = await repository.TryRenewLeaseAsync(
                 jobId,
                 claimToken,
