@@ -24,6 +24,9 @@ public sealed class BulkUploadJobSignal : IBulkUploadJobSignal
         _channel.Writer.TryWrite(0);
     }
 
-    public ValueTask WaitForJobAsync(CancellationToken cancellationToken)
-        => _channel.Reader.ReadAsync(cancellationToken);
+    public async ValueTask WaitForJobAsync(CancellationToken cancellationToken)
+    {
+        // ReadAsync returns the consumed byte; the worker only needs the wake-up.
+        await _channel.Reader.ReadAsync(cancellationToken);
+    }
 }
