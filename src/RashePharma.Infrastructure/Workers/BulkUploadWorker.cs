@@ -55,8 +55,9 @@ public class BulkUploadWorker : BackgroundService
                 _logger.LogError(
                     ex,
                     "Unexpected error occurred in bulk upload worker.");
-            }
 
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            }
         }
 
         _logger.LogInformation(
