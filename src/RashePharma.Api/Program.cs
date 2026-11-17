@@ -728,6 +728,14 @@ builder.Services.AddSingleton<IBulkUploadJobSignal>(sp =>
     sp.GetRequiredService<BulkUploadJobSignal>());
 builder.Services.AddHostedService<BulkUploadWorker>();
 
+// Event-driven outreach and outbox wake-ups; SQL remains the durable queue.
+builder.Services.AddSingleton<LeadOutreachJobSignal>();
+builder.Services.AddSingleton<ILeadOutreachJobSignal>(sp =>
+    sp.GetRequiredService<LeadOutreachJobSignal>());
+builder.Services.AddSingleton<EmailOutboxSignal>();
+builder.Services.AddSingleton<IEmailOutboxSignal>(sp =>
+    sp.GetRequiredService<EmailOutboxSignal>());
+
 builder.Services.AddHostedService<LeadOutreachWorker>();
 
 builder.Services.AddHostedService<
