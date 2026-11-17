@@ -36,6 +36,18 @@ public class BulkUploadServiceStagedFilesTests
     }
 
     [Fact]
+    public async Task CreateJobAsync_FileNameOnly_ShouldRejectIncompleteJob()
+    {
+#pragma warning disable CS0618
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => CreateService().CreateJobAsync("products.xlsx"));
+#pragma warning restore CS0618
+
+        Assert.Equal(0, _repository.CreateJobCallCount);
+        Assert.Equal(0, _unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
     public async Task CreateJobFromStagedFilesAsync_ValidFiles_ShouldCreatePendingJob()
     {
         var files = new List<BulkUploadStagedFileInput>
