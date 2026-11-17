@@ -15,6 +15,7 @@ public class BulkUploadWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BulkUploadWorker> _logger;
     private readonly TimeSpan _idlePollingInterval;
+    private readonly TimeSpan _activePollingInterval;
 
     public BulkUploadWorker(
         IServiceScopeFactory scopeFactory,
@@ -25,6 +26,8 @@ public class BulkUploadWorker : BackgroundService
         _logger = logger;
         _idlePollingInterval = TimeSpan.FromSeconds(
             Math.Clamp(configuration.GetValue("BulkUploadWorker:IdlePollingIntervalSeconds", 60), 5, 600));
+        _activePollingInterval = TimeSpan.FromMilliseconds(
+            Math.Clamp(configuration.GetValue("BulkUploadWorker:ActivePollingIntervalMilliseconds", 200), 100, 5000));
     }
 
     protected override async Task ExecuteAsync(
@@ -37,7 +40,10 @@ public class BulkUploadWorker : BackgroundService
         {
             try
             {
-                await ProcessPendingJobsAsync(stoppingToken);
+                var processed = await ProcessPendingJobsAsync(stoppingToken);
+                await Task.Delay(
+                    processed ? _activePollingInterval : _idlePollingInterval,
+                    stoppingToken);
             }
             catch (OperationCanceledException)
                 when (stoppingToken.IsCancellationRequested)
@@ -51,17 +57,6 @@ public class BulkUploadWorker : BackgroundService
                     "Unexpected error occurred in bulk upload worker.");
             }
 
-            try
-            {
-                await Task.Delay(
-                    _idlePollingInterval,
-                    stoppingToken);
-            }
-            catch (OperationCanceledException)
-                when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
         }
 
         _logger.LogInformation(
@@ -69,7 +64,7 @@ public class BulkUploadWorker : BackgroundService
     }
 
 
-private async Task ProcessPendingJobsAsync(
+private async Task<bool> ProcessPendingJobsAsync(
     CancellationToken cancellationToken)
 {
     for (var i = 0; i < MaxJobsPerCycle; i++)
@@ -91,7 +86,7 @@ private async Task ProcessPendingJobsAsync(
 
         if (job is null)
         {
-            return;
+            return false;
         }
 
         if (string.IsNullOrWhiteSpace(job.ClaimToken))
@@ -166,6 +161,8 @@ private async Task ProcessPendingJobsAsync(
             }
         }
     }
+
+    return true;
 }
 
 private async Task RenewLeaseLoopAsync(
