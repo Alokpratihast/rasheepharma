@@ -26,6 +26,7 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
+    private readonly IBulkUploadJobSignal? _jobSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
         IBulkUploadRepository bulkUploadRepository,
@@ -38,7 +39,8 @@ public class BulkUploadService : IBulkUploadService
         IImageStorageService imageStorageService,
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
-        ILogger<BulkUploadService> logger)
+        ILogger<BulkUploadService> logger,
+        IBulkUploadJobSignal? jobSignal = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -51,6 +53,7 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
+        _jobSignal = jobSignal;
     }
     /// <summary>Creates a Pending bulk-upload job when only a file name is supplied.</summary>
     public async Task<int> CreateJobAsync(
@@ -67,6 +70,7 @@ public class BulkUploadService : IBulkUploadService
             job,
             cancellationToken);
         await _unitOfWork.SaveChangesAsync();
+        _jobSignal?.NotifyJobAvailable();
         return job.Id;
     }
     /// <summary>Creates a job and stores the Excel workbook and uploaded image files.</summary>
@@ -129,6 +133,7 @@ public class BulkUploadService : IBulkUploadService
                 cancellationToken);
         }
         await _unitOfWork.SaveChangesAsync();
+        _jobSignal?.NotifyJobAvailable();
         return job.Id;
     }
     /// <summary>
@@ -203,6 +208,7 @@ public class BulkUploadService : IBulkUploadService
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
+        _jobSignal?.NotifyJobAvailable();
         return job.Id;
     }
     /// <summary>Validates file count, names, types, sizes, and staging-blob uniqueness.</summary>
