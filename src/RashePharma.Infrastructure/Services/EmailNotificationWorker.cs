@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RashePharma.Application.Interfaces.Services;
 
@@ -10,16 +11,19 @@ public class EmailNotificationWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EmailNotificationWorker> _logger;
 
-    private const int BatchSize = 10;
-    private static readonly TimeSpan PollingInterval =
-        TimeSpan.FromSeconds(30);
+    private readonly int _batchSize;
+    private readonly TimeSpan _pollingInterval;
 
     public EmailNotificationWorker(
         IServiceScopeFactory scopeFactory,
-        ILogger<EmailNotificationWorker> logger)
+        ILogger<EmailNotificationWorker> logger,
+        IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _batchSize = Math.Clamp(configuration.GetValue("EmailNotificationWorker:BatchSize", 10), 1, 100);
+        _pollingInterval = TimeSpan.FromSeconds(
+            Math.Clamp(configuration.GetValue("EmailNotificationWorker:PollingIntervalSeconds", 120), 10, 3600));
     }
 
     protected override async Task ExecuteAsync(
@@ -40,7 +44,7 @@ public class EmailNotificationWorker : BackgroundService
                         .GetRequiredService<IEmailNotificationService>();
 
                 await notificationService
-                    .ProcessPendingNotificationsAsync(BatchSize);
+                    .ProcessPendingNotificationsAsync(_batchSize);
             }
             catch (OperationCanceledException)
                 when (stoppingToken.IsCancellationRequested)
@@ -57,7 +61,7 @@ public class EmailNotificationWorker : BackgroundService
             try
             {
                 await Task.Delay(
-                    PollingInterval,
+                    _pollingInterval,
                     stoppingToken);
             }
             catch (OperationCanceledException)

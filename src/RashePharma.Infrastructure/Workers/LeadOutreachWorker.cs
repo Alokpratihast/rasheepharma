@@ -22,25 +22,51 @@ namespace RashePharma.Infrastructure.Workers;
 public sealed class LeadOutreachWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
-    ILogger<LeadOutreachWorker> logger) : BackgroundService
+    ILogger<LeadOutreachWorker> logger,
+    ILeadOutreachJobSignal jobSignal) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan RecoveryInterval = TimeSpan.FromMinutes(5);
     private DateTime _lastPreviewCleanupUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        logger.LogInformation("Lead outreach producer started in signal-driven mode.");
+        var startupRecoveryPending = true;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (startupRecoveryPending)
+                {
+                    await RecoverStaleClaimsAsync(stoppingToken);
+                    await DeleteExpiredImportPreviewsAsync(stoppingToken);
+                    _lastPreviewCleanupUtc = DateTime.UtcNow;
+                    startupRecoveryPending = false;
+                }
+
+                // Drain all currently claimable recipients after startup or a wake-up.
+                var processedCount = 0;
+                while (await ProcessOneAsync(stoppingToken))
+                    processedCount++;
+
+                if (processedCount > 0)
+                    logger.LogInformation("Lead outreach producer queued or reconciled {Count} recipients.", processedCount);
+
+                // No SQL polling while idle. The timeout is a low-frequency recovery
+                // sweep for process restarts, missed in-memory signals, and stale claims.
+                var workSignaled = await jobSignal.WaitForWorkAsync(RecoveryInterval, stoppingToken);
+
+                // Run stale-claim recovery only on the periodic timeout, not on every campaign signal.
+                if (!workSignaled)
+                    await RecoverStaleClaimsAsync(stoppingToken);
+
                 if (DateTime.UtcNow - _lastPreviewCleanupUtc >= TimeSpan.FromHours(1))
                 {
                     await DeleteExpiredImportPreviewsAsync(stoppingToken);
                     _lastPreviewCleanupUtc = DateTime.UtcNow;
                 }
-
-                var processed = await ProcessOneAsync(stoppingToken);
-                await Task.Delay(processed ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromSeconds(5), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -49,9 +75,11 @@ public sealed class LeadOutreachWorker(
             catch (Exception exception)
             {
                 logger.LogError(exception, "Lead outreach job producer encountered an error.");
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
             }
         }
+
+        logger.LogInformation("Lead outreach producer stopped.");
     }
 
     private async Task DeleteExpiredImportPreviewsAsync(CancellationToken ct)
@@ -67,8 +95,6 @@ public sealed class LeadOutreachWorker(
 
     private async Task<bool> ProcessOneAsync(CancellationToken ct)
     {
-        await RecoverStaleClaimsAsync(ct);
-
         int recipientId;
         await using (var scope = scopeFactory.CreateAsyncScope())
         {

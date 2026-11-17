@@ -1,0 +1,71 @@
+
+name: Build and deploy ASP.NET Core API - Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - '.github/workflows/main_rasheepharma-api-prod.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/RashePharma.Api/RashePharma.Api.csproj
+
+      - name: Build API
+        run: dotnet build src/RashePharma.Api/RashePharma.Api.csproj --configuration Release --no-restore
+
+      - name: Publish API
+        run: dotnet publish src/RashePharma.Api/RashePharma.Api.csproj --configuration Release --no-build --output "${{ runner.temp }}/publish"
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-api
+          path: ${{ runner.temp }}/publish
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-api
+          path: ./publish
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_PROD_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_PROD_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_PROD_SUBSCRIPTION_ID }}
+
+      - name: Deploy to production API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: rasheepharma-api-prod
+          slot-name: Production
+          package: ./publish

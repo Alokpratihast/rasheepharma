@@ -19,17 +19,20 @@ public sealed class EmailJobService : IEmailJobService
     private readonly IEmailOutboxRepository _outboxRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IEmailOutboxSignal? _outboxSignal;
 
     public EmailJobService(
         IEmailJobRepository emailJobRepository,
         IEmailOutboxRepository outboxRepository,
         IUnitOfWork unitOfWork,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IEmailOutboxSignal? outboxSignal = null)
     {
         _emailJobRepository = emailJobRepository;
         _outboxRepository = outboxRepository;
         _unitOfWork = unitOfWork;
         _scopeFactory = scopeFactory;
+        _outboxSignal = outboxSignal;
     }
 
     public async Task<EmailJob> CreateJobAsync(
@@ -78,6 +81,7 @@ public sealed class EmailJobService : IEmailJobService
 
                     await _unitOfWork.SaveChangesAsync();
                     await transaction.CommitAsync();
+                    _outboxSignal?.NotifyMessageAvailable();
 
                     return emailJob;
                 }
