@@ -25,7 +25,14 @@ public sealed class LeadOutreachWorker(
     ILogger<LeadOutreachWorker> logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly TimeSpan _idlePollingInterval = TimeSpan.FromSeconds(
+        Math.Clamp(configuration.GetValue("LeadOutreachWorker:IdlePollingIntervalSeconds", 30), 5, 300));
+    private readonly TimeSpan _activePollingInterval = TimeSpan.FromMilliseconds(
+        Math.Clamp(configuration.GetValue("LeadOutreachWorker:ActivePollingIntervalMilliseconds", 200), 100, 5000));
+    private readonly TimeSpan _staleRecoveryInterval = TimeSpan.FromSeconds(
+        Math.Clamp(configuration.GetValue("LeadOutreachWorker:StaleRecoveryIntervalSeconds", 300), 30, 3600));
     private DateTime _lastPreviewCleanupUtc = DateTime.MinValue;
+    private DateTime _lastStaleRecoveryUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,8 +46,14 @@ public sealed class LeadOutreachWorker(
                     _lastPreviewCleanupUtc = DateTime.UtcNow;
                 }
 
+                if (DateTime.UtcNow - _lastStaleRecoveryUtc >= _staleRecoveryInterval)
+                {
+                    await RecoverStaleClaimsAsync(stoppingToken);
+                    _lastStaleRecoveryUtc = DateTime.UtcNow;
+                }
+
                 var processed = await ProcessOneAsync(stoppingToken);
-                await Task.Delay(processed ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromSeconds(5), stoppingToken);
+                await Task.Delay(processed ? _activePollingInterval : _idlePollingInterval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -67,8 +80,6 @@ public sealed class LeadOutreachWorker(
 
     private async Task<bool> ProcessOneAsync(CancellationToken ct)
     {
-        await RecoverStaleClaimsAsync(ct);
-
         int recipientId;
         await using (var scope = scopeFactory.CreateAsyncScope())
         {
