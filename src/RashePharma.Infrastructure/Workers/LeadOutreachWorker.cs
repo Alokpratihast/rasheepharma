@@ -56,9 +56,11 @@ public sealed class LeadOutreachWorker(
 
                 // No SQL polling while idle. The timeout is a low-frequency recovery
                 // sweep for process restarts, missed in-memory signals, and stale claims.
-                await jobSignal.WaitForWorkAsync(RecoveryInterval, stoppingToken);
+                var workSignaled = await jobSignal.WaitForWorkAsync(RecoveryInterval, stoppingToken);
 
-                await RecoverStaleClaimsAsync(stoppingToken);
+                // Run stale-claim recovery only on the periodic timeout, not on every campaign signal.
+                if (!workSignaled)
+                    await RecoverStaleClaimsAsync(stoppingToken);
 
                 if (DateTime.UtcNow - _lastPreviewCleanupUtc >= TimeSpan.FromHours(1))
                 {
