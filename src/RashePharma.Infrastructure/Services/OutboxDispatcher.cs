@@ -18,15 +18,18 @@ public sealed class OutboxDispatcher : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxDispatcher> _logger;
     private readonly OutboxDispatcherOptions _options;
+    private readonly IEmailOutboxSignal _outboxSignal;
 
     public OutboxDispatcher(
         IServiceScopeFactory scopeFactory,
         ILogger<OutboxDispatcher> logger,
-        IOptions<OutboxDispatcherOptions> options)
+        IOptions<OutboxDispatcherOptions> options,
+        IEmailOutboxSignal outboxSignal)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _options = options.Value;
+        _outboxSignal = outboxSignal;
 
         if (_options.BatchSize <= 0 ||
             _options.PollingIntervalSeconds <= 0 ||
@@ -58,9 +61,11 @@ public sealed class OutboxDispatcher : BackgroundService
                 if (processedCount >= _options.BatchSize)
                     continue;
 
-                await Task.Delay(
-                    TimeSpan.FromSeconds(
-                        _options.PollingIntervalSeconds),
+                // No database polling while idle. A bounded in-process signal wakes
+                // this dispatcher after an outbox commit; the timeout is a durable
+                // recovery sweep for restarts, missed signals, and other replicas.
+                await _outboxSignal.WaitForMessageAsync(
+                    TimeSpan.FromSeconds(_options.PollingIntervalSeconds),
                     stoppingToken);
             }
             catch (OperationCanceledException)
@@ -74,10 +79,7 @@ public sealed class OutboxDispatcher : BackgroundService
                     exception,
                     "Outbox Dispatcher encountered an error.");
 
-                await Task.Delay(
-                    TimeSpan.FromSeconds(
-                        _options.PollingIntervalSeconds),
-                    stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
             }
         }
 
