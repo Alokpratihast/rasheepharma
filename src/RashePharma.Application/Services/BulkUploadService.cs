@@ -55,23 +55,17 @@ public class BulkUploadService : IBulkUploadService
         _logger = logger;
         _jobSignal = jobSignal;
     }
-    /// <summary>Creates a Pending bulk-upload job when only a file name is supplied.</summary>
-    public async Task<int> CreateJobAsync(
+    /// <summary>
+    /// Rejects metadata-only job creation. A Pending job must never be visible
+    /// to the worker until its complete file manifest has been persisted.
+    /// </summary>
+    [Obsolete("Use CreateJobFromStagedFilesAsync or the stream-based overload so the job has a complete file manifest.")]
+    public Task<int> CreateJobAsync(
         string fileName,
         CancellationToken cancellationToken = default)
     {
-        var job = new BulkUploadJob
-        {
-            FileName = fileName,
-            Status = BulkUploadStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
-        await _bulkUploadRepository.CreateJobAsync(
-            job,
-            cancellationToken);
-        await _unitOfWork.SaveChangesAsync();
-        _jobSignal?.NotifyJobAvailable();
-        return job.Id;
+        throw new NotSupportedException(
+            "A bulk upload job cannot be created from a file name alone. Upload and verify the files first.");
     }
     /// <summary>Creates a job and stores the Excel workbook and uploaded image files.</summary>
     public async Task<int> CreateJobAsync(
