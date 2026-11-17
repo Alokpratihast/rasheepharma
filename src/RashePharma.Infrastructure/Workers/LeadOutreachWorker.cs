@@ -32,11 +32,20 @@ public sealed class LeadOutreachWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Lead outreach producer started in signal-driven mode.");
+        var startupRecoveryPending = true;
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (startupRecoveryPending)
+                {
+                    await RecoverStaleClaimsAsync(stoppingToken);
+                    await DeleteExpiredImportPreviewsAsync(stoppingToken);
+                    _lastPreviewCleanupUtc = DateTime.UtcNow;
+                    startupRecoveryPending = false;
+                }
+
                 // Drain all currently claimable recipients after startup or a wake-up.
                 var processedCount = 0;
                 while (await ProcessOneAsync(stoppingToken))
