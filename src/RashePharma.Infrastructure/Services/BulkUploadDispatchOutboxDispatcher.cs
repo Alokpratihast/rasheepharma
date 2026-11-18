@@ -63,7 +63,7 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
         }
     }
 
-    internal static TimeSpan CalculateWaitDuration(
+    public static TimeSpan CalculateWaitDuration(
         TimeSpan recoveryInterval,
         DateTime? nextRetryAtUtc,
         DateTime nowUtc)
