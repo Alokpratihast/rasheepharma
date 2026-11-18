@@ -5,6 +5,7 @@ using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Application.Services;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Domain.Enums;
 using Xunit;
 
@@ -18,6 +19,7 @@ public class BulkUploadServiceStagedFilesTests
     private readonly FakeBulkUploadRepository _repository = new();
     private readonly FakeBulkUploadStorageService _storage = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly FakeBulkUploadDispatchOutboxRepository _outbox = new();
 
     private BulkUploadService CreateService()
     {
@@ -32,7 +34,8 @@ public class BulkUploadServiceStagedFilesTests
             null!,
             null!,
             null!,
-            NullLogger<BulkUploadService>.Instance);
+            NullLogger<BulkUploadService>.Instance,
+            _outbox);
     }
 
     [Fact]
@@ -69,6 +72,8 @@ public class BulkUploadServiceStagedFilesTests
 
         Assert.Equal(1, _repository.CreateJobCallCount);
         Assert.Equal(1, _unitOfWork.SaveChangesCallCount);
+        Assert.Equal(1, _outbox.AddCallCount);
+        Assert.Equal("BulkUploadRequested", _outbox.Messages.Single().EventType);
         Assert.Equal(2, _storage.VerifyCallCount);
 
         Assert.All(
@@ -195,6 +200,28 @@ public class BulkUploadServiceStagedFilesTests
             BulkUploadFile file,
             CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+
+    private sealed class FakeBulkUploadDispatchOutboxRepository
+        : IBulkUploadDispatchOutboxRepository
+    {
+        public List<BulkUploadDispatchOutbox> Messages { get; } = new();
+        public int AddCallCount { get; private set; }
+
+        public Task AddAsync(BulkUploadDispatchOutbox message, CancellationToken cancellationToken = default)
+        {
+            AddCallCount++;
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task<int> RequeueExpiredProcessingJobsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
+        public Task<IReadOnlyList<BulkUploadDispatchOutbox>> ClaimPendingAsync(
+            int batchSize, DateTime nowUtc, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<BulkUploadDispatchOutbox>>(Array.Empty<BulkUploadDispatchOutbox>());
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
