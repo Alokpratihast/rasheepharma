@@ -846,6 +846,11 @@ public class BulkUploadService : IBulkUploadService
                     }
                     else
                     {
+                        // The row was not committed, so undo the optimistic success counters.
+                        // The row-error handler below will count it once as a failure.
+                        job.ProcessedRecords--;
+                        job.SuccessCount--;
+
                         foreach (var (existingImage, wasPrimary) in previousPrimaryStates)
                         {
                             existingImage.IsPrimary = wasPrimary;
