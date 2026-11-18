@@ -30,6 +30,8 @@ public class QuotationService : IQuotationService
 
     private readonly IEmailNotificationRepository _emailNotificationRepository;
 
+    private readonly IEmailNotificationSignal _emailNotificationSignal;
+
 
 
     private static readonly HashSet<string> AllowedStatuses =
@@ -80,7 +82,8 @@ public class QuotationService : IQuotationService
 
         IEmailNotificationRepository emailNotificationRepository,
 
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEmailNotificationSignal emailNotificationSignal)
 
     {
 
@@ -91,7 +94,8 @@ public class QuotationService : IQuotationService
         _variantRepository = variantRepository;
 
                 _emailNotificationRepository = emailNotificationRepository;
-_unitOfWork = unitOfWork;
+        _unitOfWork = unitOfWork;
+        _emailNotificationSignal = emailNotificationSignal;
 
     }
 
@@ -631,6 +635,7 @@ try
     await _unitOfWork.SaveChangesAsync();
 
     await transaction.CommitAsync();
+    _emailNotificationSignal.NotifyWorkAvailable();
 }
 catch
 {
