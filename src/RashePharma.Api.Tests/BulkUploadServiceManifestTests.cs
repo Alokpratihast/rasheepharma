@@ -29,7 +29,7 @@ public class BulkUploadServiceManifestTests
             null!,
             null!,
             NullLogger<BulkUploadService>.Instance,
-            null!);
+            new FakeBulkUploadDispatchOutboxRepository());
     }
 
     [Fact]
