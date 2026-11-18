@@ -222,6 +222,9 @@ public class BulkUploadServiceStagedFilesTests
         public Task<IReadOnlyList<BulkUploadDispatchOutbox>> ClaimPendingAsync(
             int batchSize, DateTime nowUtc, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<BulkUploadDispatchOutbox>>(Array.Empty<BulkUploadDispatchOutbox>());
+
+        public Task<DateTime?> GetNextRetryAtUtcAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<DateTime?>(null);
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
