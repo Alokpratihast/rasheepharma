@@ -5,22 +5,30 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
+using RashePharma.Domain.Enums;
 using RashePharma.Infrastructure.Configurations;
 
 namespace RashePharma.Infrastructure.Workers;
 
 public sealed class BulkUploadServiceBusConsumer : BackgroundService
 {
+    private static readonly TimeSpan JobLeaseDuration = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
+
     private readonly ServiceBusProcessor _processor;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BulkUploadServiceBusConsumer> _logger;
 
-    public BulkUploadServiceBusConsumer(ServiceBusClient client, IOptions<ServiceBusOptions> options,
-        IServiceScopeFactory scopeFactory, ILogger<BulkUploadServiceBusConsumer> logger)
+    public BulkUploadServiceBusConsumer(
+        ServiceBusClient client,
+        IOptions<ServiceBusOptions> options,
+        IServiceScopeFactory scopeFactory,
+        ILogger<BulkUploadServiceBusConsumer> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _processor = client.CreateProcessor(options.Value.BulkUploadQueueName,
+        _processor = client.CreateProcessor(
+            options.Value.BulkUploadQueueName,
             new ServiceBusProcessorOptions
             {
                 AutoCompleteMessages = false,
@@ -35,39 +43,84 @@ public sealed class BulkUploadServiceBusConsumer : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await _processor.StartProcessingAsync(stoppingToken);
-        try { await Task.Delay(Timeout.Infinite, stoppingToken); }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { await _processor.StopProcessingAsync(CancellationToken.None); }
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Host is stopping.
+        }
+        finally
+        {
+            await _processor.StopProcessingAsync(CancellationToken.None);
+        }
     }
 
     private async Task HandleMessageAsync(ProcessMessageEventArgs args)
     {
         if (!args.Message.ApplicationProperties.TryGetValue("BulkUploadJobId", out var rawId) ||
-            !int.TryParse(Convert.ToString(rawId), out var jobId) || jobId <= 0)
+            !int.TryParse(Convert.ToString(rawId), out var jobId) ||
+            jobId <= 0)
         {
-            await args.DeadLetterMessageAsync(args.Message, "InvalidBulkUploadJobId",
-                "The message does not contain a valid BulkUploadJobId.", args.CancellationToken);
+            await args.DeadLetterMessageAsync(
+                args.Message,
+                "InvalidBulkUploadJobId",
+                "The message does not contain a valid BulkUploadJobId.",
+                args.CancellationToken);
             return;
         }
 
         await using var scope = _scopeFactory.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
         var service = scope.ServiceProvider.GetRequiredService<IBulkUploadService>();
-        var job = await repository.ClaimJobAsync(jobId, args.CancellationToken);
 
-        // Duplicate delivery or a job already owned by another worker is safe to acknowledge.
+        var job = await repository.ClaimJobAsync(jobId, args.CancellationToken);
         if (job is null)
         {
+            // A duplicate delivery may arrive while another worker owns the lease.
+            // Terminal jobs are also safe to acknowledge. Pending jobs are not.
+            var current = await repository.GetByIdAsync(jobId, args.CancellationToken);
+            if (current is null)
+            {
+                await args.DeadLetterMessageAsync(
+                    args.Message,
+                    "BulkUploadJobNotFound",
+                    $"Bulk upload job {jobId} does not exist.",
+                    args.CancellationToken);
+                return;
+            }
+
+            if (current.Status == BulkUploadStatus.Pending)
+            {
+                _logger.LogWarning(
+                    "Bulk upload job {JobId} was not claimable while still Pending; abandoning for redelivery.",
+                    jobId);
+                await args.AbandonMessageAsync(args.Message, cancellationToken: args.CancellationToken);
+                return;
+            }
+
             await args.CompleteMessageAsync(args.Message, args.CancellationToken);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(job.ClaimToken))
-            throw new InvalidOperationException($"Claim token missing for bulk upload job {jobId}.");
+        {
+            throw new InvalidOperationException(
+                $"Claim token missing for bulk upload job {jobId}.");
+        }
 
-        using var processingCts = CancellationTokenSource.CreateLinkedTokenSource(args.CancellationToken);
-        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(args.CancellationToken);
-        var heartbeat = RenewLeaseLoopAsync(job.Id, job.ClaimToken, heartbeatCts.Token, processingCts);
+        using var processingCts =
+            CancellationTokenSource.CreateLinkedTokenSource(args.CancellationToken);
+        using var heartbeatCts =
+            CancellationTokenSource.CreateLinkedTokenSource(args.CancellationToken);
+
+        var heartbeat = RenewLeaseLoopAsync(
+            job.Id,
+            job.ClaimToken,
+            heartbeatCts.Token,
+            processingCts);
+
         try
         {
             await service.ProcessAsync(job.Id, job.ClaimToken, processingCts.Token);
@@ -79,34 +132,98 @@ public sealed class BulkUploadServiceBusConsumer : BackgroundService
         }
         catch (OperationCanceledException) when (processingCts.IsCancellationRequested)
         {
-            _logger.LogWarning("Bulk upload job {JobId} processing stopped after lease loss.", job.Id);
-            await args.CompleteMessageAsync(args.Message, args.CancellationToken);
+            _logger.LogWarning(
+                "Bulk upload job {JobId} stopped because lease ownership could not be maintained; abandoning message.",
+                job.Id);
+            await args.AbandonMessageAsync(args.Message, cancellationToken: args.CancellationToken);
         }
         catch (Exception ex)
         {
-            // ProcessAsync persists the terminal Failed state when it owns the lease.
-            _logger.LogError(ex, "Bulk upload job {JobId} failed.", job.Id);
-            await args.CompleteMessageAsync(args.Message, args.CancellationToken);
+            _logger.LogError(ex, "Bulk upload job {JobId} processing failed.", job.Id);
+
+            // ProcessAsync normally persists Failed before throwing. If persistence
+            // failed, leave the broker message available for redelivery/recovery.
+            var terminalStatePersisted = false;
+            try
+            {
+                var current = await repository.GetByIdAsync(job.Id, args.CancellationToken);
+                terminalStatePersisted = current?.Status is
+                    BulkUploadStatus.Failed or
+                    BulkUploadStatus.Completed or
+                    BulkUploadStatus.CompletedWithErrors;
+            }
+            catch (Exception stateException)
+            {
+                _logger.LogError(
+                    stateException,
+                    "Could not verify persisted state for bulk upload job {JobId}; message will be abandoned.",
+                    job.Id);
+            }
+
+            if (terminalStatePersisted)
+            {
+                await args.CompleteMessageAsync(args.Message, args.CancellationToken);
+            }
+            else
+            {
+                await args.AbandonMessageAsync(args.Message, cancellationToken: args.CancellationToken);
+            }
         }
         finally
         {
             await heartbeatCts.CancelAsync();
-            try { await heartbeat; }
-            catch (OperationCanceledException) when (heartbeatCts.IsCancellationRequested) { }
+            try
+            {
+                await heartbeat;
+            }
+            catch (OperationCanceledException) when (heartbeatCts.IsCancellationRequested)
+            {
+                // Expected when processing finishes before the next heartbeat.
+            }
         }
     }
 
-    private async Task RenewLeaseLoopAsync(int jobId, string claimToken, CancellationToken heartbeatToken,
+    private async Task RenewLeaseLoopAsync(
+        int jobId,
+        string claimToken,
+        CancellationToken heartbeatToken,
         CancellationTokenSource processingCts)
     {
         while (true)
         {
-            await Task.Delay(TimeSpan.FromSeconds(30), heartbeatToken);
-            using var scope = _scopeFactory.CreateScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
-            var renewed = await repository.TryRenewLeaseAsync(jobId, claimToken, TimeSpan.FromMinutes(2), heartbeatToken);
-            if (renewed) continue;
-            _logger.LogWarning("Lease renewal failed for bulk upload job {JobId}.", jobId);
+            await Task.Delay(HeartbeatInterval, heartbeatToken);
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
+                var renewed = await repository.TryRenewLeaseAsync(
+                    jobId,
+                    claimToken,
+                    JobLeaseDuration,
+                    heartbeatToken);
+
+                if (renewed)
+                {
+                    continue;
+                }
+
+                _logger.LogWarning(
+                    "Lease renewal returned false for bulk upload job {JobId}; stopping processing.",
+                    jobId);
+            }
+            catch (OperationCanceledException) when (heartbeatToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Lease renewal failed for bulk upload job {JobId}; stopping processing to avoid stale writes.",
+                    jobId);
+            }
+
             await processingCts.CancelAsync();
             return;
         }
@@ -114,7 +231,9 @@ public sealed class BulkUploadServiceBusConsumer : BackgroundService
 
     private Task HandleErrorAsync(ProcessErrorEventArgs args)
     {
-        _logger.LogError(args.Exception, "Bulk upload Service Bus processor error. Entity: {EntityPath}.",
+        _logger.LogError(
+            args.Exception,
+            "Bulk upload Service Bus processor error. Entity: {EntityPath}.",
             args.EntityPath);
         return Task.CompletedTask;
     }
