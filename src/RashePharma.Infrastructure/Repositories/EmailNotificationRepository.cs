@@ -54,10 +54,6 @@ public class EmailNotificationRepository : IEmailNotificationRepository
         var now = DateTime.UtcNow;
         var staleProcessingTime =
             now - StaleProcessingTimeout;
-        var firstRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(1);
-        var secondRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(2);
-        var thirdRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(3);
-        var laterRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(4);
 
         return await _context.EmailNotifications
             .Where(n =>
@@ -94,6 +90,10 @@ public class EmailNotificationRepository : IEmailNotificationRepository
 
         var staleProcessingTime =
             now - StaleProcessingTimeout;
+        var firstRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(1);
+        var secondRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(2);
+        var thirdRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(3);
+        var laterRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(4);
 
         await using var transaction =
             await _context.Database.BeginTransactionAsync();
