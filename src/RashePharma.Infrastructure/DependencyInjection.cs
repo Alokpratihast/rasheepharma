@@ -86,7 +86,7 @@ public static class DependencyInjection
         services.AddHostedService<OutboxDispatcher>();
         services.AddOptions<BulkUploadDispatchOptions>()
             .Bind(configuration.GetSection(BulkUploadDispatchOptions.SectionName))
-            .Validate(options => options.BatchSize > 0 && options.PollingIntervalSeconds > 0 &&
+            .Validate(options => options.BatchSize > 0 && options.RecoveryIntervalSeconds > 0 &&
                 options.LeaseDurationSeconds > 0 && options.MaxAttempts > 0,
                 "Bulk upload dispatch options must be positive.")
             .ValidateOnStart();
