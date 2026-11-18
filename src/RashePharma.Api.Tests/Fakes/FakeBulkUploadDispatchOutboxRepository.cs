@@ -16,6 +16,12 @@ internal sealed class FakeBulkUploadDispatchOutboxRepository : IBulkUploadDispat
     public Task<int> RequeueExpiredProcessingJobsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
         => Task.FromResult(0);
 
+    public Task<DateTime?> GetNextRetryAtUtcAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<DateTime?>(Messages
+            .Where(message => message.Status == "RetryScheduled" && message.NextAttemptAtUtc.HasValue)
+            .Select(message => message.NextAttemptAtUtc)
+            .Min());
+
     public Task<IReadOnlyList<BulkUploadDispatchOutbox>> ClaimPendingAsync(
         int batchSize,
         DateTime nowUtc,
