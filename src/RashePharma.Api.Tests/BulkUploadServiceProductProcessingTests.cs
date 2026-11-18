@@ -40,7 +40,7 @@ public class BulkUploadServiceProductProcessingTests
             _parser,
             _exchangeRate,
             NullLogger<BulkUploadService>.Instance,
-            null!);
+            new FakeBulkUploadDispatchOutboxRepository());
     }
 
     private BulkUploadJob CreateJob()
