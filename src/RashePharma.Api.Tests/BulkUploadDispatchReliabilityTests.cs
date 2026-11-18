@@ -1,4 +1,7 @@
 using Xunit;
+using Microsoft.EntityFrameworkCore;
+using RashePharma.Domain.Entities;
+using RashePharma.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RashePharma.Infrastructure.Services;
@@ -32,6 +35,36 @@ public sealed class BulkUploadDispatchReliabilityTests
         });
 
         Assert.NotNull(provider);
+    }
+
+    [Fact]
+    public void ProgressUpdate_DoesNotMarkLeaseOwnershipFieldsAsModified()
+    {
+        var options = new DbContextOptionsBuilder<LeaseMetadataTestDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        using var context = new LeaseMetadataTestDbContext(options);
+        var job = new BulkUploadJob
+        {
+            Id = 42,
+            Status = RashePharma.Domain.Enums.BulkUploadStatus.Processing,
+            ClaimToken = "active-claim",
+            AttemptCount = 3,
+            LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(2),
+            HeartbeatAtUtc = DateTime.UtcNow
+        };
+
+        context.BulkUploadJobs.Attach(job);
+        context.Entry(job).State = EntityState.Modified;
+
+        BulkUploadRepository.PreserveLeaseMetadata(context.Entry(job));
+
+        Assert.False(context.Entry(job).Property(x => x.ClaimToken).IsModified);
+        Assert.False(context.Entry(job).Property(x => x.AttemptCount).IsModified);
+        Assert.False(context.Entry(job).Property(x => x.LeaseExpiresAtUtc).IsModified);
+        Assert.False(context.Entry(job).Property(x => x.HeartbeatAtUtc).IsModified);
+        Assert.True(context.Entry(job).Property(x => x.ProcessedRecords).IsModified);
     }
 
     [Fact]
@@ -74,5 +107,11 @@ public sealed class BulkUploadDispatchReliabilityTests
             now);
 
         Assert.Equal(TimeSpan.Zero, wait);
+    }
+
+    private sealed class LeaseMetadataTestDbContext(
+        DbContextOptions<LeaseMetadataTestDbContext> options) : DbContext(options)
+    {
+        public DbSet<BulkUploadJob> BulkUploadJobs => Set<BulkUploadJob>();
     }
 }
