@@ -12,6 +12,7 @@ public class EnquiryService : IEnquiryService
     private readonly IProductVariantRepository _variantRepository;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEmailNotificationSignal _emailNotificationSignal;
 
     private const string EnquiryEmailNotificationType = "Enquiry";
 
@@ -19,12 +20,14 @@ public class EnquiryService : IEnquiryService
         IEnquiryRepository enquiryRepository,
         IProductVariantRepository variantRepository,
         IEmailNotificationRepository emailNotificationRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEmailNotificationSignal emailNotificationSignal)
     {
         _enquiryRepository = enquiryRepository;
         _variantRepository = variantRepository;
         _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
+        _emailNotificationSignal = emailNotificationSignal;
     }
 
     public async Task<List<EnquiryListDto>> GetAllAsync()
@@ -195,8 +198,9 @@ public class EnquiryService : IEnquiryService
         // Save both enquiry + notification.
         await _unitOfWork.SaveChangesAsync();
 
-        // Commit both together.
+        // Commit both together before waking the notification worker.
         await transaction.CommitAsync();
+        _emailNotificationSignal.NotifyWorkAvailable();
 
         var createdEnquiry =
             await _enquiryRepository.GetByIdAsync(enquiry.Id);
