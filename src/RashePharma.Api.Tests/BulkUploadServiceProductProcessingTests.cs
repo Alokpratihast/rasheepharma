@@ -458,6 +458,9 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
             CancellationToken cancellationToken = default)
             => Task.FromResult(Job);
 
+        public Task<BulkUploadJob?> ClaimJobAsync(int jobId, CancellationToken cancellationToken = default)
+            => Task.FromResult<BulkUploadJob?>(null);
+
         public Task<BulkUploadJob?> ClaimNextPendingJobAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult<BulkUploadJob?>(null);
