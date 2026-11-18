@@ -26,7 +26,7 @@ public class EmailNotificationWorker : BackgroundService
         _signal = signal;
         _batchSize = Math.Clamp(configuration.GetValue("EmailNotificationWorker:BatchSize", 10), 1, 100);
         _recoveryInterval = TimeSpan.FromSeconds(
-            Math.Clamp(configuration.GetValue("EmailNotificationWorker:RecoveryIntervalSeconds", 300), 30, 3600));
+            Math.Clamp(configuration.GetValue("EmailNotificationWorker:RecoveryIntervalSeconds", 300), 1, 3600));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
