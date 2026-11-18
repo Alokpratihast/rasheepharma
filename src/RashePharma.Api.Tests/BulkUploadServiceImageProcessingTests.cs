@@ -340,6 +340,35 @@ public class BulkUploadServiceImageProcessingTests
         Assert.Equal(1, _bulkRepository.Job!.SuccessCount);
     }
 
+    [Fact]
+    public async Task ProcessAsync_LeaseLostAfterImageUpload_ShouldDeleteOrphanBlobAndDetachImage()
+    {
+        SetExistingProduct();
+        _bulkRepository.ReturnFalseOnUpdateCall = 2;
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => ProcessImageAsync(ValidImage()));
+
+        Assert.Equal(1, _imageStorage.UploadCallCount);
+        Assert.Equal("https://images.test/medicine.png", Assert.Single(_imageStorage.DeletedUrls));
+        Assert.Empty(_imageRepository.AddedImages);
+        Assert.Empty(_imageRepository.ExistingImages);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ImagePersistenceFailure_ShouldDeleteBlobAndRecordRowError()
+    {
+        SetExistingProduct();
+        _bulkRepository.ThrowOnUpdateCall = 2;
+
+        await ProcessImageAsync(ValidImage());
+
+        Assert.Equal("https://images.test/medicine.png", Assert.Single(_imageStorage.DeletedUrls));
+        Assert.Empty(_imageRepository.AddedImages);
+        Assert.Equal(1, _bulkRepository.Job!.ErrorCount);
+        Assert.Contains("image persistence failed", Assert.Single(_bulkRepository.Job.Errors).ErrorMessage);
+    }
+
     // FAKE REPOSITORIES AND SERVICES
 
     private sealed class FakeBulkUploadRepository : IBulkUploadRepository
@@ -383,14 +412,25 @@ public class BulkUploadServiceImageProcessingTests
                 Job.Id == jobId &&
                 Job.ClaimToken == claimToken);
 
+        public int UpdateCallCount { get; private set; }
+        public int? ReturnFalseOnUpdateCall { get; set; }
+        public int? ThrowOnUpdateCall { get; set; }
+
         public Task<bool> UpdateJobIfOwnedAsync(
             BulkUploadJob job,
             string claimToken,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(
+        {
+            UpdateCallCount++;
+            if (ThrowOnUpdateCall == UpdateCallCount)
+                throw new IOException("image persistence failed");
+
+            return Task.FromResult(
+                ReturnFalseOnUpdateCall != UpdateCallCount &&
                 Job != null &&
                 Job.Id == job.Id &&
                 Job.ClaimToken == claimToken);
+        }
 
         public Task UpdateJobAsync(
             BulkUploadJob job,
@@ -543,7 +583,10 @@ public class BulkUploadServiceImageProcessingTests
             => Task.CompletedTask;
 
         public Task DeleteAsync(ProductImage image)
-            => Task.CompletedTask;
+        {
+            AddedImages.Remove(image);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeBulkUploadStorageService
@@ -588,6 +631,7 @@ public class BulkUploadServiceImageProcessingTests
         public int UploadCallCount { get; private set; }
 
         public List<string> UploadedFileNames { get; } = new();
+        public List<string> DeletedUrls { get; } = new();
 
         public Exception? UploadException { get; set; }
 
@@ -616,7 +660,10 @@ public class BulkUploadServiceImageProcessingTests
                 "application/octet-stream"));
     
         public Task DeleteAsync(string imageUrl)
-            => Task.CompletedTask;
+        {
+            DeletedUrls.Add(imageUrl);
+            return Task.CompletedTask;
+        }
 }
 
     private sealed class FakeExcelParser : IBulkUploadExcelParser
