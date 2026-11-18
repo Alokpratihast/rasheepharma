@@ -592,7 +592,10 @@ public class BulkUploadServiceFailureHandlingTests
             => Task.FromResult<(Stream, string ContentType)>(
                 (new MemoryStream(),
                  "application/octet-stream"));
-    }
+    
+        public Task DeleteAsync(string imageUrl)
+            => Task.CompletedTask;
+}
 
     // FAKE EXCHANGE RATE SERVICE
 
