@@ -39,7 +39,7 @@ public class BulkUploadServiceImageProcessingTests
             _parser,
             _exchangeRate,
             NullLogger<BulkUploadService>.Instance,
-            null!);
+            new FakeBulkUploadDispatchOutboxRepository());
     }
 
     private async Task ProcessImageAsync(
