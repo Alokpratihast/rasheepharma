@@ -31,6 +31,8 @@ public static class DependencyInjection
             .Validate(
                 options => !string.IsNullOrWhiteSpace(options.BulkQueueName),
                 "Bulk queue name is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.BulkUploadQueueName),
+                "Bulk upload queue name is required.")
             .ValidateOnStart();
 
         services.AddSingleton<ServiceBusClient>(serviceProvider =>
