@@ -280,10 +280,28 @@ public class BulkUploadRepository : IBulkUploadRepository
 
         _context.BulkUploadJobs.Update(job);
 
+        // The processing scope may hold a stale snapshot of the job while the
+        // heartbeat renews its lease through a separate DbContext. Never write
+        // lease/ownership metadata from that stale snapshot during progress saves.
+        PreserveLeaseMetadata(job);
+
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return true;
+    }
+
+    /// <summary>
+    /// Excludes worker ownership metadata from a progress update. The heartbeat
+    /// owns these fields and persists them independently of the processing scope.
+    /// </summary>
+    internal void PreserveLeaseMetadata(BulkUploadJob job)
+    {
+        var entry = _context.Entry(job);
+        entry.Property(current => current.ClaimToken).IsModified = false;
+        entry.Property(current => current.LeaseExpiresAtUtc).IsModified = false;
+        entry.Property(current => current.HeartbeatAtUtc).IsModified = false;
+        entry.Property(current => current.AttemptCount).IsModified = false;
     }
 
     /// <summary>
