@@ -21,5 +21,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RashePharma.Api\RashePharma.Api.csproj" />
+    <ProjectReference Include="..\RashePharma.BulkUploadWorker\RashePharma.BulkUploadWorker.csproj" />
   </ItemGroup>
 </Project>
