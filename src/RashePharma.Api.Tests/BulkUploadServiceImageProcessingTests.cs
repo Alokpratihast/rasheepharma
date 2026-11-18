@@ -38,7 +38,8 @@ public class BulkUploadServiceImageProcessingTests
             _imageStorage,
             _parser,
             _exchangeRate,
-            NullLogger<BulkUploadService>.Instance);
+            NullLogger<BulkUploadService>.Instance,
+            null!);
     }
 
     private async Task ProcessImageAsync(
