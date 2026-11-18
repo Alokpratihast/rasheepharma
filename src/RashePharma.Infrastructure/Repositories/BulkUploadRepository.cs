@@ -1,5 +1,6 @@
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Domain.Entities;
 using RashePharma.Domain.Enums;
@@ -283,7 +284,7 @@ public class BulkUploadRepository : IBulkUploadRepository
         // The processing scope may hold a stale snapshot of the job while the
         // heartbeat renews its lease through a separate DbContext. Never write
         // lease/ownership metadata from that stale snapshot during progress saves.
-        PreserveLeaseMetadata(job);
+        PreserveLeaseMetadata(_context.Entry(job));
 
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -295,9 +296,8 @@ public class BulkUploadRepository : IBulkUploadRepository
     /// Excludes worker ownership metadata from a progress update. The heartbeat
     /// owns these fields and persists them independently of the processing scope.
     /// </summary>
-    internal void PreserveLeaseMetadata(BulkUploadJob job)
+    internal static void PreserveLeaseMetadata(EntityEntry<BulkUploadJob> entry)
     {
-        var entry = _context.Entry(job);
         entry.Property(current => current.ClaimToken).IsModified = false;
         entry.Property(current => current.LeaseExpiresAtUtc).IsModified = false;
         entry.Property(current => current.HeartbeatAtUtc).IsModified = false;
