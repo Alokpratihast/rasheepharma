@@ -28,7 +28,8 @@ public class BulkUploadServiceManifestTests
             null!,
             null!,
             null!,
-            NullLogger<BulkUploadService>.Instance);
+            NullLogger<BulkUploadService>.Instance,
+            null!);
     }
 
     [Fact]
