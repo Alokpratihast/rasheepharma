@@ -351,14 +351,14 @@ public class BulkUploadServiceImageProcessingTests
         Assert.Equal("https://images.test/medicine.png", Assert.Single(_imageStorage.DeletedUrls));
         Assert.Empty(_imageRepository.AddedImages);
         Assert.Equal(1, _bulkRepository.Job!.ErrorCount);
-        Assert.Contains("image lookup failed", Assert.Single(_bulkRepository.Job.Errors).ErrorMessage);
+        Assert.Contains("Could not load existing product images after uploading the new image", Assert.Single(_bulkRepository.Job.Errors).ErrorMessage);
     }
 
     [Fact]
     public async Task ProcessAsync_LeaseLostAfterImageUpload_ShouldDeleteOrphanBlobAndDetachImage()
     {
         SetExistingProduct();
-        _bulkRepository.ReturnFalseOnUpdateCall = 2;
+        _bulkRepository.ReturnFalseOnUpdateCall = 3;
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => ProcessImageAsync(ValidImage()));
@@ -395,7 +395,7 @@ public class BulkUploadServiceImageProcessingTests
     public async Task ProcessAsync_ImagePersistenceFailure_ShouldDeleteBlobAndRecordRowError()
     {
         SetExistingProduct();
-        _bulkRepository.ThrowOnUpdateCall = 2;
+        _bulkRepository.ThrowOnUpdateCall = 3;
 
         await ProcessImageAsync(ValidImage());
 
