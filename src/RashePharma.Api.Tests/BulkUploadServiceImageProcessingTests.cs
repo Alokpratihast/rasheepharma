@@ -614,7 +614,10 @@ public class BulkUploadServiceImageProcessingTests
             => Task.FromResult<(Stream, string ContentType)>(
                 (new MemoryStream(new byte[] { 1, 2, 3 }),
                 "application/octet-stream"));
-    }
+    
+        public Task DeleteAsync(string imageUrl)
+            => Task.CompletedTask;
+}
 
     private sealed class FakeExcelParser : IBulkUploadExcelParser
     {
