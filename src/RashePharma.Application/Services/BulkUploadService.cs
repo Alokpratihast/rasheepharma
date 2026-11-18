@@ -3,6 +3,7 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Domain.Enums;
 namespace RashePharma.Application.Services;
 
