@@ -10,68 +10,82 @@ public class EmailNotificationWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EmailNotificationWorker> _logger;
+    private readonly IEmailNotificationSignal _signal;
 
     private readonly int _batchSize;
-    private readonly TimeSpan _pollingInterval;
+    private readonly TimeSpan _recoveryInterval;
 
     public EmailNotificationWorker(
         IServiceScopeFactory scopeFactory,
         ILogger<EmailNotificationWorker> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IEmailNotificationSignal signal)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _signal = signal;
         _batchSize = Math.Clamp(configuration.GetValue("EmailNotificationWorker:BatchSize", 10), 1, 100);
-        _pollingInterval = TimeSpan.FromSeconds(
-            Math.Clamp(configuration.GetValue("EmailNotificationWorker:PollingIntervalSeconds", 120), 10, 3600));
+        _recoveryInterval = TimeSpan.FromSeconds(
+            Math.Clamp(configuration.GetValue("EmailNotificationWorker:RecoveryIntervalSeconds", 300), 30, 3600));
     }
 
-    protected override async Task ExecuteAsync(
-        CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "Email notification worker started.");
+            "Email notification worker started in signal-driven mode. Recovery interval: {RecoveryIntervalSeconds}s.",
+            _recoveryInterval.TotalSeconds);
 
+        // Run once at startup so notifications committed while the process
+        // was offline are not dependent on receiving an in-memory signal.
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using var scope =
-                    _scopeFactory.CreateScope();
-
-                var notificationService =
-                    scope.ServiceProvider
-                        .GetRequiredService<IEmailNotificationService>();
-
-                await notificationService
-                    .ProcessPendingNotificationsAsync(_batchSize);
+                await DrainPendingNotificationsAsync(stoppingToken);
             }
-            catch (OperationCanceledException)
-                when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(
-                    ex,
-                    "Error occurred while processing email notifications.");
+                _logger.LogError(exception, "Email notification worker failed while draining pending notifications.");
             }
 
             try
             {
-                await Task.Delay(
-                    _pollingInterval,
-                    stoppingToken);
+                // Signals provide low-latency processing. The timeout is the
+                // durable recovery sweep for missed signals and delayed retries.
+                await _signal.WaitForWorkAsync(_recoveryInterval, stoppingToken);
             }
-            catch (OperationCanceledException)
-                when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
         }
 
-        _logger.LogInformation(
-            "Email notification worker stopped.");
+        _logger.LogInformation("Email notification worker stopped.");
+    }
+
+    private async Task DrainPendingNotificationsAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            int claimedCount;
+
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var notificationService =
+                    scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
+
+                claimedCount = await notificationService
+                    .ProcessPendingNotificationsAsync(_batchSize);
+            }
+
+            // A short batch means the durable queue is currently drained.
+            // A full batch may have more work, so immediately claim the next one.
+            if (claimedCount < _batchSize)
+                return;
+        }
     }
 }
