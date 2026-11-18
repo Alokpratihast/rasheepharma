@@ -593,6 +593,7 @@ builder.Services.AddScoped<IBlogPostRepository, BlogPostRepository>();
 builder.Services.AddScoped<
     IBulkUploadRepository,
     BulkUploadRepository>();
+builder.Services.AddScoped<IBulkUploadDispatchOutboxRepository, BulkUploadDispatchOutboxRepository>();
 
 builder.Services.AddScoped<
     IBulkUploadService,
