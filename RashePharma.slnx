@@ -6,6 +6,7 @@
     <Project Path="src/RashePharma.Domain/RashePharma.Domain.csproj" />
     <Project Path="src/RashePharma.Infrastructure/RashePharma.Infrastructure.csproj" />
     <Project Path="src/RashePharma.EmailWorker/RashePharma.EmailWorker.csproj" />
+    <Project Path="src/RashePharma.BulkUploadWorker/RashePharma.BulkUploadWorker.csproj" />
   </Folder>
   
 </Solution>
