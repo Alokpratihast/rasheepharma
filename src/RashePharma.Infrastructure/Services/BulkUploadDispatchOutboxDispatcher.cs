@@ -11,12 +11,12 @@ namespace RashePharma.Infrastructure.Services;
 public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
 {
  private readonly IServiceScopeFactory _scopes; private readonly AzureServiceBusBulkUploadPublisher _publisher;
- private readonly ILogger<BulkUploadDispatchOutboxDispatcher> _logger; private readonly BulkUploadDispatchOptions _options;
- public BulkUploadDispatchOutboxDispatcher(IServiceScopeFactory scopes,AzureServiceBusBulkUploadPublisher publisher,IOptions<BulkUploadDispatchOptions> options,ILogger<BulkUploadDispatchOutboxDispatcher> logger)
- { _scopes=scopes;_publisher=publisher;_options=options.Value;_logger=logger; }
+ private readonly ILogger<BulkUploadDispatchOutboxDispatcher> _logger; private readonly BulkUploadDispatchOptions _options; private readonly IBulkUploadDispatchSignal _signal;
+ public BulkUploadDispatchOutboxDispatcher(IServiceScopeFactory scopes,AzureServiceBusBulkUploadPublisher publisher,IOptions<BulkUploadDispatchOptions> options,ILogger<BulkUploadDispatchOutboxDispatcher> logger, IBulkUploadDispatchSignal signal)
+ { _scopes=scopes;_publisher=publisher;_options=options.Value;_logger=logger;_signal=signal; }
  protected override async Task ExecuteAsync(CancellationToken stoppingToken)
  {
-  while(!stoppingToken.IsCancellationRequested) try {var count=await DispatchAsync(stoppingToken);if(count>=_options.BatchSize)continue;await Task.Delay(TimeSpan.FromSeconds(_options.PollingIntervalSeconds),stoppingToken);}
+  while(!stoppingToken.IsCancellationRequested) try {var count=await DispatchAsync(stoppingToken);if(count>=_options.BatchSize)continue;await _signal.WaitForMessageAsync(TimeSpan.FromSeconds(_options.RecoveryIntervalSeconds),stoppingToken);}
   catch(OperationCanceledException) when(stoppingToken.IsCancellationRequested){break;}
   catch(Exception ex){_logger.LogError(ex,"Bulk upload outbox dispatch failed.");await Task.Delay(TimeSpan.FromSeconds(15),stoppingToken);}
  }
