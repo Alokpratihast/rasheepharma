@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
+using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Infrastructure.Configurations;
 namespace RashePharma.Infrastructure.Services;
