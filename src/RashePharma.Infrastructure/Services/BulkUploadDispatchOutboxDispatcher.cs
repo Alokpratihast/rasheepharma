@@ -25,6 +25,7 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
   await using var scope=_scopes.CreateAsyncScope();
   var repo=scope.ServiceProvider.GetRequiredService<IBulkUploadDispatchOutboxRepository>();
   var uow=scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+  await repo.RequeueExpiredProcessingJobsAsync(DateTime.UtcNow,ct);
   var batch=await repo.ClaimPendingAsync(_options.BatchSize,DateTime.UtcNow,TimeSpan.FromSeconds(_options.LeaseDurationSeconds),ct);
   foreach(var item in batch)
   {

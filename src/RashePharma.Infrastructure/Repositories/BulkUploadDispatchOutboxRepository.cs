@@ -8,6 +8,9 @@ public sealed class BulkUploadDispatchOutboxRepository : IBulkUploadDispatchOutb
  private readonly ApplicationDbContext _db;
  public BulkUploadDispatchOutboxRepository(ApplicationDbContext db)=>_db=db;
  public async Task AddAsync(BulkUploadDispatchOutbox message,CancellationToken ct=default)=>await _db.Set<BulkUploadDispatchOutbox>().AddAsync(message,ct);
+ public Task<int> RequeueExpiredProcessingJobsAsync(DateTime nowUtc,CancellationToken ct=default)
+  => _db.Set<BulkUploadDispatchOutbox>().Where(x => x.Status == BulkUploadDispatchStatus.Published && x.BulkUploadJob.Status == RashePharma.Domain.Enums.BulkUploadStatus.Processing && x.BulkUploadJob.LeaseExpiresAtUtc != null && x.BulkUploadJob.LeaseExpiresAtUtc <= nowUtc)
+    .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, BulkUploadDispatchStatus.Pending).SetProperty(x => x.PublishedAtUtc, (DateTime?)null).SetProperty(x => x.LeaseUntilUtc, (DateTime?)null).SetProperty(x => x.NextAttemptAtUtc, (DateTime?)null).SetProperty(x => x.LastError, "Requeued after the processing lease expired."), ct);
  public async Task<IReadOnlyList<BulkUploadDispatchOutbox>> ClaimPendingAsync(int batchSize,DateTime nowUtc,TimeSpan leaseDuration,CancellationToken ct=default)
  {
   if(batchSize<=0) throw new ArgumentOutOfRangeException(nameof(batchSize));
