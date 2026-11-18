@@ -37,7 +37,8 @@ public class BulkUploadServiceFailureHandlingTests
             new FakeImageStorageService(),
             _parser,
             new FakeExchangeRateService(),
-            NullLogger<BulkUploadService>.Instance);
+            NullLogger<BulkUploadService>.Instance,
+            null!);
     }
 
     private BulkUploadJob CreateJob(
