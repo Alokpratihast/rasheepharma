@@ -3,7 +3,6 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
-using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Domain.Enums;
 namespace RashePharma.Application.Services;
 
@@ -27,7 +26,6 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
-    private readonly IBulkUploadDispatchOutboxRepository _dispatchOutboxRepository;
     private readonly IBulkUploadJobSignal? _jobSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
@@ -42,8 +40,7 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadJobSignal? jobSignal = null,
-        IBulkUploadDispatchOutboxRepository? dispatchOutboxRepository = null)
+        IBulkUploadJobSignal? jobSignal = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -56,7 +53,6 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
-        _dispatchOutboxRepository = dispatchOutboxRepository!;
         _jobSignal = jobSignal;
     }
     /// <summary>
@@ -78,78 +74,61 @@ public class BulkUploadService : IBulkUploadService
         IReadOnlyCollection<BulkUploadFileInput> files,
         CancellationToken cancellationToken = default)
     {
-        var uploadedUrls = new List<string>();
-        try
+        var job = new BulkUploadJob
         {
-            var excelFileSize = excelStream.Length;
-            var excelUrl = await _bulkUploadStorageService.UploadAsync(
-                excelStream,
-                excelFileName,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            uploadedUrls.Add(excelUrl);
-
-            var job = new BulkUploadJob
+            FileName = excelFileName,
+            Status = BulkUploadStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _bulkUploadRepository.CreateJobAsync(
+            job,
+            cancellationToken);
+        await _unitOfWork.SaveChangesAsync();
+        var excelFileSize = excelStream.Length;
+        var excelUrl = await _bulkUploadStorageService.UploadAsync(
+            excelStream,
+            excelFileName,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        var excelFile = new BulkUploadFile
+        {
+            BulkUploadJobId = job.Id,
+            OriginalFileName = excelFileName,
+            BlobName = Path.GetFileName(
+                new Uri(excelUrl).AbsolutePath),
+            FileUrl = excelUrl,
+            FileType = ExcelFileType,
+            ContentType =
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileSize = excelFileSize
+        };
+        await _bulkUploadRepository.AddFileAsync(
+            excelFile,
+            cancellationToken);
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fileUrl = await _bulkUploadStorageService.UploadAsync(
+                file.Stream,
+                file.FileName,
+                file.ContentType);
+            var bulkFile = new BulkUploadFile
             {
-                FileName = excelFileName,
-                Status = BulkUploadStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                BulkUploadJobId = job.Id,
+                OriginalFileName = file.FileName,
+                BlobName = Path.GetFileName(
+                    new Uri(fileUrl).AbsolutePath),
+                FileUrl = fileUrl,
+                FileType = ImageFileType,
+                ContentType = file.ContentType,
+                FileSize = file.FileSize
             };
-            job.Files.Add(new BulkUploadFile
-            {
-                OriginalFileName = excelFileName,
-                BlobName = Path.GetFileName(new Uri(excelUrl).AbsolutePath),
-                FileUrl = excelUrl,
-                FileType = ExcelFileType,
-                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                FileSize = excelFileSize
-            });
-
-            foreach (var file in files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var fileUrl = await _bulkUploadStorageService.UploadAsync(
-                    file.Stream,
-                    file.FileName,
-                    file.ContentType);
-                uploadedUrls.Add(fileUrl);
-                job.Files.Add(new BulkUploadFile
-                {
-                    OriginalFileName = file.FileName,
-                    BlobName = Path.GetFileName(new Uri(fileUrl).AbsolutePath),
-                    FileUrl = fileUrl,
-                    FileType = ImageFileType,
-                    ContentType = file.ContentType,
-                    FileSize = file.FileSize
-                });
-            }
-
-            await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-            if (_dispatchOutboxRepository is not null)
-            {
-                await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
-                {
-                    BulkUploadJob = job,
-                    EventType = "BulkUploadRequested",
-                    SchemaVersion = 1,
-                    PayloadJson = "{}"
-                }, cancellationToken);
-            }
-            await _unitOfWork.SaveChangesAsync();
-            _jobSignal?.NotifyJobAvailable();
-            return job.Id;
+            await _bulkUploadRepository.AddFileAsync(
+                bulkFile,
+                cancellationToken);
         }
-        catch
-        {
-            foreach (var url in uploadedUrls)
-            {
-                try { await _bulkUploadStorageService.DeleteAsync(url); }
-                catch (Exception cleanupException)
-                {
-                    _logger.LogWarning(cleanupException, "Could not clean up staged bulk-upload blob {FileUrl}.", url);
-                }
-            }
-            throw;
-        }
+        await _unitOfWork.SaveChangesAsync();
+        _jobSignal?.NotifyJobAvailable();
+        return job.Id;
     }
     /// <summary>
     /// Validates an admin's upload manifest and creates one narrowly scoped
@@ -222,16 +201,6 @@ public class BulkUploadService : IBulkUploadService
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-        if (_dispatchOutboxRepository is not null)
-        {
-            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
-            {
-                BulkUploadJob = job,
-                EventType = "BulkUploadRequested",
-                SchemaVersion = 1,
-                PayloadJson = "{}"
-            }, cancellationToken);
-        }
         await _unitOfWork.SaveChangesAsync();
         _jobSignal?.NotifyJobAvailable();
         return job.Id;

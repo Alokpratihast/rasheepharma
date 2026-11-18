@@ -173,6 +173,27 @@ namespace RashePharma.Infrastructure.Migrations
                     b.ToTable("BlogPosts");
                 });
 
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUpload.BulkUploadDispatchOutbox", b =>
+                {
+                    b.Property<Guid>("Id").HasColumnType("uniqueidentifier");
+                    b.Property<int>("AttemptCount").HasColumnType("int");
+                    b.Property<int>("BulkUploadJobId").HasColumnType("int");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("EventType").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("LastError").HasMaxLength(2000).HasColumnType("nvarchar(2000)");
+                    b.Property<DateTime?>("LeaseUntilUtc").HasColumnType("datetime2");
+                    b.Property<DateTime?>("NextAttemptAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("PayloadJson").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<DateTime?>("PublishedAtUtc").HasColumnType("datetime2");
+                    b.Property<byte[]>("RowVersion").IsRequired().IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasColumnType("rowversion");
+                    b.Property<int>("SchemaVersion").HasColumnType("int");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(30).HasColumnType("nvarchar(30)");
+                    b.HasKey("Id");
+                    b.HasIndex("BulkUploadJobId", "EventType").IsUnique();
+                    b.HasIndex("Status", "NextAttemptAtUtc", "CreatedAtUtc");
+                    b.ToTable("BulkUploadDispatchOutbox");
+                });
+
             modelBuilder.Entity("RashePharma.Domain.Entities.BulkUploadError", b =>
                 {
                     b.Property<int>("Id")
@@ -2173,6 +2194,16 @@ namespace RashePharma.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("BulkUploadJob");
+                });
+
+            modelBuilder.Entity("RashePharma.Domain.Entities.BulkUpload.BulkUploadDispatchOutbox", b =>
+                {
+                    b.HasOne("RashePharma.Domain.Entities.BulkUploadJob", "BulkUploadJob")
+                        .WithMany()
+                        .HasForeignKey("BulkUploadJobId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                     b.Navigation("BulkUploadJob");
                 });
 
