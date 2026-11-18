@@ -388,6 +388,7 @@ public class BulkUploadServiceImageProcessingTests
         Assert.Equal("https://images.test/medicine.png", Assert.Single(_imageStorage.DeletedUrls));
         Assert.Empty(_imageRepository.AddedImages);
         Assert.Equal(1, _bulkRepository.Job!.ErrorCount);
+        Assert.Equal(0, _bulkRepository.Job.SuccessCount);
         Assert.Contains("image persistence failed", Assert.Single(_bulkRepository.Job.Errors).ErrorMessage);
     }
 
