@@ -831,8 +831,12 @@ public class BulkUploadService : IBulkUploadService
                     {
                         _logger.LogError(
                             detachException,
-                            "Could not detach product image after AddAsync failed for blob {ImageUrl}.",
+                            "Could not detach product image after AddAsync failed for blob {ImageUrl}; leaving the blob untouched.",
                             imageUrl);
+                        throw new OperationCanceledException(
+                            "Could not safely detach the image after AddAsync failed.",
+                            addException,
+                            cancellationToken);
                     }
 
                     await TryDeleteUnpersistedImageBlobAsync(imageUrl);
