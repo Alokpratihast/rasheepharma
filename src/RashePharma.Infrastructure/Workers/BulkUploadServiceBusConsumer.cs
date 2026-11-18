@@ -146,7 +146,15 @@ public sealed class BulkUploadServiceBusConsumer : BackgroundService
             var terminalStatePersisted = false;
             try
             {
-                var current = await repository.GetByIdAsync(job.Id, args.CancellationToken);
+                // Use a fresh scope so EF Core cannot return the failed job
+                // from the processing DbContext's change tracker. This must verify
+                // the state actually committed to SQL, not merely the in-memory entity.
+                await using var verificationScope = _scopeFactory.CreateAsyncScope();
+                var verificationRepository =
+                    verificationScope.ServiceProvider.GetRequiredService<IBulkUploadRepository>();
+                var current = await verificationRepository.GetByIdAsync(
+                    job.Id,
+                    args.CancellationToken);
                 terminalStatePersisted = current?.Status is
                     BulkUploadStatus.Failed or
                     BulkUploadStatus.Completed or
