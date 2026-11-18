@@ -28,7 +28,6 @@ public class BulkUploadService : IBulkUploadService
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
     private readonly IBulkUploadDispatchOutboxRepository? _dispatchOutboxRepository;
-    private readonly IBulkUploadJobSignal? _jobSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
         IBulkUploadRepository bulkUploadRepository,
@@ -42,7 +41,6 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadJobSignal? jobSignal = null,
         IBulkUploadDispatchOutboxRepository? dispatchOutboxRepository = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
@@ -56,7 +54,6 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
-        _jobSignal = jobSignal;
         _dispatchOutboxRepository = dispatchOutboxRepository;
     }
     /// <summary>
@@ -132,7 +129,6 @@ public class BulkUploadService : IBulkUploadService
                 }, cancellationToken);
             }
             await _unitOfWork.SaveChangesAsync();
-            _jobSignal?.NotifyJobAvailable();
             return job.Id;
         }
         catch
@@ -224,7 +220,6 @@ public class BulkUploadService : IBulkUploadService
         if (_dispatchOutboxRepository is not null)
             await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox { BulkUploadJob = job, EventType = "BulkUploadRequested", SchemaVersion = 1, PayloadJson = "{}" }, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
-        _jobSignal?.NotifyJobAvailable();
         return job.Id;
     }
     /// <summary>Validates file count, names, types, sizes, and staging-blob uniqueness.</summary>
