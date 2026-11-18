@@ -341,6 +341,20 @@ public class BulkUploadServiceImageProcessingTests
     }
 
     [Fact]
+    public async Task ProcessAsync_ImageLookupFailureAfterUpload_ShouldDeleteBlob()
+    {
+        SetExistingProduct();
+        _imageRepository.GetByProductIdException = new IOException("image lookup failed");
+
+        await ProcessImageAsync(ValidImage());
+
+        Assert.Equal("https://images.test/medicine.png", Assert.Single(_imageStorage.DeletedUrls));
+        Assert.Empty(_imageRepository.AddedImages);
+        Assert.Equal(1, _bulkRepository.Job!.ErrorCount);
+        Assert.Contains("image lookup failed", Assert.Single(_bulkRepository.Job.Errors).ErrorMessage);
+    }
+
+    [Fact]
     public async Task ProcessAsync_LeaseLostAfterImageUpload_ShouldDeleteOrphanBlobAndDetachImage()
     {
         SetExistingProduct();
@@ -586,12 +600,18 @@ public class BulkUploadServiceImageProcessingTests
         public List<ProductImage> AddedImages { get; } = new();
 
         public int AddCallCount { get; private set; }
+        public Exception? GetByProductIdException { get; set; }
 
         public Task<List<ProductImage>> GetByProductIdAsync(int productId)
-            => Task.FromResult(
+        {
+            if (GetByProductIdException != null)
+                throw GetByProductIdException;
+
+            return Task.FromResult(
                 ExistingImages
                     .Where(image => image.ProductId == productId)
                     .ToList());
+        }
 
         public Task<ProductImage?> GetByIdAsync(int id)
             => Task.FromResult<ProductImage?>(
