@@ -21,10 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="RashePharma.Infrastructure" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\RashePharma.Api\RashePharma.Api.csproj" />
     <ProjectReference Include="..\RashePharma.BulkUploadWorker\RashePharma.BulkUploadWorker.csproj" />
   </ItemGroup>
