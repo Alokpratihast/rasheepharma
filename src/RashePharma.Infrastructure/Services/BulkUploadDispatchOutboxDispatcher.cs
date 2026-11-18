@@ -11,8 +11,8 @@ namespace RashePharma.Infrastructure.Services;
 public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
 {
  private readonly IServiceScopeFactory _scopes; private readonly AzureServiceBusBulkUploadPublisher _publisher;
- private readonly ILogger<BulkUploadDispatchOutboxDispatcher> _logger; private readonly OutboxDispatcherOptions _options;
- public BulkUploadDispatchOutboxDispatcher(IServiceScopeFactory scopes,AzureServiceBusBulkUploadPublisher publisher,IOptions<OutboxDispatcherOptions> options,ILogger<BulkUploadDispatchOutboxDispatcher> logger)
+ private readonly ILogger<BulkUploadDispatchOutboxDispatcher> _logger; private readonly BulkUploadDispatchOptions _options;
+ public BulkUploadDispatchOutboxDispatcher(IServiceScopeFactory scopes,AzureServiceBusBulkUploadPublisher publisher,IOptions<BulkUploadDispatchOptions> options,ILogger<BulkUploadDispatchOutboxDispatcher> logger)
  { _scopes=scopes;_publisher=publisher;_options=options.Value;_logger=logger; }
  protected override async Task ExecuteAsync(CancellationToken stoppingToken)
  {
