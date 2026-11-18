@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
@@ -124,13 +123,16 @@ public class BulkUploadService : IBulkUploadService
             }
 
             await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+            if (_dispatchOutboxRepository is not null)
             {
-                BulkUploadJob = job,
-                EventType = "BulkUploadRequested",
-                SchemaVersion = 1,
-                PayloadJson = JsonSerializer.Serialize(new BulkUploadDispatchPayload(job.Id))
-            }, cancellationToken);
+                await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+                {
+                    BulkUploadJob = job,
+                    EventType = "BulkUploadRequested",
+                    SchemaVersion = 1,
+                    PayloadJson = "{}"
+                }, cancellationToken);
+            }
             await _unitOfWork.SaveChangesAsync();
             _jobSignal?.NotifyJobAvailable();
             return job.Id;
@@ -219,13 +221,16 @@ public class BulkUploadService : IBulkUploadService
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-        await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+        if (_dispatchOutboxRepository is not null)
         {
-            BulkUploadJob = job,
-            EventType = "BulkUploadRequested",
-            SchemaVersion = 1,
-            PayloadJson = JsonSerializer.Serialize(new BulkUploadDispatchPayload(job.Id))
-        }, cancellationToken);
+            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+            {
+                BulkUploadJob = job,
+                EventType = "BulkUploadRequested",
+                SchemaVersion = 1,
+                PayloadJson = "{}"
+            }, cancellationToken);
+        }
         await _unitOfWork.SaveChangesAsync();
         _jobSignal?.NotifyJobAvailable();
         return job.Id;
