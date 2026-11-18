@@ -311,6 +311,9 @@ public class BulkUploadServiceFailureHandlingTests
             => Task.FromResult<BulkUploadJob?>(
                 Job != null && Job.Id == jobId ? Job : null);
 
+        public Task<BulkUploadJob?> ClaimJobAsync(int jobId, CancellationToken cancellationToken = default)
+            => Task.FromResult<BulkUploadJob?>(null);
+
         public Task<BulkUploadJob?> ClaimNextPendingJobAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult<BulkUploadJob?>(null);
