@@ -57,6 +57,16 @@ public sealed class BulkUploadDispatchOutboxRepository : IBulkUploadDispatchOutb
                 cancellationToken);
     }
 
+    public Task<DateTime?> GetNextRetryAtUtcAsync(CancellationToken cancellationToken = default)
+    {
+        return _db.Set<BulkUploadDispatchOutbox>()
+            .Where(message =>
+                message.Status == BulkUploadDispatchStatus.RetryScheduled &&
+                message.NextAttemptAtUtc != null)
+            .Select(message => message.NextAttemptAtUtc)
+            .MinAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<BulkUploadDispatchOutbox>> ClaimPendingAsync(
         int batchSize,
         DateTime nowUtc,
