@@ -94,8 +94,6 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
             TimeSpan.FromSeconds(_options.LeaseDurationSeconds),
             ct);
 
-        DateTime? nextRetryAtUtc = null;
-
         foreach (var item in batch)
         {
             try
@@ -130,8 +128,6 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
                         _options.RetryMaxDelaySeconds);
                     item.NextAttemptAtUtc = DateTime.UtcNow.AddSeconds(delay);
 
-                    if (nextRetryAtUtc is null || item.NextAttemptAtUtc < nextRetryAtUtc)
-                        nextRetryAtUtc = item.NextAttemptAtUtc;
                 }
 
                 _logger.LogWarning(
@@ -144,6 +140,9 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
             await uow.SaveChangesAsync();
         }
 
+        // Query SQL even when this batch is empty: a previous full batch may
+        // have left RetryScheduled rows whose due time is still in the future.
+        var nextRetryAtUtc = await repo.GetNextRetryAtUtcAsync(ct);
         return (batch.Count, nextRetryAtUtc);
     }
 }
