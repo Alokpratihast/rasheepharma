@@ -42,8 +42,8 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadDispatchOutboxRepository dispatchOutboxRepository,
-        IBulkUploadJobSignal? jobSignal = null)
+        IBulkUploadJobSignal? jobSignal = null,
+        IBulkUploadDispatchOutboxRepository? dispatchOutboxRepository = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -56,7 +56,7 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
-        _dispatchOutboxRepository = dispatchOutboxRepository;
+        _dispatchOutboxRepository = dispatchOutboxRepository!;
         _jobSignal = jobSignal;
     }
     /// <summary>

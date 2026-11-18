@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RashePharma.Domain.Entities;
 using RashePharma.Domain.Entities.Email;
-using RashePharma.Domain.Entities.BulkUpload;
 
 namespace RashePharma.Infrastructure.Data;
 
@@ -83,8 +82,6 @@ public class ApplicationDbContext : DbContext
 
     // Kept separate from WebsiteContent because articles have publication and SEO lifecycles.
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
-
-    public DbSet<BulkUploadDispatchOutbox> BulkUploadDispatchOutboxMessages => Set<BulkUploadDispatchOutbox>();
 
     public DbSet<BulkUploadJob> BulkUploadJobs
     => Set<BulkUploadJob>();

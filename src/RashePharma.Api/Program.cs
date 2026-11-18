@@ -594,6 +594,8 @@ builder.Services.AddScoped<
     IBulkUploadRepository,
     BulkUploadRepository>();
 
+builder.Services.AddScoped<IBulkUploadDispatchOutboxRepository, BulkUploadDispatchOutboxRepository>();
+
 builder.Services.AddScoped<
     IBulkUploadService,
     BulkUploadService>();

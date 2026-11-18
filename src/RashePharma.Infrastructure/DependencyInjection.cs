@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddSingleton<
             IEmailMessagePublisher,
             AzureServiceBusEmailPublisher>();
+        services.AddSingleton<AzureServiceBusBulkUploadPublisher>();
 
         return services;
     }
@@ -86,6 +87,7 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services.AddHostedService<OutboxDispatcher>();
+        services.AddHostedService<BulkUploadDispatchOutboxDispatcher>();
 
         return services;
     }
