@@ -106,7 +106,7 @@ public sealed class EmailNotificationSignalTests
     private static ServiceProvider BuildProvider(IEmailNotificationService service)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(service);
+        services.AddSingleton<IEmailNotificationService>(service);
         return services.BuildServiceProvider();
     }
 
