@@ -27,7 +27,7 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
-    private readonly IBulkUploadDispatchOutboxRepository? _dispatchOutboxRepository;
+    private readonly IBulkUploadDispatchOutboxRepository _dispatchOutboxRepository;
     private readonly IBulkUploadDispatchSignal? _dispatchSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
@@ -42,7 +42,7 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadDispatchOutboxRepository? dispatchOutboxRepository = null,
+        IBulkUploadDispatchOutboxRepository dispatchOutboxRepository,
         IBulkUploadDispatchSignal? dispatchSignal = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
@@ -56,7 +56,7 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
-        _dispatchOutboxRepository = dispatchOutboxRepository;
+        _dispatchOutboxRepository = dispatchOutboxRepository ?? throw new ArgumentNullException(nameof(dispatchOutboxRepository));
         _dispatchSignal = dispatchSignal;
     }
     /// <summary>
@@ -121,16 +121,13 @@ public class BulkUploadService : IBulkUploadService
             }
 
             await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-            if (_dispatchOutboxRepository is not null)
+            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
             {
-                await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
-                {
-                    BulkUploadJob = job,
-                    EventType = "BulkUploadRequested",
-                    SchemaVersion = 1,
-                    PayloadJson = "{}"
-                }, cancellationToken);
-            }
+                BulkUploadJob = job,
+                EventType = "BulkUploadRequested",
+                SchemaVersion = 1,
+                PayloadJson = "{}"
+            }, cancellationToken);
             await _unitOfWork.SaveChangesAsync();
             _dispatchSignal?.NotifyMessageAvailable();
             return job.Id;
@@ -221,8 +218,13 @@ public class BulkUploadService : IBulkUploadService
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
-        if (_dispatchOutboxRepository is not null)
-            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox { BulkUploadJob = job, EventType = "BulkUploadRequested", SchemaVersion = 1, PayloadJson = "{}" }, cancellationToken);
+        await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+        {
+            BulkUploadJob = job,
+            EventType = "BulkUploadRequested",
+            SchemaVersion = 1,
+            PayloadJson = "{}"
+        }, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
         _dispatchSignal?.NotifyMessageAvailable();
         return job.Id;
