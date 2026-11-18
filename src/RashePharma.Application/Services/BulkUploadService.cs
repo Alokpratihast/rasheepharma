@@ -780,6 +780,9 @@ public class BulkUploadService : IBulkUploadService
                 var existingImages =
                     await _imageRepository.GetByProductIdAsync(
                         product.Id);
+                var previousPrimaryStates = existingImages.ToDictionary(
+                    existingImage => existingImage,
+                    existingImage => existingImage.IsPrimary);
                 var hasPrimaryImage =
                     existingImages.Any(image => image.IsPrimary);
                 var shouldBePrimary =
@@ -802,10 +805,89 @@ public class BulkUploadService : IBulkUploadService
                 await _imageRepository.AddAsync(image);
                 job.ProcessedRecords++;
                 job.SuccessCount++;
-                await SaveProgressAsync(
-                    job,
-                    claimToken,
-                    cancellationToken);
+
+                try
+                {
+                    await SaveProgressAsync(job, claimToken, cancellationToken);
+                }
+                catch (Exception persistenceException)
+                {
+                    // A failed response can be ambiguous: SQL may have committed before
+                    // the connection failed. Never delete a blob until a fresh query proves
+                    // that its ProductImage row is absent.
+                    List<ProductImage> persistedImages;
+                    try
+                    {
+                        persistedImages = await _imageRepository.GetByProductIdAsync(product.Id);
+                    }
+                    catch (Exception verificationException)
+                    {
+                        _logger.LogError(
+                            verificationException,
+                            "Could not verify persistence for uploaded image {ImageUrl}; leaving blob untouched to avoid deleting a committed image.",
+                            imageUrl);
+
+                        // Stop this processing scope. A later progress save must not flush
+                        // the uncertain image or its primary-image changes.
+                        throw new OperationCanceledException(
+                            "Could not verify image persistence after a failed database save.",
+                            persistenceException,
+                            cancellationToken);
+                    }
+
+                    if (persistedImages.Any(savedImage =>
+                        string.Equals(savedImage.ImageUrl, imageUrl, StringComparison.Ordinal)))
+                    {
+                        // The transaction committed even though the caller observed an error.
+                        _logger.LogWarning(
+                            persistenceException,
+                            "Image {ImageUrl} was committed despite a persistence exception; retaining its blob.",
+                            imageUrl);
+                    }
+                    else
+                    {
+                        foreach (var (existingImage, wasPrimary) in previousPrimaryStates)
+                        {
+                            existingImage.IsPrimary = wasPrimary;
+                        }
+
+                        try
+                        {
+                            // Remove/detach the pending ProductImage so a subsequent row-error
+                            // save cannot accidentally persist an image whose blob is deleted.
+                            await _imageRepository.DeleteAsync(image);
+                        }
+                        catch (Exception detachException)
+                        {
+                            _logger.LogError(
+                                detachException,
+                                "Could not detach uncommitted ProductImage for blob {ImageUrl}.",
+                                imageUrl);
+                            throw new OperationCanceledException(
+                                "Could not safely detach an uncommitted image after persistence failure.",
+                                persistenceException,
+                                cancellationToken);
+                        }
+
+                        try
+                        {
+                            await _imageStorageService.DeleteAsync(imageUrl);
+                        }
+                        catch (Exception cleanupException)
+                        {
+                            // Keep the original persistence exception as the row failure.
+                            // The orphan can be reconciled later without risking DB data loss.
+                            _logger.LogError(
+                                cleanupException,
+                                "Could not delete orphaned product image blob {ImageUrl}.",
+                                imageUrl);
+                        }
+
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                            .Capture(persistenceException)
+                            .Throw();
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
