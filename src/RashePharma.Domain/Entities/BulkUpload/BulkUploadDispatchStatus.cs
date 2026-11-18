@@ -1,0 +1,2 @@
+namespace RashePharma.Domain.Entities.BulkUpload;
+public static class BulkUploadDispatchStatus { public const string Pending="Pending", Processing="Processing", Published="Published", RetryScheduled="RetryScheduled", DeadLettered="DeadLettered"; }
