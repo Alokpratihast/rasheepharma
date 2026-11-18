@@ -786,7 +786,7 @@ public class BulkUploadService : IBulkUploadService
                 {
                     await TryDeleteUnpersistedImageBlobAsync(imageUrl);
                     throw new IOException(
-                        "Could not load existing product images after uploading the new image.",
+                        $"Could not load existing product images after uploading the new image: {repositoryException.Message}",
                         repositoryException);
                 }
 
