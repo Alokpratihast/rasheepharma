@@ -723,11 +723,7 @@ builder.Services.AddScoped<
 builder.Services.AddHostedService<
     EmailNotificationWorker>();
 
-// The channel is process-local; SQL remains the durable job source of truth.
-builder.Services.AddSingleton<BulkUploadJobSignal>();
-builder.Services.AddSingleton<IBulkUploadJobSignal>(sp =>
-    sp.GetRequiredService<BulkUploadJobSignal>());
-builder.Services.AddHostedService<BulkUploadWorker>();
+// Bulk-upload processing is hosted by the dedicated Service Bus worker container.
 
 // Event-driven outreach and outbox wake-ups; SQL remains the durable queue.
 builder.Services.AddSingleton<LeadOutreachJobSignal>();

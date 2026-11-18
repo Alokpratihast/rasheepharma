@@ -119,11 +119,11 @@ public sealed class BulkUploadServiceBusConsumer : BackgroundService
         return Task.CompletedTask;
     }
 
-    public override async Task DisposeAsync()
+    public override void Dispose()
     {
         _processor.ProcessMessageAsync -= HandleMessageAsync;
         _processor.ProcessErrorAsync -= HandleErrorAsync;
-        await _processor.DisposeAsync();
-        await base.DisposeAsync();
+        _processor.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        base.Dispose();
     }
 }
