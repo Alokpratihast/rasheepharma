@@ -57,7 +57,7 @@ IConfiguration configuration)
         _configuration = configuration;
     }
 
-    public async Task ProcessPendingNotificationsAsync(
+    public async Task<int> ProcessPendingNotificationsAsync(
         int batchSize)
     {
         if (batchSize <= 0)
@@ -73,7 +73,7 @@ IConfiguration configuration)
 
         if (notifications.Count == 0)
         {
-            return;
+            return 0;
         }
 
         _logger.LogInformation(
@@ -84,6 +84,8 @@ IConfiguration configuration)
         {
             await ProcessNotificationAsync(notification);
         }
+
+        return notifications.Count;
     }
 
     private async Task ProcessNotificationAsync(
