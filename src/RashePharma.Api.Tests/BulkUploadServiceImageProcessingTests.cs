@@ -373,7 +373,7 @@ public class BulkUploadServiceImageProcessingTests
     public async Task ProcessAsync_AmbiguousSaveWithCommittedImage_ShouldKeepBlob()
     {
         SetExistingProduct();
-        _bulkRepository.ReturnFalseOnUpdateCall = 2;
+        _bulkRepository.ReturnFalseOnUpdateCall = 3;
         _bulkRepository.OnRejectedUpdate = () =>
         {
             var committedImage = Assert.Single(_imageRepository.AddedImages);
