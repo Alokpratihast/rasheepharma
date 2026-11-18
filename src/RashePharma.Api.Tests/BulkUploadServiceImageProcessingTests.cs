@@ -356,6 +356,28 @@ public class BulkUploadServiceImageProcessingTests
     }
 
     [Fact]
+    public async Task ProcessAsync_AmbiguousSaveWithCommittedImage_ShouldKeepBlob()
+    {
+        SetExistingProduct();
+        _bulkRepository.ReturnFalseOnUpdateCall = 2;
+        _bulkRepository.OnRejectedUpdate = () =>
+        {
+            var committedImage = Assert.Single(_imageRepository.AddedImages);
+            _imageRepository.AddedImages.Remove(committedImage);
+            _imageRepository.ExistingImages.Add(committedImage);
+        };
+
+        await ProcessImageAsync(ValidImage());
+
+        Assert.Empty(_imageStorage.DeletedUrls);
+        Assert.Empty(_imageRepository.AddedImages);
+        Assert.Equal("https://images.test/medicine.png",
+            Assert.Single(_imageRepository.ExistingImages).ImageUrl);
+        Assert.Equal(1, _bulkRepository.Job!.SuccessCount);
+        Assert.Equal(0, _bulkRepository.Job.ErrorCount);
+    }
+
+    [Fact]
     public async Task ProcessAsync_ImagePersistenceFailure_ShouldDeleteBlobAndRecordRowError()
     {
         SetExistingProduct();
@@ -415,6 +437,7 @@ public class BulkUploadServiceImageProcessingTests
         public int UpdateCallCount { get; private set; }
         public int? ReturnFalseOnUpdateCall { get; set; }
         public int? ThrowOnUpdateCall { get; set; }
+        public Action? OnRejectedUpdate { get; set; }
 
         public Task<bool> UpdateJobIfOwnedAsync(
             BulkUploadJob job,
@@ -425,8 +448,12 @@ public class BulkUploadServiceImageProcessingTests
             if (ThrowOnUpdateCall == UpdateCallCount)
                 throw new IOException("image persistence failed");
 
+            var rejected = ReturnFalseOnUpdateCall == UpdateCallCount;
+            if (rejected)
+                OnRejectedUpdate?.Invoke();
+
             return Task.FromResult(
-                ReturnFalseOnUpdateCall != UpdateCallCount &&
+                !rejected &&
                 Job != null &&
                 Job.Id == job.Id &&
                 Job.ClaimToken == claimToken);
