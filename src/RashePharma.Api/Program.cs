@@ -721,6 +721,8 @@ builder.Services.AddScoped<
     IEmailNotificationService,
     EmailNotificationService>();
 
+builder.Services.AddSingleton<IEmailNotificationSignal, EmailNotificationSignal>();
+
 builder.Services.AddHostedService<
     EmailNotificationWorker>();
 
