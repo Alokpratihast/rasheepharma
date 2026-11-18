@@ -724,7 +724,10 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
         public Task<(Stream Stream, string ContentType)> DownloadAsync(
             string imageUrl)
             => throw new NotImplementedException();
-    }
+    
+        public Task DeleteAsync(string imageUrl)
+            => Task.CompletedTask;
+}
 
     private sealed class FakeExcelParser : IBulkUploadExcelParser
     {
