@@ -38,7 +38,7 @@ public class BulkUploadServiceFailureHandlingTests
             _parser,
             new FakeExchangeRateService(),
             NullLogger<BulkUploadService>.Instance,
-            null!);
+            new FakeBulkUploadDispatchOutboxRepository());
     }
 
     private BulkUploadJob CreateJob(
