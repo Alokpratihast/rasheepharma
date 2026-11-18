@@ -93,7 +93,7 @@ public class QuotationService : IQuotationService
 
         _variantRepository = variantRepository;
 
-                _emailNotificationRepository = emailNotificationRepository;
+               _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
         _emailNotificationSignal = emailNotificationSignal;
 
