@@ -777,9 +777,19 @@ public class BulkUploadService : IBulkUploadService
                     stagedStream,
                     stagedFile.OriginalFileName,
                     stagedFile.ContentType);
-                var existingImages =
-                    await _imageRepository.GetByProductIdAsync(
-                        product.Id);
+                List<ProductImage> existingImages;
+                try
+                {
+                    existingImages = await _imageRepository.GetByProductIdAsync(product.Id);
+                }
+                catch (Exception repositoryException)
+                {
+                    await TryDeleteUnpersistedImageBlobAsync(imageUrl);
+                    throw new IOException(
+                        "Could not load existing product images after uploading the new image.",
+                        repositoryException);
+                }
+
                 var previousPrimaryStates = existingImages.ToDictionary(
                     existingImage => existingImage,
                     existingImage => existingImage.IsPrimary);
@@ -802,7 +812,35 @@ public class BulkUploadService : IBulkUploadService
                     IsPrimary = shouldBePrimary,
                     DisplayOrder = row.DisplayOrder
                 };
-                await _imageRepository.AddAsync(image);
+                try
+                {
+                    await _imageRepository.AddAsync(image);
+                }
+                catch (Exception addException)
+                {
+                    foreach (var (existingImage, wasPrimary) in previousPrimaryStates)
+                    {
+                        existingImage.IsPrimary = wasPrimary;
+                    }
+
+                    try
+                    {
+                        await _imageRepository.DeleteAsync(image);
+                    }
+                    catch (Exception detachException)
+                    {
+                        _logger.LogError(
+                            detachException,
+                            "Could not detach product image after AddAsync failed for blob {ImageUrl}.",
+                            imageUrl);
+                    }
+
+                    await TryDeleteUnpersistedImageBlobAsync(imageUrl);
+                    throw new IOException(
+                        "Could not stage the product image database record.",
+                        addException);
+                }
+
                 job.ProcessedRecords++;
                 job.SuccessCount++;
 
@@ -932,6 +970,21 @@ public class BulkUploadService : IBulkUploadService
             }
         }
     }
+    private async Task TryDeleteUnpersistedImageBlobAsync(string imageUrl)
+    {
+        try
+        {
+            await _imageStorageService.DeleteAsync(imageUrl);
+        }
+        catch (Exception cleanupException)
+        {
+            _logger.LogError(
+                cleanupException,
+                "Could not clean up product image blob {ImageUrl} after a pre-persistence failure.",
+                imageUrl);
+        }
+    }
+
     /// <summary>Downloads a staged file stream for parsing or image processing.</summary>
     private async Task<Stream> DownloadStagedFileAsync(
         string fileUrl,
