@@ -16,4 +16,6 @@ public sealed class ServiceBusOptions
 
     public string TestQueueName { get; set; } =
     "email-connectivity-test";
+
+    public string BulkUploadQueueName { get; set; } = "bulk-upload";
 }

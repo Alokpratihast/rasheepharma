@@ -3,6 +3,7 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Domain.Enums;
 namespace RashePharma.Application.Services;
 
@@ -26,6 +27,7 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
+    private readonly IBulkUploadDispatchOutboxRepository? _dispatchOutboxRepository;
     private readonly IBulkUploadJobSignal? _jobSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
@@ -40,7 +42,8 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadJobSignal? jobSignal = null)
+        IBulkUploadJobSignal? jobSignal = null,
+        IBulkUploadDispatchOutboxRepository? dispatchOutboxRepository = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -54,6 +57,7 @@ public class BulkUploadService : IBulkUploadService
         _exchangeRateService = exchangeRateService;
         _logger = logger;
         _jobSignal = jobSignal;
+        _dispatchOutboxRepository = dispatchOutboxRepository;
     }
     /// <summary>
     /// Rejects metadata-only job creation. A Pending job must never be visible
@@ -201,6 +205,8 @@ public class BulkUploadService : IBulkUploadService
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
+        if (_dispatchOutboxRepository is not null)
+            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox { BulkUploadJob = job, EventType = "BulkUploadRequested", SchemaVersion = 1, PayloadJson = "{}" }, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
         _jobSignal?.NotifyJobAvailable();
         return job.Id;
