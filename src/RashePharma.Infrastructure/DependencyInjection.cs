@@ -3,6 +3,7 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Infrastructure.Configurations;
 using RashePharma.Infrastructure.Services;
