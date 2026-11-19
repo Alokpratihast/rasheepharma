@@ -74,7 +74,6 @@ public sealed class BulkUploadDispatchReliabilityTests
         var retryAt = now.AddSeconds(15);
 
         var wait = BulkUploadDispatchOutboxDispatcher.CalculateWaitDuration(
-            TimeSpan.FromSeconds(300),
             retryAt,
             now);
 
@@ -82,7 +81,7 @@ public sealed class BulkUploadDispatchReliabilityTests
     }
 
     [Fact]
-    public void RetryWait_IsBoundedByRecoveryInterval()
+    public void RetryWait_DoesNotWakeForAnUnrelatedRecoveryPoll()
     {
         var now = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
         var retryAt = now.AddMinutes(10);
@@ -92,7 +91,19 @@ public sealed class BulkUploadDispatchReliabilityTests
             retryAt,
             now);
 
-        Assert.Equal(TimeSpan.FromSeconds(300), wait);
+        Assert.Equal(TimeSpan.FromMinutes(10), wait);
+    }
+
+    [Fact]
+    public void RetryWait_WaitsIndefinitelyWhenNoRetryIsScheduled()
+    {
+        var now = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
+
+        var wait = BulkUploadDispatchOutboxDispatcher.CalculateWaitDuration(
+            null,
+            now);
+
+        Assert.Equal(Timeout.InfiniteTimeSpan, wait);
     }
 
     [Fact]
