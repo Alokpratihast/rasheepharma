@@ -3,8 +3,8 @@ using RashePharma.Application.Interfaces.Services;
 namespace RashePharma.Infrastructure.Services;
 
 /// <summary>
-/// Process-local coalescing wake-up signal. Periodic SQL reconciliation
-/// recovers notifications lost during process restarts or replica changes.
+/// Process-local coalescing wake-up signal. Startup reconciliation and
+/// scheduled retry times recover durable outbox messages without idle polling.
 /// </summary>
 public sealed class EmailOutboxSignal : IEmailOutboxSignal
 {
