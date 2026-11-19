@@ -11,6 +11,8 @@ public interface IEmailOutboxRepository
 
     Task UpdateAsync(EmailOutboxMessage outboxMessage);
 
+    Task<DateTime?> GetNextRetryAtUtcAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<EmailOutboxMessage>> ClaimPendingAsync(
     int batchSize,
     DateTime nowUtc,
