@@ -32,7 +32,6 @@ public sealed class OutboxDispatcher : BackgroundService
         _outboxSignal = outboxSignal;
 
         if (_options.BatchSize <= 0 ||
-            _options.PollingIntervalSeconds <= 0 ||
             _options.LeaseDurationSeconds <= 0 ||
             _options.MaxAttempts <= 0 ||
             _options.RetryBaseDelaySeconds <= 0 ||
@@ -53,20 +52,21 @@ public sealed class OutboxDispatcher : BackgroundService
         {
             try
             {
-                var processedCount =
-                    await ProcessBatchAsync(stoppingToken);
+                var result = await ProcessBatchAsync(stoppingToken);
 
-                // Immediately process another batch if the current
-                // batch was full.
-                if (processedCount >= _options.BatchSize)
+                // Continue immediately when the batch may have more eligible rows.
+                if (result.Count >= _options.BatchSize)
                     continue;
 
-                // No database polling while idle. A bounded in-process signal wakes
-                // this dispatcher after an outbox commit; the timeout is a durable
-                // recovery sweep for restarts, missed signals, and other replicas.
-                await _outboxSignal.WaitForMessageAsync(
-                    TimeSpan.FromSeconds(_options.PollingIntervalSeconds),
-                    stoppingToken);
+                // A new outbox commit wakes this dispatcher immediately. When no
+                // retry/lease is due, it sleeps indefinitely and performs no SQL polling.
+                var wait = result.NextRetryAtUtc is null
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromSeconds(Math.Max(
+                        0,
+                        (result.NextRetryAtUtc.Value - DateTime.UtcNow).TotalSeconds));
+
+                await _outboxSignal.WaitForMessageAsync(wait, stoppingToken);
             }
             catch (OperationCanceledException)
                 when (stoppingToken.IsCancellationRequested)
@@ -87,7 +87,7 @@ public sealed class OutboxDispatcher : BackgroundService
             "Outbox Dispatcher stopped.");
     }
 
-    private async Task<int> ProcessBatchAsync(
+    private async Task<(int Count, DateTime? NextRetryAtUtc)> ProcessBatchAsync(
         CancellationToken cancellationToken)
     {
         await using var scope =
@@ -118,7 +118,10 @@ public sealed class OutboxDispatcher : BackgroundService
                 cancellationToken);
 
         if (messages.Count == 0)
-            return 0;
+        {
+            var nextRetry = await outboxRepository.GetNextRetryAtUtcAsync(cancellationToken);
+            return (0, nextRetry);
+        }
 
         _logger.LogInformation(
             "Claimed {MessageCount} outbox messages.",
@@ -192,7 +195,8 @@ public sealed class OutboxDispatcher : BackgroundService
             }
         }
 
-        return messages.Count;
+        var nextRetryAtUtc = await outboxRepository.GetNextRetryAtUtcAsync(cancellationToken);
+        return (messages.Count, nextRetryAtUtc);
     }
 
     private void HandlePublishFailure(
