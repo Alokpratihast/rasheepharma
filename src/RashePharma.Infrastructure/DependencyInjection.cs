@@ -68,9 +68,6 @@ public static class DependencyInjection
                 options => options.BatchSize > 0,
                 "Outbox batch size must be greater than zero.")
             .Validate(
-                options => options.PollingIntervalSeconds > 0,
-                "Polling interval must be greater than zero.")
-            .Validate(
                 options => options.LeaseDurationSeconds > 0,
                 "Lease duration must be greater than zero.")
             .Validate(
