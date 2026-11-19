@@ -721,11 +721,7 @@ builder.Services.AddScoped<
     IEmailNotificationService,
     EmailNotificationService>();
 
-builder.Services.AddSingleton<IEmailNotificationSignal, EmailNotificationSignal>();
-
-builder.Services.AddHostedService<
-    EmailNotificationWorker>();
-
+// Enquiry, quotation, and invoice notifications are processed on demand by the API.
 // Bulk-upload processing is hosted by the dedicated Service Bus worker container.
 
 // Event-driven outreach and outbox wake-ups; SQL remains the durable queue.
@@ -738,8 +734,7 @@ builder.Services.AddSingleton<IEmailOutboxSignal>(sp =>
 
 builder.Services.AddHostedService<LeadOutreachWorker>();
 
-builder.Services.AddHostedService<
-    RevokedAccessTokenCleanupService>();
+// Expired-token cleanup is intentionally not hosted in the API; run it as an occasional maintenance task if needed.
 
 
 builder.Services.AddScoped<
