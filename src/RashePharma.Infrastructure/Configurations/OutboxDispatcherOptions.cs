@@ -7,8 +7,6 @@ public sealed class OutboxDispatcherOptions
 
     public int BatchSize { get; set; } = 20;
 
-    public int PollingIntervalSeconds { get; set; } = 60;
-
     public int LeaseDurationSeconds { get; set; } = 60;
 
     public int MaxAttempts { get; set; } = 5;
