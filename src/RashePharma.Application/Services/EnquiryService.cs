@@ -12,7 +12,7 @@ public class EnquiryService : IEnquiryService
     private readonly IProductVariantRepository _variantRepository;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailNotificationSignal _emailNotificationSignal;
+    private readonly IEmailNotificationService _emailNotificationService;
 
     private const string EnquiryEmailNotificationType = "Enquiry";
 
@@ -21,13 +21,13 @@ public class EnquiryService : IEnquiryService
         IProductVariantRepository variantRepository,
         IEmailNotificationRepository emailNotificationRepository,
         IUnitOfWork unitOfWork,
-        IEmailNotificationSignal emailNotificationSignal)
+        IEmailNotificationService emailNotificationService)
     {
         _enquiryRepository = enquiryRepository;
         _variantRepository = variantRepository;
         _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
-        _emailNotificationSignal = emailNotificationSignal;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<List<EnquiryListDto>> GetAllAsync()
@@ -198,9 +198,9 @@ public class EnquiryService : IEnquiryService
         // Save both enquiry + notification.
         await _unitOfWork.SaveChangesAsync();
 
-        // Commit both together before waking the notification worker.
+        // Persist the enquiry and notification before sending the email in this API flow.
         await transaction.CommitAsync();
-        _emailNotificationSignal.NotifyWorkAvailable();
+        await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 
         var createdEnquiry =
             await _enquiryRepository.GetByIdAsync(enquiry.Id);
