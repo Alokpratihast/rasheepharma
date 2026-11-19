@@ -32,6 +32,31 @@ public sealed class EmailOutboxRepository : IEmailOutboxRepository
         return Task.CompletedTask;
     }
 
+    public async Task<DateTime?> GetNextRetryAtUtcAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var retryAtUtc = await _context.EmailOutboxMessages
+            .Where(message =>
+                message.Status == EmailOutboxStatus.RetryScheduled &&
+                message.NextAttemptAtUtc != null)
+            .Select(message => message.NextAttemptAtUtc)
+            .MinAsync(cancellationToken);
+
+        var leaseExpiryUtc = await _context.EmailOutboxMessages
+            .Where(message =>
+                message.Status == EmailOutboxStatus.Processing &&
+                message.LeaseUntilUtc != null)
+            .Select(message => message.LeaseUntilUtc)
+            .MinAsync(cancellationToken);
+
+        if (retryAtUtc is null) return leaseExpiryUtc;
+        if (leaseExpiryUtc is null) return retryAtUtc;
+
+        return retryAtUtc.Value <= leaseExpiryUtc.Value
+            ? retryAtUtc
+            : leaseExpiryUtc;
+    }
+
     public async Task<IReadOnlyList<EmailOutboxMessage>> ClaimPendingAsync(
         int batchSize,
         DateTime nowUtc,
