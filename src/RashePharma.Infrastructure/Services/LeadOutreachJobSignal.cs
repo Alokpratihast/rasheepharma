@@ -5,7 +5,7 @@ namespace RashePharma.Infrastructure.Services;
 /// <summary>
 /// Process-local coalescing wake-up signal. A bounded semaphore prevents
 /// repeated campaign submissions from building an unbounded in-memory queue.
-/// The worker periodically reconciles SQL so missed signals remain recoverable.
+/// The worker performs startup recovery and otherwise waits for campaign signals.
 /// </summary>
 public sealed class LeadOutreachJobSignal : ILeadOutreachJobSignal
 {
