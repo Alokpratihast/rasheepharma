@@ -3,8 +3,8 @@ using RashePharma.Application.Interfaces.Services;
 namespace RashePharma.Infrastructure.Services;
 
 /// <summary>
-/// Process-local coalescing wake-up signal. The dispatcher also performs
-/// startup and periodic SQL reconciliation to recover missed notifications.
+/// Process-local coalescing wake-up signal. The dispatcher performs one
+/// startup reconciliation and then waits for signals or a scheduled retry.
 /// </summary>
 public sealed class BulkUploadDispatchSignal : IBulkUploadDispatchSignal
 {
