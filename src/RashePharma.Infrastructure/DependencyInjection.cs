@@ -12,7 +12,7 @@ namespace RashePharma.Infrastructure;
 
 public static class DependencyInjection
 {
-    // Shared: Azure Service Bus client and publisher
+    // Shared: Azure Service Bus client for bulk upload
     public static IServiceCollection AddAzureServiceBus(
         this IServiceCollection services,
         IConfiguration configuration)
