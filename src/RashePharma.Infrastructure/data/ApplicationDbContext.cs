@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using RashePharma.Domain.Entities;
-using RashePharma.Domain.Entities.Email;
 using RashePharma.Domain.Entities.BulkUpload;
 
 namespace RashePharma.Infrastructure.Data;
@@ -92,33 +91,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<BulkUploadError> BulkUploadErrors
     => Set<BulkUploadError>();
 
-    public DbSet<ExternalLead> ExternalLeads => Set<ExternalLead>();
-    public DbSet<LeadImportBatch> LeadImportBatches => Set<LeadImportBatch>();
-    public DbSet<LeadImportRow> LeadImportRows => Set<LeadImportRow>();
-    public DbSet<LeadOutreachCampaign> LeadOutreachCampaigns => Set<LeadOutreachCampaign>();
-    public DbSet<LeadOutreachRecipient> LeadOutreachRecipients => Set<LeadOutreachRecipient>();
-    public DbSet<LeadOutreachResponse> LeadOutreachResponses => Set<LeadOutreachResponse>();
-    public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
-
-
-    public DbSet<EmailJob> EmailJobs
-        => Set<EmailJob>();
-
-    public DbSet<EmailOutboxMessage> EmailOutboxMessages
-        => Set<EmailOutboxMessage>();
-
-    public DbSet<EmailDeliveryEvent> EmailDeliveryEvents
-        => Set<EmailDeliveryEvent>();
-
-    public DbSet<EmailQuotaBucket> EmailQuotaBuckets
-        => Set<EmailQuotaBucket>();
-
-    public DbSet<EmailQuotaReservation> EmailQuotaReservations
-        => Set<EmailQuotaReservation>();
-
-    public DbSet<EmailSuppression> EmailSuppressions
-        => Set<EmailSuppression>();
-
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
@@ -132,92 +104,6 @@ public class ApplicationDbContext : DbContext
          // Discover and apply all IEntityTypeConfiguration classes.
         modelBuilder.ApplyConfigurationsFromAssembly(
         typeof(ApplicationDbContext).Assembly);
-
-        modelBuilder.Entity<ExternalLead>(entity =>
-        {
-            entity.HasIndex(lead => lead.EmailNormalized).IsUnique()
-                .HasFilter("[EmailNormalized] IS NOT NULL");
-            entity.Property(lead => lead.Email).HasMaxLength(320);
-            entity.Property(lead => lead.EmailNormalized).HasMaxLength(320);
-            entity.Property(lead => lead.Phone).HasMaxLength(40);
-            entity.Property(lead => lead.Name).HasMaxLength(200).IsRequired();
-            entity.Property(lead => lead.Company).HasMaxLength(200);
-            entity.Property(lead => lead.Country).HasMaxLength(100);
-            entity.Property(lead => lead.BusinessType).HasMaxLength(100);
-            entity.Property(lead => lead.ProductInterest).HasMaxLength(1000);
-            entity.Property(lead => lead.Source).HasMaxLength(80).IsRequired();
-            entity.Property(lead => lead.PermissionStatus).HasMaxLength(20).IsRequired();
-            entity.Property(lead => lead.PermissionEvidence).HasMaxLength(500);
-            entity.Property(lead => lead.HistoricalMailSentOn).HasMaxLength(200);
-            entity.Property(lead => lead.RowVersion).IsRowVersion();
-
-        });
-
-
-        modelBuilder.Entity<LeadImportBatch>(entity =>
-        {
-            entity.Property(batch => batch.FileName).HasMaxLength(260).IsRequired();
-            entity.Property(batch => batch.Sha256).HasMaxLength(64).IsRequired();
-            entity.Property(batch => batch.Status).HasMaxLength(20).IsRequired();
-            entity.HasIndex(batch => new { batch.Sha256, batch.Status });
-        });
-
-        modelBuilder.Entity<LeadImportRow>(entity =>
-        {
-            entity.Property(row => row.SheetName).HasMaxLength(40).IsRequired();
-            entity.Property(row => row.Email).HasMaxLength(320);
-            entity.Property(row => row.EmailNormalized).HasMaxLength(320);
-            entity.Property(row => row.Phone).HasMaxLength(40);
-            entity.Property(row => row.Name).HasMaxLength(200).IsRequired();
-            entity.Property(row => row.Company).HasMaxLength(200);
-            entity.Property(row => row.ProductInterest).HasMaxLength(1000);
-            entity.Property(row => row.HistoricalMailSentOn).HasMaxLength(200);
-            entity.Property(row => row.ValidationError).HasMaxLength(500);
-            entity.HasOne(row => row.Batch).WithMany(batch => batch.Rows)
-                .HasForeignKey(row => row.BatchId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(row => new { row.BatchId, row.SheetName, row.SheetRow }).IsUnique();
-        });
-
-        modelBuilder.Entity<LeadOutreachCampaign>(entity =>
-        {
-            entity.Property(campaign => campaign.Name).HasMaxLength(160).IsRequired();
-            entity.Property(campaign => campaign.Subject).HasMaxLength(200).IsRequired();
-            entity.Property(campaign => campaign.BodyText).HasMaxLength(12000).IsRequired();
-            entity.Property(campaign => campaign.AttachBrochure).HasDefaultValue(false);
-            entity.Property(campaign => campaign.Status).HasMaxLength(20).IsRequired();
-            entity.Property(campaign => campaign.CreatedBy).HasMaxLength(320).IsRequired();
-            entity.HasIndex(campaign => new { campaign.Status, campaign.CreatedAtUtc });
-        });
-
-        modelBuilder.Entity<LeadOutreachRecipient>(entity =>
-        {
-            entity.Property(recipient => recipient.Status).HasMaxLength(20).IsRequired();
-            entity.Property(recipient => recipient.ErrorMessage).HasMaxLength(1000);
-            entity.HasIndex(recipient => new { recipient.CampaignId, recipient.LeadId }).IsUnique();
-            entity.HasIndex(recipient => new { recipient.Status, recipient.CreatedAtUtc });
-            entity.HasOne(recipient => recipient.Campaign).WithMany(campaign => campaign.Recipients)
-                .HasForeignKey(recipient => recipient.CampaignId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(recipient => recipient.Lead).WithMany()
-                .HasForeignKey(recipient => recipient.LeadId).OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<LeadActivity>(entity =>
-        {
-            entity.Property(activity => activity.Type).HasMaxLength(40).IsRequired();
-            entity.Property(activity => activity.Details).HasMaxLength(1000).IsRequired();
-            entity.Property(activity => activity.Actor).HasMaxLength(320).IsRequired();
-            entity.HasIndex(activity => new { activity.LeadId, activity.CreatedAtUtc });
-            entity.HasOne<ExternalLead>().WithMany().HasForeignKey(activity => activity.LeadId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<LeadOutreachResponse>(entity =>
-        {
-            entity.Property(response => response.Message).HasMaxLength(5000).IsRequired();
-            entity.HasIndex(response => response.RecipientId).IsUnique();
-            entity.HasOne(response => response.Recipient).WithMany().HasForeignKey(response => response.RecipientId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
 
         // Unique slugs and a published/date index keep public blog lookups deterministic and fast.
         modelBuilder.Entity<BlogPost>(entity =>
