@@ -776,12 +776,14 @@ public class PaymentService : IPaymentService
                 .AddAsync(emailNotification);
             await _unitOfWork.SaveChangesAsync();
             await completedTransaction.CommitAsync();
-            await _emailNotificationService.ProcessPendingNotificationsAsync(10);
         }
         catch
         {
             await completedTransaction.RollbackAsync();
             throw;
         }
+
+        // Email delivery happens after the payment transaction has committed.
+        await _emailNotificationService.ProcessPendingNotificationsAsync(10);
     }
 }
