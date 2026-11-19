@@ -200,9 +200,17 @@ public class EnquiryService : IEnquiryService
 
         // Persist the enquiry and notification before sending the email in this API flow.
         await transaction.CommitAsync();
-        await _emailNotificationService.ProcessPendingNotificationsAsync(10);
+    }
+    catch
+    {
+        await transaction.RollbackAsync();
+        throw;
+    }
 
-        var createdEnquiry =
+    // Email is sent only after the enquiry transaction has committed.
+    await _emailNotificationService.ProcessPendingNotificationsAsync(10);
+
+    var createdEnquiry =
             await _enquiryRepository.GetByIdAsync(enquiry.Id);
 
         if (createdEnquiry == null)
@@ -213,12 +221,6 @@ public class EnquiryService : IEnquiryService
 
         return MapToDetailsDto(createdEnquiry);
     }
-    catch
-    {
-        await transaction.RollbackAsync();
-        throw;
-    }
-}
 
     public async Task<bool> UpdateStatusAsync(
         int id,
