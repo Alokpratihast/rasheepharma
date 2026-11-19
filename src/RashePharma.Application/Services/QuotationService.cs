@@ -635,7 +635,6 @@ try
     await _unitOfWork.SaveChangesAsync();
 
     await transaction.CommitAsync();
-    await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 }
 catch
 {
@@ -646,6 +645,9 @@ finally
 {
     await transaction.DisposeAsync();
 }
+
+// Email delivery is outside the quotation transaction.
+await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 
 var createdQuotation =
 
