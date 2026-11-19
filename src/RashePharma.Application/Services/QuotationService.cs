@@ -30,7 +30,7 @@ public class QuotationService : IQuotationService
 
     private readonly IEmailNotificationRepository _emailNotificationRepository;
 
-    private readonly IEmailNotificationSignal _emailNotificationSignal;
+    private readonly IEmailNotificationService _emailNotificationService;
 
 
 
@@ -83,7 +83,7 @@ public class QuotationService : IQuotationService
         IEmailNotificationRepository emailNotificationRepository,
 
         IUnitOfWork unitOfWork,
-        IEmailNotificationSignal emailNotificationSignal)
+        IEmailNotificationService emailNotificationService)
 
     {
 
@@ -95,7 +95,7 @@ public class QuotationService : IQuotationService
 
                _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
-        _emailNotificationSignal = emailNotificationSignal;
+        _emailNotificationService = emailNotificationService;
 
     }
 
@@ -635,7 +635,7 @@ try
     await _unitOfWork.SaveChangesAsync();
 
     await transaction.CommitAsync();
-    _emailNotificationSignal.NotifyWorkAvailable();
+    await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 }
 catch
 {
