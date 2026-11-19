@@ -17,12 +17,14 @@ public class PaymentService : IPaymentService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
+    private readonly IEmailNotificationService _emailNotificationService;
     public PaymentService(
         IOrderRepository orderRepository,
         IPaymentRepository paymentRepository,
         ICartRepository cartRepository,
         IStripeWebhookEventRepository stripeWebhookEventRepository,
         IEmailNotificationRepository emailNotificationRepository,
+        IEmailNotificationService emailNotificationService,
         IUnitOfWork unitOfWork,
         IConfiguration configuration)
     {
@@ -33,6 +35,7 @@ public class PaymentService : IPaymentService
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _emailNotificationRepository = emailNotificationRepository;
+        _emailNotificationService = emailNotificationService;
     }
     public async Task<string> CreateCheckoutSessionAsync(
     int userId,
@@ -773,6 +776,7 @@ public class PaymentService : IPaymentService
                 .AddAsync(emailNotification);
             await _unitOfWork.SaveChangesAsync();
             await completedTransaction.CommitAsync();
+            await _emailNotificationService.ProcessPendingNotificationsAsync(10);
         }
         catch
         {
