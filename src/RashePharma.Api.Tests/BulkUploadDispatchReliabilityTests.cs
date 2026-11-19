@@ -112,7 +112,6 @@ public sealed class BulkUploadDispatchReliabilityTests
         var retryAt = now.AddSeconds(-1);
 
         var wait = BulkUploadDispatchOutboxDispatcher.CalculateWaitDuration(
-            TimeSpan.FromSeconds(300),
             retryAt,
             now);
 
