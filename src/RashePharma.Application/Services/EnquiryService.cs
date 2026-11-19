@@ -119,9 +119,11 @@ public class EnquiryService : IEnquiryService
     await using var transaction =
         await _unitOfWork.BeginTransactionAsync();
 
+    var enquiry = new Enquiry();
+
     try
     {
-        var enquiry = new Enquiry
+        enquiry = new Enquiry
         {
             UserId = userId,
             EnquiryNumber = GenerateEnquiryNumber(),
@@ -211,16 +213,16 @@ public class EnquiryService : IEnquiryService
     await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 
     var createdEnquiry =
-            await _enquiryRepository.GetByIdAsync(enquiry.Id);
+        await _enquiryRepository.GetByIdAsync(enquiry.Id);
 
-        if (createdEnquiry == null)
-        {
-            throw new InvalidOperationException(
-                "Enquiry could not be loaded after creation.");
-        }
-
-        return MapToDetailsDto(createdEnquiry);
+    if (createdEnquiry == null)
+    {
+        throw new InvalidOperationException(
+            "Enquiry could not be loaded after creation.");
     }
+
+    return MapToDetailsDto(createdEnquiry);
+}
 
     public async Task<bool> UpdateStatusAsync(
         int id,
