@@ -9,4 +9,7 @@ public interface IImageStorageService
 
     Task<(Stream Stream, string ContentType)> DownloadAsync(
         string imageUrl);
+
+    /// <summary>Deletes an image only when its URL belongs to the configured image container.</summary>
+    Task DeleteAsync(string imageUrl);
 }

@@ -13,8 +13,9 @@ public interface IBulkUploadRepository
         int jobId,
         CancellationToken cancellationToken = default);
 
-    Task<BulkUploadJob?> ClaimNextPendingJobAsync(
-        CancellationToken cancellationToken = default);
+    Task<BulkUploadJob?> ClaimNextPendingJobAsync(CancellationToken cancellationToken = default);
+
+    Task<BulkUploadJob?> ClaimJobAsync(int jobId, CancellationToken cancellationToken = default);
 
     Task<bool> TryRenewLeaseAsync(
         int jobId,

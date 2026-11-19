@@ -47,6 +47,24 @@ public sealed class AzureBlobBlogImageStorageService : IBlogImageStorageService
         return blobClient.Uri.ToString();
     }
 
+    public async Task DeleteAsync(string imageUrl)
+    {
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
+        {
+            throw new ArgumentException("The image URL must be an absolute HTTPS Azure Blob URL.", nameof(imageUrl));
+        }
+
+        // Blog storage may delete only blobs in its own container. Legacy product images are read-only here.
+        var blobClient = GetAllowedBlobClient(uri, _blogContainer)
+            ?? throw new ArgumentException(
+                "The image URL is outside the configured blog image container.",
+                nameof(imageUrl));
+
+        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots);
+    }
+
     public async Task<(Stream Stream, string ContentType)> DownloadAsync(string imageUrl)
     {
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||

@@ -12,6 +12,7 @@ public class EnquiryService : IEnquiryService
     private readonly IProductVariantRepository _variantRepository;
     private readonly IEmailNotificationRepository _emailNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEmailNotificationService _emailNotificationService;
 
     private const string EnquiryEmailNotificationType = "Enquiry";
 
@@ -19,12 +20,14 @@ public class EnquiryService : IEnquiryService
         IEnquiryRepository enquiryRepository,
         IProductVariantRepository variantRepository,
         IEmailNotificationRepository emailNotificationRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEmailNotificationService emailNotificationService)
     {
         _enquiryRepository = enquiryRepository;
         _variantRepository = variantRepository;
         _emailNotificationRepository = emailNotificationRepository;
         _unitOfWork = unitOfWork;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<List<EnquiryListDto>> GetAllAsync()
@@ -116,9 +119,11 @@ public class EnquiryService : IEnquiryService
     await using var transaction =
         await _unitOfWork.BeginTransactionAsync();
 
+    var enquiry = new Enquiry();
+
     try
     {
-        var enquiry = new Enquiry
+        enquiry = new Enquiry
         {
             UserId = userId,
             EnquiryNumber = GenerateEnquiryNumber(),
@@ -195,25 +200,28 @@ public class EnquiryService : IEnquiryService
         // Save both enquiry + notification.
         await _unitOfWork.SaveChangesAsync();
 
-        // Commit both together.
+        // Persist the enquiry and notification before sending the email in this API flow.
         await transaction.CommitAsync();
-
-        var createdEnquiry =
-            await _enquiryRepository.GetByIdAsync(enquiry.Id);
-
-        if (createdEnquiry == null)
-        {
-            throw new InvalidOperationException(
-                "Enquiry could not be loaded after creation.");
-        }
-
-        return MapToDetailsDto(createdEnquiry);
     }
     catch
     {
         await transaction.RollbackAsync();
         throw;
     }
+
+    // Email is sent only after the enquiry transaction has committed.
+    await _emailNotificationService.ProcessPendingNotificationsAsync(10);
+
+    var createdEnquiry =
+        await _enquiryRepository.GetByIdAsync(enquiry.Id);
+
+    if (createdEnquiry == null)
+    {
+        throw new InvalidOperationException(
+            "Enquiry could not be loaded after creation.");
+    }
+
+    return MapToDetailsDto(createdEnquiry);
 }
 
     public async Task<bool> UpdateStatusAsync(

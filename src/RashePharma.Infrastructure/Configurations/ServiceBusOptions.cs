@@ -8,12 +8,5 @@ public sealed class ServiceBusOptions
 
     public string FullyQualifiedNamespace { get; set; } = string.Empty;
 
-    public string TransactionalQueueName { get; set; } =
-        "email-transactional";
-
-    public string BulkQueueName { get; set; } =
-        "email-bulk";
-
-    public string TestQueueName { get; set; } =
-    "email-connectivity-test";
+    public string BulkUploadQueueName { get; set; } = "bulk-upload";
 }

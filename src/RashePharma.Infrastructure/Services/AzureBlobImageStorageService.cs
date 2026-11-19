@@ -45,6 +45,49 @@ public class AzureBlobImageStorageService : IImageStorageService
         return blobClient.Uri.ToString();
     }
 
+    public async Task DeleteAsync(string imageUrl)
+    {
+        var blobClient = GetConfiguredBlobClient(imageUrl);
+        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots);
+    }
+
+    private BlobClient GetConfiguredBlobClient(string imageUrl)
+    {
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
+        {
+            throw new ArgumentException(
+                "The image URL must be an absolute HTTPS Azure Blob URL (or loopback HTTP for local development).",
+                nameof(imageUrl));
+        }
+
+        if (!string.Equals(uri.Host, _containerClient.Uri.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "The image URL does not belong to the configured storage account.",
+                nameof(imageUrl));
+        }
+
+        var expectedPrefix = $"{_containerClient.Uri.AbsolutePath.TrimEnd('/')}/";
+        if (!uri.AbsolutePath.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "The image URL is outside the configured product image container.",
+                nameof(imageUrl));
+        }
+
+        var blobName = Uri.UnescapeDataString(uri.AbsolutePath[expectedPrefix.Length..]);
+        if (string.IsNullOrWhiteSpace(blobName) || blobName.Contains('/') || blobName.Contains('\\'))
+        {
+            throw new ArgumentException(
+                "The image URL does not identify a valid image blob.",
+                nameof(imageUrl));
+        }
+
+        return _containerClient.GetBlobClient(blobName);
+    }
+
     public async Task<(Stream Stream, string ContentType)> DownloadAsync(string imageUrl)
     {
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||

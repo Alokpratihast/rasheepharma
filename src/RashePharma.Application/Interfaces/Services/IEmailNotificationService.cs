@@ -2,6 +2,5 @@ namespace RashePharma.Application.Interfaces.Services;
 
 public interface IEmailNotificationService
 {
-    Task ProcessPendingNotificationsAsync(
-        int batchSize);
+    Task<int> ProcessPendingNotificationsAsync(int batchSize);
 }

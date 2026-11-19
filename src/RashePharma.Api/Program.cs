@@ -273,27 +273,6 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
-    options.AddPolicy("lead-unsubscribe", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 20,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-
-    options.AddPolicy("brevo-webhook", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
 });
 
 builder.Services.AddOpenApi();
@@ -593,6 +572,8 @@ builder.Services.AddScoped<IBlogPostRepository, BlogPostRepository>();
 builder.Services.AddScoped<
     IBulkUploadRepository,
     BulkUploadRepository>();
+builder.Services.AddScoped<IBulkUploadDispatchOutboxRepository, BulkUploadDispatchOutboxRepository>();
+builder.Services.AddSingleton<IBulkUploadDispatchSignal, BulkUploadDispatchSignal>();
 
 builder.Services.AddScoped<
     IBulkUploadService,
@@ -719,53 +700,8 @@ builder.Services.AddScoped<
     IEmailNotificationService,
     EmailNotificationService>();
 
-builder.Services.AddHostedService<
-    EmailNotificationWorker>();
-
-// The channel is process-local; SQL remains the durable job source of truth.
-builder.Services.AddSingleton<BulkUploadJobSignal>();
-builder.Services.AddSingleton<IBulkUploadJobSignal>(sp =>
-    sp.GetRequiredService<BulkUploadJobSignal>());
-builder.Services.AddHostedService<BulkUploadWorker>();
-
-// Event-driven outreach and outbox wake-ups; SQL remains the durable queue.
-builder.Services.AddSingleton<LeadOutreachJobSignal>();
-builder.Services.AddSingleton<ILeadOutreachJobSignal>(sp =>
-    sp.GetRequiredService<LeadOutreachJobSignal>());
-builder.Services.AddSingleton<EmailOutboxSignal>();
-builder.Services.AddSingleton<IEmailOutboxSignal>(sp =>
-    sp.GetRequiredService<EmailOutboxSignal>());
-
-builder.Services.AddHostedService<LeadOutreachWorker>();
-
-builder.Services.AddHostedService<
-    RevokedAccessTokenCleanupService>();
-
-
-builder.Services.AddScoped<
-    IEmailJobRepository,
-    EmailJobRepository>();
-
-builder.Services.AddScoped<
-    IEmailOutboxRepository,
-    EmailOutboxRepository>();
-
-builder.Services.AddScoped<
-    IEmailDeliveryEventRepository,
-    EmailDeliveryEventRepository>();
-
-builder.Services.AddScoped<
-    IEmailQuotaBucketRepository,
-    EmailQuotaBucketRepository>();
-
-builder.Services.AddScoped<
-    IEmailQuotaReservationRepository,
-    EmailQuotaReservationRepository>();
-
-builder.Services.AddScoped<
-    IEmailSuppressionRepository,
-    EmailSuppressionRepository>();
-
+// Enquiry, quotation, and invoice notifications are processed on demand by the API.
+// Bulk-upload processing is hosted by the dedicated Service Bus worker container.
 
 
 
@@ -814,18 +750,11 @@ builder.Services.AddScoped<
     StripeWebhookEventRepository>();
 
 
-builder.Services.AddScoped<
-    IEmailJobService,
-    EmailJobService>();
-
-builder.Services.AddScoped<BrevoWebhookProcessor>();
-
-
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    // Azure Service Bus publisher and API-owned outbox dispatcher.
+    // Azure Service Bus client and bulk-upload outbox dispatcher.
     builder.Services.AddAzureServiceBus(builder.Configuration);
-    builder.Services.AddOutboxDispatcher(builder.Configuration);
+    builder.Services.AddBulkUploadDispatchers(builder.Configuration);
 }
 
 

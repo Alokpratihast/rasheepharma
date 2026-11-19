@@ -18,7 +18,6 @@ import {
   Handshake,
   BookOpen,
   Upload,
-  Send,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -53,11 +52,6 @@ const menuItems = [
     label: "Enquiries",
     href: "/admin/enquiries",
     icon: ClipboardList,
-  },
-  {
-    label: "Leads & Outreach",
-    href: "/admin/outreach",
-    icon: Send,
   },
   {
     label: "Quotations",

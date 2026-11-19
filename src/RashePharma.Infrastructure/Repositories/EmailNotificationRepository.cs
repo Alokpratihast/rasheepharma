@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Domain.Entities;
 using RashePharma.Infrastructure.Data;
+using RashePharma.Infrastructure.Services;
 
 namespace RashePharma.Infrastructure.Repositories;
 
@@ -89,6 +90,10 @@ public class EmailNotificationRepository : IEmailNotificationRepository
 
         var staleProcessingTime =
             now - StaleProcessingTimeout;
+        var firstRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(1);
+        var secondRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(2);
+        var thirdRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(3);
+        var laterRetryCutoff = now - EmailNotificationRetryPolicy.GetDelay(4);
 
         await using var transaction =
             await _context.Database.BeginTransactionAsync();
@@ -113,41 +118,25 @@ public class EmailNotificationRepository : IEmailNotificationRepository
                                     (
                                         AttemptCount = 1
                                         AND LastAttemptAt <=
-                                            DATEADD(
-                                                MINUTE,
-                                                -1,
-                                                {now}
-                                            )
+                                            {firstRetryCutoff}
                                     )
                                     OR
                                     (
                                         AttemptCount = 2
                                         AND LastAttemptAt <=
-                                            DATEADD(
-                                                MINUTE,
-                                                -5,
-                                                {now}
-                                            )
+                                            {secondRetryCutoff}
                                     )
                                     OR
                                     (
                                         AttemptCount = 3
                                         AND LastAttemptAt <=
-                                            DATEADD(
-                                                MINUTE,
-                                                -15,
-                                                {now}
-                                            )
+                                            {thirdRetryCutoff}
                                     )
                                     OR
                                     (
                                         AttemptCount >= 4
                                         AND LastAttemptAt <=
-                                            DATEADD(
-                                                MINUTE,
-                                                -30,
-                                                {now}
-                                            )
+                                            {laterRetryCutoff}
                                     )
                                 )
                             )

@@ -39,7 +39,8 @@ public class BulkUploadServiceProductProcessingTests
             new FakeImageStorageService(),
             _parser,
             _exchangeRate,
-            NullLogger<BulkUploadService>.Instance);
+            NullLogger<BulkUploadService>.Instance,
+            new FakeBulkUploadDispatchOutboxRepository());
     }
 
     private BulkUploadJob CreateJob()
@@ -458,6 +459,9 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
             CancellationToken cancellationToken = default)
             => Task.FromResult(Job);
 
+        public Task<BulkUploadJob?> ClaimJobAsync(int jobId, CancellationToken cancellationToken = default)
+            => Task.FromResult<BulkUploadJob?>(null);
+
         public Task<BulkUploadJob?> ClaimNextPendingJobAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult<BulkUploadJob?>(null);
@@ -720,7 +724,10 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
         public Task<(Stream Stream, string ContentType)> DownloadAsync(
             string imageUrl)
             => throw new NotImplementedException();
-    }
+    
+        public Task DeleteAsync(string imageUrl)
+            => Task.CompletedTask;
+}
 
     private sealed class FakeExcelParser : IBulkUploadExcelParser
     {

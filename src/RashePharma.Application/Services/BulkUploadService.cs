@@ -3,6 +3,7 @@ using RashePharma.Application.Interfaces;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Domain.Entities;
+using RashePharma.Domain.Entities.BulkUpload;
 using RashePharma.Domain.Enums;
 namespace RashePharma.Application.Services;
 
@@ -26,7 +27,8 @@ public class BulkUploadService : IBulkUploadService
     private readonly IBulkUploadExcelParser _excelParser;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<BulkUploadService> _logger;
-    private readonly IBulkUploadJobSignal? _jobSignal;
+    private readonly IBulkUploadDispatchOutboxRepository _dispatchOutboxRepository;
+    private readonly IBulkUploadDispatchSignal? _dispatchSignal;
     /// <summary>Initializes the service with repositories and infrastructure dependencies used by bulk upload.</summary>
     public BulkUploadService(
         IBulkUploadRepository bulkUploadRepository,
@@ -40,7 +42,8 @@ public class BulkUploadService : IBulkUploadService
         IBulkUploadExcelParser excelParser,
         IExchangeRateService exchangeRateService,
         ILogger<BulkUploadService> logger,
-        IBulkUploadJobSignal? jobSignal = null)
+        IBulkUploadDispatchOutboxRepository dispatchOutboxRepository,
+        IBulkUploadDispatchSignal? dispatchSignal = null)
     {
         _bulkUploadRepository = bulkUploadRepository;
         _productRepository = productRepository;
@@ -53,7 +56,8 @@ public class BulkUploadService : IBulkUploadService
         _excelParser = excelParser;
         _exchangeRateService = exchangeRateService;
         _logger = logger;
-        _jobSignal = jobSignal;
+        _dispatchOutboxRepository = dispatchOutboxRepository ?? throw new ArgumentNullException(nameof(dispatchOutboxRepository));
+        _dispatchSignal = dispatchSignal;
     }
     /// <summary>
     /// Rejects metadata-only job creation. A Pending job must never be visible
@@ -74,62 +78,75 @@ public class BulkUploadService : IBulkUploadService
         IReadOnlyCollection<BulkUploadFileInput> files,
         CancellationToken cancellationToken = default)
     {
-        var job = new BulkUploadJob
+        var uploadedUrls = new List<string>();
+        try
         {
-            FileName = excelFileName,
-            Status = BulkUploadStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
-        await _bulkUploadRepository.CreateJobAsync(
-            job,
-            cancellationToken);
-        await _unitOfWork.SaveChangesAsync();
-        var excelFileSize = excelStream.Length;
-        var excelUrl = await _bulkUploadStorageService.UploadAsync(
-            excelStream,
-            excelFileName,
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        var excelFile = new BulkUploadFile
-        {
-            BulkUploadJobId = job.Id,
-            OriginalFileName = excelFileName,
-            BlobName = Path.GetFileName(
-                new Uri(excelUrl).AbsolutePath),
-            FileUrl = excelUrl,
-            FileType = ExcelFileType,
-            ContentType =
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            FileSize = excelFileSize
-        };
-        await _bulkUploadRepository.AddFileAsync(
-            excelFile,
-            cancellationToken);
-        foreach (var file in files)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var fileUrl = await _bulkUploadStorageService.UploadAsync(
-                file.Stream,
-                file.FileName,
-                file.ContentType);
-            var bulkFile = new BulkUploadFile
+            var excelFileSize = excelStream.Length;
+            var excelUrl = await _bulkUploadStorageService.UploadAsync(
+                excelStream, excelFileName,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            uploadedUrls.Add(excelUrl);
+
+            var job = new BulkUploadJob
             {
-                BulkUploadJobId = job.Id,
-                OriginalFileName = file.FileName,
-                BlobName = Path.GetFileName(
-                    new Uri(fileUrl).AbsolutePath),
-                FileUrl = fileUrl,
-                FileType = ImageFileType,
-                ContentType = file.ContentType,
-                FileSize = file.FileSize
+                FileName = excelFileName,
+                Status = BulkUploadStatus.Pending,
+                CreatedAt = DateTime.UtcNow
             };
-            await _bulkUploadRepository.AddFileAsync(
-                bulkFile,
-                cancellationToken);
+            job.Files.Add(new BulkUploadFile
+            {
+                OriginalFileName = excelFileName,
+                BlobName = Path.GetFileName(new Uri(excelUrl).AbsolutePath),
+                FileUrl = excelUrl,
+                FileType = ExcelFileType,
+                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                FileSize = excelFileSize
+            });
+
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var fileUrl = await _bulkUploadStorageService.UploadAsync(
+                    file.Stream, file.FileName, file.ContentType);
+                uploadedUrls.Add(fileUrl);
+                job.Files.Add(new BulkUploadFile
+                {
+                    OriginalFileName = file.FileName,
+                    BlobName = Path.GetFileName(new Uri(fileUrl).AbsolutePath),
+                    FileUrl = fileUrl,
+                    FileType = ImageFileType,
+                    ContentType = file.ContentType,
+                    FileSize = file.FileSize
+                });
+            }
+
+            await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
+            await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+            {
+                BulkUploadJob = job,
+                EventType = "BulkUploadRequested",
+                SchemaVersion = 1,
+                PayloadJson = "{}"
+            }, cancellationToken);
+            await _unitOfWork.SaveChangesAsync();
+            _dispatchSignal?.NotifyMessageAvailable();
+            return job.Id;
         }
-        await _unitOfWork.SaveChangesAsync();
-        _jobSignal?.NotifyJobAvailable();
-        return job.Id;
+        catch
+        {
+            foreach (var url in uploadedUrls)
+            {
+                try { await _bulkUploadStorageService.DeleteAsync(url); }
+                catch (Exception cleanupException)
+                {
+                    _logger.LogWarning(cleanupException,
+                        "Could not clean up staged bulk-upload blob {FileUrl}.", url);
+                }
+            }
+            throw;
+        }
     }
+
     /// <summary>
     /// Validates an admin's upload manifest and creates one narrowly scoped
     /// SAS URL per file. Large file bytes never pass through this API process.
@@ -201,8 +218,15 @@ public class BulkUploadService : IBulkUploadService
         // Persist job and its complete file list in one SaveChanges call.
         // Otherwise the worker could claim Pending between two database writes.
         await _bulkUploadRepository.CreateJobAsync(job, cancellationToken);
+        await _dispatchOutboxRepository.AddAsync(new BulkUploadDispatchOutbox
+        {
+            BulkUploadJob = job,
+            EventType = "BulkUploadRequested",
+            SchemaVersion = 1,
+            PayloadJson = "{}"
+        }, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
-        _jobSignal?.NotifyJobAvailable();
+        _dispatchSignal?.NotifyMessageAvailable();
         return job.Id;
     }
     /// <summary>Validates file count, names, types, sizes, and staging-blob uniqueness.</summary>
@@ -753,9 +777,22 @@ public class BulkUploadService : IBulkUploadService
                     stagedStream,
                     stagedFile.OriginalFileName,
                     stagedFile.ContentType);
-                var existingImages =
-                    await _imageRepository.GetByProductIdAsync(
-                        product.Id);
+                List<ProductImage> existingImages;
+                try
+                {
+                    existingImages = await _imageRepository.GetByProductIdAsync(product.Id);
+                }
+                catch (Exception repositoryException)
+                {
+                    await TryDeleteUnpersistedImageBlobAsync(imageUrl);
+                    throw new IOException(
+                        $"Could not load existing product images after uploading the new image: {repositoryException.Message}",
+                        repositoryException);
+                }
+
+                var previousPrimaryStates = existingImages.ToDictionary(
+                    existingImage => existingImage,
+                    existingImage => existingImage.IsPrimary);
                 var hasPrimaryImage =
                     existingImages.Any(image => image.IsPrimary);
                 var shouldBePrimary =
@@ -775,13 +812,129 @@ public class BulkUploadService : IBulkUploadService
                     IsPrimary = shouldBePrimary,
                     DisplayOrder = row.DisplayOrder
                 };
-                await _imageRepository.AddAsync(image);
+                try
+                {
+                    await _imageRepository.AddAsync(image);
+                }
+                catch (Exception addException)
+                {
+                    foreach (var (existingImage, wasPrimary) in previousPrimaryStates)
+                    {
+                        existingImage.IsPrimary = wasPrimary;
+                    }
+
+                    try
+                    {
+                        await _imageRepository.DeleteAsync(image);
+                    }
+                    catch (Exception detachException)
+                    {
+                        _logger.LogError(
+                            detachException,
+                            "Could not detach product image after AddAsync failed for blob {ImageUrl}; leaving the blob untouched.",
+                            imageUrl);
+                        throw new OperationCanceledException(
+                            "Could not safely detach the image after AddAsync failed.",
+                            addException,
+                            cancellationToken);
+                    }
+
+                    await TryDeleteUnpersistedImageBlobAsync(imageUrl);
+                    throw new IOException(
+                        "Could not stage the product image database record.",
+                        addException);
+                }
+
                 job.ProcessedRecords++;
                 job.SuccessCount++;
-                await SaveProgressAsync(
-                    job,
-                    claimToken,
-                    cancellationToken);
+
+                try
+                {
+                    await SaveProgressAsync(job, claimToken, cancellationToken);
+                }
+                catch (Exception persistenceException)
+                {
+                    // A failed response can be ambiguous: SQL may have committed before
+                    // the connection failed. Never delete a blob until a fresh query proves
+                    // that its ProductImage row is absent.
+                    List<ProductImage> persistedImages;
+                    try
+                    {
+                        persistedImages = await _imageRepository.GetByProductIdAsync(product.Id);
+                    }
+                    catch (Exception verificationException)
+                    {
+                        _logger.LogError(
+                            verificationException,
+                            "Could not verify persistence for uploaded image {ImageUrl}; leaving blob untouched to avoid deleting a committed image.",
+                            imageUrl);
+
+                        // Stop this processing scope. A later progress save must not flush
+                        // the uncertain image or its primary-image changes.
+                        throw new OperationCanceledException(
+                            "Could not verify image persistence after a failed database save.",
+                            persistenceException,
+                            cancellationToken);
+                    }
+
+                    if (persistedImages.Any(savedImage =>
+                        string.Equals(savedImage.ImageUrl, imageUrl, StringComparison.Ordinal)))
+                    {
+                        // The transaction committed even though the caller observed an error.
+                        _logger.LogWarning(
+                            persistenceException,
+                            "Image {ImageUrl} was committed despite a persistence exception; retaining its blob.",
+                            imageUrl);
+                    }
+                    else
+                    {
+                        // The row was not committed, so undo the optimistic success counters.
+                        // The row-error handler below will count it once as a failure.
+                        job.ProcessedRecords--;
+                        job.SuccessCount--;
+
+                        foreach (var (existingImage, wasPrimary) in previousPrimaryStates)
+                        {
+                            existingImage.IsPrimary = wasPrimary;
+                        }
+
+                        try
+                        {
+                            // Remove/detach the pending ProductImage so a subsequent row-error
+                            // save cannot accidentally persist an image whose blob is deleted.
+                            await _imageRepository.DeleteAsync(image);
+                        }
+                        catch (Exception detachException)
+                        {
+                            _logger.LogError(
+                                detachException,
+                                "Could not detach uncommitted ProductImage for blob {ImageUrl}.",
+                                imageUrl);
+                            throw new OperationCanceledException(
+                                "Could not safely detach an uncommitted image after persistence failure.",
+                                persistenceException,
+                                cancellationToken);
+                        }
+
+                        try
+                        {
+                            await _imageStorageService.DeleteAsync(imageUrl);
+                        }
+                        catch (Exception cleanupException)
+                        {
+                            // Keep the original persistence exception as the row failure.
+                            // The orphan can be reconciled later without risking DB data loss.
+                            _logger.LogError(
+                                cleanupException,
+                                "Could not delete orphaned product image blob {ImageUrl}.",
+                                imageUrl);
+                        }
+
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                            .Capture(persistenceException)
+                            .Throw();
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
@@ -821,6 +974,21 @@ public class BulkUploadService : IBulkUploadService
             }
         }
     }
+    private async Task TryDeleteUnpersistedImageBlobAsync(string imageUrl)
+    {
+        try
+        {
+            await _imageStorageService.DeleteAsync(imageUrl);
+        }
+        catch (Exception cleanupException)
+        {
+            _logger.LogError(
+                cleanupException,
+                "Could not clean up product image blob {ImageUrl} after a pre-persistence failure.",
+                imageUrl);
+        }
+    }
+
     /// <summary>Downloads a staged file stream for parsing or image processing.</summary>
     private async Task<Stream> DownloadStagedFileAsync(
         string fileUrl,

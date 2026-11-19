@@ -1,5 +1,6 @@
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Domain.Entities;
 using RashePharma.Domain.Enums;
@@ -132,6 +133,34 @@ public class BulkUploadRepository : IBulkUploadRepository
         return job;
     }
 
+    public async Task<BulkUploadJob?> ClaimJobAsync(int jobId, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var job = await _context.BulkUploadJobs.FromSqlInterpolated($"""
+            SELECT * FROM [BulkUploadJobs] WITH (UPDLOCK, ROWLOCK)
+            WHERE [Id] = {jobId}
+              AND ([Status] = {(int)BulkUploadStatus.Pending}
+                OR ([Status] = {(int)BulkUploadStatus.Processing}
+                    AND ([LeaseExpiresAtUtc] IS NULL OR [LeaseExpiresAtUtc] <= SYSUTCDATETIME())))
+            """).FirstOrDefaultAsync(cancellationToken);
+        if (job is null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return null;
+        }
+        var now = DateTime.UtcNow;
+        job.Status = BulkUploadStatus.Processing;
+        job.ClaimToken = Guid.NewGuid().ToString("N");
+        job.AttemptCount++;
+        job.StartedAt ??= now;
+        job.HeartbeatAtUtc = now;
+        job.LeaseExpiresAtUtc = now.AddMinutes(2);
+        job.ErrorMessage = null;
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return job;
+    }
+
     /// <summary>
     /// Extends the lease of a currently owned Processing job.
     /// </summary>
@@ -252,10 +281,27 @@ public class BulkUploadRepository : IBulkUploadRepository
 
         _context.BulkUploadJobs.Update(job);
 
+        // The processing scope may hold a stale snapshot of the job while the
+        // heartbeat renews its lease through a separate DbContext. Never write
+        // lease/ownership metadata from that stale snapshot during progress saves.
+        PreserveLeaseMetadata(_context.Entry(job));
+
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return true;
+    }
+
+    /// <summary>
+    /// Excludes worker ownership metadata from a progress update. The heartbeat
+    /// owns these fields and persists them independently of the processing scope.
+    /// </summary>
+    internal static void PreserveLeaseMetadata(EntityEntry<BulkUploadJob> entry)
+    {
+        entry.Property(current => current.ClaimToken).IsModified = false;
+        entry.Property(current => current.LeaseExpiresAtUtc).IsModified = false;
+        entry.Property(current => current.HeartbeatAtUtc).IsModified = false;
+        entry.Property(current => current.AttemptCount).IsModified = false;
     }
 
     /// <summary>

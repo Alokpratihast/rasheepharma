@@ -30,6 +30,8 @@ public class QuotationService : IQuotationService
 
     private readonly IEmailNotificationRepository _emailNotificationRepository;
 
+    private readonly IEmailNotificationService _emailNotificationService;
+
 
 
     private static readonly HashSet<string> AllowedStatuses =
@@ -80,7 +82,8 @@ public class QuotationService : IQuotationService
 
         IEmailNotificationRepository emailNotificationRepository,
 
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEmailNotificationService emailNotificationService)
 
     {
 
@@ -90,8 +93,9 @@ public class QuotationService : IQuotationService
 
         _variantRepository = variantRepository;
 
-                _emailNotificationRepository = emailNotificationRepository;
-_unitOfWork = unitOfWork;
+               _emailNotificationRepository = emailNotificationRepository;
+        _unitOfWork = unitOfWork;
+        _emailNotificationService = emailNotificationService;
 
     }
 
@@ -641,6 +645,9 @@ finally
 {
     await transaction.DisposeAsync();
 }
+
+// Email delivery is outside the quotation transaction.
+await _emailNotificationService.ProcessPendingNotificationsAsync(10);
 
 var createdQuotation =
 

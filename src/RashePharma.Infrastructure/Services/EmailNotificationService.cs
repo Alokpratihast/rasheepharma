@@ -57,7 +57,7 @@ IConfiguration configuration)
         _configuration = configuration;
     }
 
-    public async Task ProcessPendingNotificationsAsync(
+    public async Task<int> ProcessPendingNotificationsAsync(
         int batchSize)
     {
         if (batchSize <= 0)
@@ -67,13 +67,23 @@ IConfiguration configuration)
                 "Batch size must be greater than zero.");
         }
 
-        var notifications =
-            await _notificationRepository
-                .ClaimPendingAsync(batchSize);
+        List<EmailNotification> notifications;
+
+        try
+        {
+            notifications = await _notificationRepository.ClaimPendingAsync(batchSize);
+        }
+        catch (Exception exception)
+        {
+            // Email delivery must never undo an already-persisted enquiry,
+            // quotation, or payment operation. Pending notifications remain durable.
+            _logger.LogError(exception, "Failed to claim pending email notifications.");
+            return 0;
+        }
 
         if (notifications.Count == 0)
         {
-            return;
+            return 0;
         }
 
         _logger.LogInformation(
@@ -82,8 +92,22 @@ IConfiguration configuration)
 
         foreach (var notification in notifications)
         {
-            await ProcessNotificationAsync(notification);
+            try
+            {
+                await ProcessNotificationAsync(notification);
+            }
+            catch (Exception exception)
+            {
+                // Notification delivery must not fail the business operation
+                // that already committed the enquiry, quotation, or payment.
+                _logger.LogError(
+                    exception,
+                    "Unexpected error while processing email notification {NotificationId}.",
+                    notification.Id);
+            }
         }
+
+        return notifications.Count;
     }
 
     private async Task ProcessNotificationAsync(
