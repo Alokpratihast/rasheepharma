@@ -92,7 +92,19 @@ IConfiguration configuration)
 
         foreach (var notification in notifications)
         {
-            await ProcessNotificationAsync(notification);
+            try
+            {
+                await ProcessNotificationAsync(notification);
+            }
+            catch (Exception exception)
+            {
+                // Notification delivery must not fail the business operation
+                // that already committed the enquiry, quotation, or payment.
+                _logger.LogError(
+                    exception,
+                    "Unexpected error while processing email notification {NotificationId}.",
+                    notification.Id);
+            }
         }
 
         return notifications.Count;
