@@ -67,9 +67,19 @@ IConfiguration configuration)
                 "Batch size must be greater than zero.");
         }
 
-        var notifications =
-            await _notificationRepository
-                .ClaimPendingAsync(batchSize);
+        List<EmailNotification> notifications;
+
+        try
+        {
+            notifications = await _notificationRepository.ClaimPendingAsync(batchSize);
+        }
+        catch (Exception exception)
+        {
+            // Email delivery must never undo an already-persisted enquiry,
+            // quotation, or payment operation. Pending notifications remain durable.
+            _logger.LogError(exception, "Failed to claim pending email notifications.");
+            return 0;
+        }
 
         if (notifications.Count == 0)
         {
