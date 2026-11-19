@@ -26,8 +26,6 @@ public sealed class LeadOutreachWorker(
     ILeadOutreachJobSignal jobSignal) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private static readonly TimeSpan RecoveryInterval = TimeSpan.FromMinutes(5);
-    private DateTime _lastPreviewCleanupUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -42,7 +40,6 @@ public sealed class LeadOutreachWorker(
                 {
                     await RecoverStaleClaimsAsync(stoppingToken);
                     await DeleteExpiredImportPreviewsAsync(stoppingToken);
-                    _lastPreviewCleanupUtc = DateTime.UtcNow;
                     startupRecoveryPending = false;
                 }
 
@@ -54,19 +51,9 @@ public sealed class LeadOutreachWorker(
                 if (processedCount > 0)
                     logger.LogInformation("Lead outreach producer queued or reconciled {Count} recipients.", processedCount);
 
-                // No SQL polling while idle. The timeout is a low-frequency recovery
-                // sweep for process restarts, missed in-memory signals, and stale claims.
-                var workSignaled = await jobSignal.WaitForWorkAsync(RecoveryInterval, stoppingToken);
-
-                // Run stale-claim recovery only on the periodic timeout, not on every campaign signal.
-                if (!workSignaled)
-                    await RecoverStaleClaimsAsync(stoppingToken);
-
-                if (DateTime.UtcNow - _lastPreviewCleanupUtc >= TimeSpan.FromHours(1))
-                {
-                    await DeleteExpiredImportPreviewsAsync(stoppingToken);
-                    _lastPreviewCleanupUtc = DateTime.UtcNow;
-                }
+                // Campaign creation signals this API-hosted processor. Wait indefinitely
+                // while idle so it does not periodically wake up and query Azure SQL.
+                await jobSignal.WaitForWorkAsync(Timeout.InfiniteTimeSpan, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
