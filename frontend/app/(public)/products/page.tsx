@@ -161,14 +161,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 {errorMessage}
               </p>
             </div>
-          ) : (
-            {initialPage && (
-              <ProductsPageClient
-                initialPage={initialPage}
-                initialFilters={initialFilters}
-              />
-            )}
-          )}
+          ) : initialPage ? (
+            <ProductsPageClient
+              initialPage={initialPage}
+              initialFilters={initialFilters}
+            />
+          ) : null}
         </Container>
       </section>
     </main>
