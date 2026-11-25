@@ -4,6 +4,24 @@ using Microsoft.Extensions.Hosting;
 using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Data.Seed;
 
+var shouldSeed = args.Contains(
+    "--seed",
+    StringComparer.OrdinalIgnoreCase);
+
+var unsupportedArguments = args
+    .Where(argument => !string.Equals(
+        argument,
+        "--seed",
+        StringComparison.OrdinalIgnoreCase))
+    .ToArray();
+
+if (unsupportedArguments.Length > 0)
+{
+    throw new ArgumentException(
+        $"Unsupported DbMigrator argument(s): {string.Join(", ", unsupportedArguments)}. " +
+        "The only supported optional argument is --seed.");
+}
+
 var builder = Host.CreateApplicationBuilder(Array.Empty<string>());
 
 var connectionString =
@@ -27,10 +45,6 @@ Console.WriteLine("Applying pending EF Core migrations...");
 await db.Database.MigrateAsync();
 Console.WriteLine("Database migrations completed.");
 
-var shouldSeed = args.Contains(
-    "--seed",
-    StringComparer.OrdinalIgnoreCase);
-
 if (shouldSeed)
 {
     Console.WriteLine("Running bootstrap seeders...");
@@ -40,5 +54,6 @@ if (shouldSeed)
 }
 else
 {
-    Console.WriteLine("Bootstrap seeders skipped. Pass --seed to create required roles/admin.");
+    Console.WriteLine(
+        "Bootstrap seeders skipped. Pass --seed only when provisioning the initial roles/admin.");
 }
