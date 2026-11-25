@@ -5,7 +5,11 @@ import { notFound } from "next/navigation";
 import type { PublicBlogPost } from "@/types/blog";
 import { MarkdownArticle } from "@/components/blog/MarkdownArticle";
 
-const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5104/api").replace(/\/+$/, "");
+const apiBase = (
+  process.env.API_INTERNAL_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:5104/api"
+).replace(/\/+$/, "");
 
 async function getPost(slug: string): Promise<PublicBlogPost | null> {
   try {
