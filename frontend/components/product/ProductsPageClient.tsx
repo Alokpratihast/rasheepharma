@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownAZ,
   ChevronDown,
@@ -16,23 +15,24 @@ import {
   ALL_FORMS,
   MobileFilterSheet,
   ProductFilters,
-  type FacetOption,
 } from "@/components/product/ProductFilters";
 import {
   ProductGrid,
   type ProductGridItem,
 } from "@/components/product/ProductGrid";
 import { cn } from "@/lib/utils";
-import type { ProductList } from "@/types/product";
-
-interface ProductsPageClientProps {
-  products: ProductList[];
-}
+import { productService } from "@/services/product.service";
+import type { ProductPage, ProductPageQuery, ProductList } from "@/types/product";
 
 interface Filters {
   search: string;
   category: string;
   form: string;
+}
+
+interface ProductsPageClientProps {
+  initialPage: ProductPage;
+  initialFilters: Filters;
 }
 
 type SortKey =
@@ -52,163 +52,134 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "price-desc", label: "Price: High to Low" },
 ];
 
-/** Does a product match the filters? `skip` ignores one filter (for facet counts). */
-function matches(
-  product: ProductList,
+function toQuery(
   filters: Filters,
-  skip?: "category" | "form",
-) {
-  const q = filters.search.trim().toLowerCase();
+  sort: SortKey,
+  page: number,
+): ProductPageQuery {
+  const [sortBy, sortOrder] = sort.split("-") as [
+    "featured" | "name" | "price",
+    "asc" | "desc" | undefined,
+  ];
 
-  const matchesSearch =
-    q.length === 0 ||
-    product.name.toLowerCase().includes(q) ||
-    (product.genericName ?? "").toLowerCase().includes(q) ||
-    (product.composition ?? "").toLowerCase().includes(q) ||
-    product.categoryName.toLowerCase().includes(q);
-
-  const matchesCategory =
-    skip === "category" ||
-    filters.category === ALL_CATEGORIES ||
-    product.categoryName.toLowerCase() === filters.category.toLowerCase();
-
-  const matchesForm =
-    skip === "form" ||
-    filters.form === ALL_FORMS ||
-    (product.dosageForm ?? "").toLowerCase() === filters.form.toLowerCase();
-
-  return matchesSearch && matchesCategory && matchesForm;
+  return {
+    page,
+    pageSize: PAGE_SIZE,
+    search: filters.search.trim() || undefined,
+    category: filters.category === ALL_CATEGORIES ? undefined : filters.category,
+    form: filters.form === ALL_FORMS ? undefined : filters.form,
+    sortBy,
+    sortOrder: sortOrder ?? "desc",
+  };
 }
 
-function countBy(
-  items: ProductList[],
-  pick: (p: ProductList) => string | null | undefined,
-): FacetOption[] {
-  const map = new Map<string, number>();
-  for (const item of items) {
-    const key = pick(item)?.trim();
-    if (!key) continue;
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-  return Array.from(map.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function sortProducts(list: ProductList[], sort: SortKey) {
-  const copy = [...list];
-  const price = (p: ProductList) => p.startingPrice ?? Number.POSITIVE_INFINITY;
-
-  switch (sort) {
-    case "name-asc":
-      return copy.sort((a, b) => a.name.localeCompare(b.name));
-    case "name-desc":
-      return copy.sort((a, b) => b.name.localeCompare(a.name));
-    case "price-asc":
-      return copy.sort((a, b) => price(a) - price(b));
-    case "price-desc":
-      return copy.sort((a, b) => {
-        // products without a price always go last
-        if (a.startingPrice === null) return 1;
-        if (b.startingPrice === null) return -1;
-        return b.startingPrice - a.startingPrice;
-      });
-    default:
-      return copy.sort(
-        (a, b) =>
-          Number(b.isFeatured) - Number(a.isFeatured) ||
-          a.name.localeCompare(b.name),
-      );
-  }
-}
-
-export function ProductsPageClient({ products }: ProductsPageClientProps) {
-  const searchParams = useSearchParams();
-
-  const [filters, setFilters] = useState<Filters>(() => {
-    const category = searchParams.get("category");
-    const form = searchParams.get("form");
-    return {
-      search: searchParams.get("search") ?? "",
-      category:
-        category &&
-        products.some(
-          (p) => p.categoryName.toLowerCase() === category.toLowerCase(),
-        )
-          ? category
-          : ALL_CATEGORIES,
-      form: form ?? ALL_FORMS,
-    };
-  });
+export function ProductsPageClient({
+  initialPage,
+  initialFilters,
+}: ProductsPageClientProps) {
+  const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<SortKey>("featured");
+  const [pageData, setPageData] = useState<ProductPage>(initialPage);
+  const [products, setProducts] = useState<ProductList[]>(initialPage.items);
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [visible, setVisible] = useState(PAGE_SIZE);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const skipInitialFetch = useRef(true);
 
-  /* Keep the URL shareable without triggering a navigation. */
+  useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const result = await productService.getPaged(toQuery(filters, sort, 1));
+        if (!active) return;
+        setPageData(result);
+        setProducts(result.items);
+      } catch {
+        if (active) setError("Unable to load products. Please try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, filters.search.trim() ? 300 : 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [filters, sort]);
+
   function update(next: Filters) {
     setFilters(next);
-    setVisible(PAGE_SIZE);
 
     const params = new URLSearchParams();
     if (next.search.trim()) params.set("search", next.search.trim());
     if (next.category !== ALL_CATEGORIES) params.set("category", next.category);
     if (next.form !== ALL_FORMS) params.set("form", next.form);
 
-    const qs = params.toString();
+    const queryString = params.toString();
     window.history.replaceState(
       null,
       "",
-      qs ? `?${qs}` : window.location.pathname,
+      queryString ? `?${queryString}` : window.location.pathname,
     );
+  }
+
+  function updateSort(next: SortKey) {
+    setSort(next);
   }
 
   const clearFilters = () =>
     update({ search: "", category: ALL_CATEGORIES, form: ALL_FORMS });
 
-  /* ---------- derived data ---------- */
-  const categoryFacets = useMemo(
+  async function loadMore() {
+    if (!pageData.hasNextPage || loadingMore) return;
+
+    setLoadingMore(true);
+    setError("");
+
+    try {
+      const result = await productService.getPaged(
+        toQuery(filters, sort, pageData.page + 1),
+      );
+      setPageData(result);
+      setProducts((current) => [...current, ...result.items]);
+    } catch {
+      setError("Unable to load more products. Please try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  const items: ProductGridItem[] = useMemo(
     () =>
-      countBy(
-        products.filter((p) => matches(p, filters, "category")),
-        (p) => p.categoryName,
-      ),
-    [products, filters],
+      products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        form: product.dosageForm ?? "Product",
+        composition:
+          product.genericName ?? product.composition ?? "Pharmaceutical product",
+        packSize:
+          product.startingPrice !== null
+            ? `Starting from $${product.startingPrice.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            : "Contact for details",
+        slug: product.slug,
+        imageUrl: product.primaryImageUrl,
+        categoryName: product.categoryName,
+      })),
+    [products],
   );
-
-  const formFacets = useMemo(
-    () =>
-      countBy(
-        products.filter((p) => matches(p, filters, "form")),
-        (p) => p.dosageForm,
-      ),
-    [products, filters],
-  );
-
-  const filtered = useMemo(
-    () => sortProducts(products.filter((p) => matches(p, filters)), sort),
-    [products, filters, sort],
-  );
-
-  const shown = filtered.slice(0, visible);
-
-  const items: ProductGridItem[] = shown.map((product) => ({
-    id: product.id,
-    name: product.name,
-    form: product.dosageForm ?? "Product",
-    composition:
-      product.genericName ?? product.composition ?? "Pharmaceutical product",
-    packSize:
-      product.startingPrice !== null
-        ? `Starting from $${product.startingPrice.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`
-        : "Contact for details",
-    slug: product.slug,
-    imageUrl: product.primaryImageUrl,
-    categoryName: product.categoryName,
-  }));
 
   const hasFilters =
     filters.search.trim().length > 0 ||
@@ -224,9 +195,9 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
     search: filters.search,
     category: filters.category,
     form: filters.form,
-    categories: categoryFacets,
-    forms: formFacets,
-    totalCount: products.filter((p) => matches(p, filters, "category")).length,
+    categories: pageData.categoryFacets,
+    forms: pageData.formFacets,
+    totalCount: pageData.categoryFacetTotalCount,
     onSearchChange: (search: string) => update({ ...filters, search }),
     onCategoryChange: (category: string) => update({ ...filters, category }),
     onFormChange: (form: string) => update({ ...filters, form }),
@@ -238,29 +209,31 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[272px_minmax(0,1fr)] xl:grid-cols-[288px_minmax(0,1fr)]">
-      {/* ============ SIDEBAR (desktop) ============ */}
       <ProductFilters {...panelProps} />
 
-      {/* ============ MOBILE SHEET ============ */}
       <MobileFilterSheet
         {...panelProps}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        resultCount={filtered.length}
+        resultCount={pageData.totalCount}
       />
 
-      {/* ============ RESULTS ============ */}
       <div className="min-w-0">
-        {/* Toolbar */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" aria-live="polite">
             Showing{" "}
-            <span className="font-bold text-foreground">{filtered.length}</span>{" "}
-            {filtered.length === 1 ? "product" : "products"}
+            <span className="font-bold text-foreground">
+              {products.length}
+            </span>{" "}
+            of{" "}
+            <span className="font-bold text-foreground">
+              {pageData.totalCount}
+            </span>{" "}
+            products
+            {loading && <span className="ml-2">Updating…</span>}
           </p>
 
           <div className="flex items-center gap-2">
-            {/* Mobile filters button */}
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
@@ -275,13 +248,12 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
               )}
             </button>
 
-            {/* Sort */}
             <label className="relative">
               <span className="sr-only">Sort products</span>
               <ArrowDownAZ className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
+                onChange={(event) => updateSort(event.target.value as SortKey)}
                 className="h-10 appearance-none rounded-full border border-border bg-card pl-10 pr-9 text-sm font-medium text-foreground outline-none transition-colors hover:border-primary/50 focus:border-primary"
               >
                 {SORT_OPTIONS.map((option) => (
@@ -293,7 +265,6 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
               <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </label>
 
-            {/* View toggle */}
             <div
               role="group"
               aria-label="Layout"
@@ -325,7 +296,6 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
           </div>
         </div>
 
-        {/* Active filter chips */}
         {hasFilters && (
           <div className="mb-5 flex flex-wrap items-center gap-2">
             {filters.search.trim() && (
@@ -377,20 +347,26 @@ export function ProductsPageClient({ products }: ProductsPageClientProps) {
           </div>
         )}
 
+        {error && (
+          <p role="alert" className="mb-4 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+
         <ProductGrid products={items} view={view} onClear={clearFilters} />
 
-        {/* Load more */}
-        {filtered.length > visible && (
+        {pageData.hasNextPage && (
           <div className="mt-10 flex flex-col items-center gap-3">
             <p className="text-xs text-muted-foreground">
-              Showing {shown.length} of {filtered.length}
+              Showing {products.length} of {pageData.totalCount}
             </p>
             <button
               type="button"
-              onClick={() => setVisible((v) => v + PAGE_SIZE)}
-              className="h-12 rounded-full border border-primary/40 bg-background px-8 text-sm font-semibold text-primary transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="h-12 rounded-full border border-primary/40 bg-background px-8 text-sm font-semibold text-primary transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Show more products
+              {loadingMore ? "Loading…" : "Show more products"}
             </button>
           </div>
         )}
