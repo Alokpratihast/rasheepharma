@@ -1,14 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using RashePharma.Infrastructure.Data;
 
 #nullable disable
 
 namespace RashePharma.Infrastructure.Migrations;
 
-[DbContext(typeof(ApplicationDbContext))]
-[Migration("20261125100000_AddUniqueRoleName")]
 public partial class AddUniqueRoleName : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
