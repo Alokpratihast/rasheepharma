@@ -66,6 +66,12 @@ public class ProductService : IProductService
         }).ToList();
     }
 
+    public async Task<PagedResult<ProductListDto>> GetPagedAsync(
+        ProductQueryParameters parameters)
+    {
+        return await _productRepository.GetPagedAsync(parameters);
+    }
+
     public async Task<List<ProductListDto>> GetFeaturedAsync()
     {
         var products = await _productRepository.GetFeaturedAsync();
