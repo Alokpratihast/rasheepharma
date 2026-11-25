@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using RashePharma.Infrastructure.Data;
 using RashePharma.Infrastructure.Data.Seed;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateApplicationBuilder(Array.Empty<string>());
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection");
