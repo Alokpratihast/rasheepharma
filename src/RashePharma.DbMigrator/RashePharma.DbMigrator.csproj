@@ -12,6 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\RashePharma.Infrastructure\\RashePharma.Infrastructure.csproj" />
+    <ProjectReference Include="../RashePharma.Infrastructure/RashePharma.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
