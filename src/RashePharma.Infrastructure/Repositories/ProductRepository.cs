@@ -18,6 +18,8 @@ public class ProductRepository : IProductRepository
     public async Task<List<Product>> GetAllAsync()
     {
         return await _context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
@@ -27,6 +29,8 @@ public class ProductRepository : IProductRepository
     public async Task<List<Product>> GetFeaturedAsync()
     {
         return await _context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
@@ -204,6 +208,8 @@ public class ProductRepository : IProductRepository
     public async Task<Product?> GetBySlugAsync(string slug)
     {
         return await _context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
