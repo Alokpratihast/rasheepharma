@@ -27,7 +27,7 @@ public partial class AddUniqueRoleName : Migration
             (
                 SELECT 1
                 FROM [Roles]
-                WHERE LEN([Name]) > 50
+                WHERE DATALENGTH([Name]) > 100
             )
             BEGIN
                 THROW 51001,
