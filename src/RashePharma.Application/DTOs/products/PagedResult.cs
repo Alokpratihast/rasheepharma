@@ -18,4 +18,14 @@ public sealed class PagedResult<T>
     public bool HasNextPage { get; init; }
 
     public bool HasPreviousPage { get; init; }
+
+    public IReadOnlyList<ProductFacetDto> CategoryFacets { get; init; } =
+        Array.Empty<ProductFacetDto>();
+
+    public IReadOnlyList<ProductFacetDto> FormFacets { get; init; } =
+        Array.Empty<ProductFacetDto>();
+
+    public int CategoryFacetTotalCount { get; init; }
+
+    public int FormFacetTotalCount { get; init; }
 }
