@@ -198,6 +198,7 @@ export function ProductsPageClient({
     categories: pageData.categoryFacets,
     forms: pageData.formFacets,
     totalCount: pageData.categoryFacetTotalCount,
+    formTotalCount: pageData.formFacetTotalCount,
     onSearchChange: (search: string) => update({ ...filters, search }),
     onCategoryChange: (category: string) => update({ ...filters, category }),
     onFormChange: (form: string) => update({ ...filters, form }),
