@@ -37,7 +37,7 @@ public class ProductRepository : IProductRepository
     public async Task<PagedResult<ProductListDto>> GetPagedAsync(
         ProductQueryParameters parameters)
     {
-        var query = _context.Products
+        var baseQuery = _context.Products
             .AsNoTracking()
             .Where(p => p.IsActive && p.Category.IsActive);
 
@@ -45,12 +45,57 @@ public class ProductRepository : IProductRepository
         {
             var search = parameters.Search.Trim();
 
-            query = query.Where(p =>
+            baseQuery = baseQuery.Where(p =>
                 p.Name.Contains(search) ||
                 (p.GenericName != null && p.GenericName.Contains(search)) ||
                 (p.Composition != null && p.Composition.Contains(search)) ||
                 p.Category.Name.Contains(search));
         }
+
+        // Category counts respect search and dosage-form filters, but ignore
+        // the currently selected category so the user can switch categories.
+        var categoryFacetQuery = baseQuery;
+        if (!string.IsNullOrWhiteSpace(parameters.Form))
+        {
+            var formForCategoryFacet = parameters.Form.Trim();
+            categoryFacetQuery = categoryFacetQuery.Where(
+                p => p.DosageForm == formForCategoryFacet);
+        }
+
+        var categoryFacetTotalCount = await categoryFacetQuery.CountAsync();
+        var categoryFacets = await categoryFacetQuery
+            .GroupBy(p => p.Category.Name)
+            .Select(group => new ProductFacetDto
+            {
+                Name = group.Key,
+                Count = group.Count()
+            })
+            .OrderBy(facet => facet.Name)
+            .ToListAsync();
+
+        // Dosage-form counts respect search and category filters, but ignore
+        // the currently selected dosage form.
+        var formFacetQuery = baseQuery;
+        if (!string.IsNullOrWhiteSpace(parameters.Category))
+        {
+            var categoryForFormFacet = parameters.Category.Trim();
+            formFacetQuery = formFacetQuery.Where(
+                p => p.Category.Name == categoryForFormFacet);
+        }
+
+        var formFacetTotalCount = await formFacetQuery.CountAsync();
+        var formFacets = await formFacetQuery
+            .Where(p => p.DosageForm != null && p.DosageForm != "")
+            .GroupBy(p => p.DosageForm!)
+            .Select(group => new ProductFacetDto
+            {
+                Name = group.Key,
+                Count = group.Count()
+            })
+            .OrderBy(facet => facet.Name)
+            .ToListAsync();
+
+        var query = baseQuery;
 
         if (!string.IsNullOrWhiteSpace(parameters.Category))
         {
@@ -139,7 +184,11 @@ public class ProductRepository : IProductRepository
             TotalCount = totalCount,
             TotalPages = totalPages,
             HasNextPage = parameters.Page < totalPages,
-            HasPreviousPage = parameters.Page > 1 && totalPages > 0
+            HasPreviousPage = parameters.Page > 1 && totalPages > 0,
+            CategoryFacets = categoryFacets,
+            FormFacets = formFacets,
+            CategoryFacetTotalCount = categoryFacetTotalCount,
+            FormFacetTotalCount = formFacetTotalCount
         };
     }
 
