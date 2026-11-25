@@ -23,7 +23,7 @@ Do not commit connection strings or credentials to source control. Use the deplo
 1. Take/verify a database backup and confirm the target environment.
 2. Build and publish the migration runner.
 3. Run the migration runner once against the intended database.
-4. For a new environment only, pass `--seed` to create the baseline roles and initial admin account.
+4. For a new environment only, pass `--seed` to create the baseline roles and initial admin account. The role-name migration checks for duplicate or over-50-character role names before creating the unique index; resolve any reported data issue and retry.
 5. Deploy/restart the API.
 6. Deploy/restart the BulkUploadWorker.
 7. Verify API health and critical database-backed flows.
@@ -52,7 +52,7 @@ set "ADMIN_PASSWORD=your-admin-password"
 dotnet run --project src\RashePharma.DbMigrator\RashePharma.DbMigrator.csproj -- --seed
 ```
 
-The `--seed` option is explicit. Normal migration runs do not require admin credentials and do not modify user accounts.
+The `--seed` option is explicit; unknown arguments are rejected. Normal migration runs do not require admin credentials and do not modify user accounts. When `--seed` is used, `ADMIN_EMAIL` identifies the bootstrap account. `ADMIN_PASSWORD` is required only if that account does not already exist. An existing account is left unchanged when it already has the Admin role; if the email belongs to a non-admin user, seeding fails without silently changing that user's role. The `Users.Email` unique index and `Roles.Name` unique index provide database-level duplicate protection.
 
 ## CI and deployment
 
