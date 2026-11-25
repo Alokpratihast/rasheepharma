@@ -4,6 +4,8 @@ WORKDIR /src
 
 COPY src ./src
 
+COPY frontend/public/images/Rashelifescience.png ./frontend/public/images/Rashelifescience.png
+
 RUN dotnet restore src/RashePharma.Api/RashePharma.Api.csproj
 
 RUN dotnet publish src/RashePharma.Api/RashePharma.Api.csproj \
