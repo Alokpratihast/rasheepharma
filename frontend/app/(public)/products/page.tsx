@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import { ChevronRight, FolderTree, Pill } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
 import { ProductsPageClient } from "@/components/product/ProductsPageClient";
 import { productService } from "@/services/product.service";
-import type { ProductList } from "@/types/product";
+import type { ProductPage } from "@/types/product";
 
 export const metadata: Metadata = {
   title: "Products | RashePharma",
@@ -14,35 +13,47 @@ export const metadata: Metadata = {
     "Browse the RashePharma pharmaceutical portfolio by product, category and dosage form.",
 };
 
-function ProductsSkeleton() {
-  return (
-    <div className="grid gap-8 lg:grid-cols-[272px_minmax(0,1fr)]">
-      <div className="hidden h-[520px] animate-pulse rounded-3xl bg-muted lg:block" />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-[360px] animate-pulse rounded-3xl bg-muted"
-          />
-        ))}
-      </div>
-    </div>
-  );
+interface ProductsPageProps {
+  searchParams: Promise<{
+    search?: string;
+    category?: string;
+    form?: string;
+  }>;
 }
 
-export default async function ProductsPage() {
-  let products: ProductList[] = [];
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const params = await searchParams;
+  const initialFilters = {
+    search: params.search ?? "",
+    category: params.category ?? "All Categories",
+    form: params.form ?? "All Forms",
+  };
+
+  let initialPage: ProductPage | null = null;
   let errorMessage = "";
 
   try {
-    products = await productService.getAll();
+    initialPage = await productService.getPaged({
+      page: 1,
+      pageSize: 12,
+      search: initialFilters.search,
+      category:
+        initialFilters.category === "All Categories"
+          ? undefined
+          : initialFilters.category,
+      form:
+        initialFilters.form === "All Forms"
+          ? undefined
+          : initialFilters.form,
+      sortBy: "featured",
+      sortOrder: "desc",
+    });
   } catch {
     errorMessage = "Unable to load products right now. Please try again.";
   }
 
-  const categoryCount = new Set(
-    products.map((p) => p.categoryName?.trim()).filter(Boolean),
-  ).size;
+  const categoryCount = initialPage?.categoryFacets.length ?? 0;
+  const productCount = initialPage?.totalCount ?? 0;
 
   return (
     <main className="min-h-screen bg-background">
@@ -101,7 +112,7 @@ export default async function ProductsPage() {
                 </p>
               </div>
 
-              {products.length > 0 && (
+              {productCount > 0 && (
                 <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:150ms] [animation-fill-mode:backwards]">
                   <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-5 py-3.5 backdrop-blur-xl">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-400/20">
@@ -109,7 +120,7 @@ export default async function ProductsPage() {
                     </span>
                     <span>
                       <span className="block text-2xl font-extrabold leading-none">
-                        {products.length}
+                        {productCount}
                       </span>
                       <span className="text-xs text-white/65">Products</span>
                     </span>
@@ -151,9 +162,12 @@ export default async function ProductsPage() {
               </p>
             </div>
           ) : (
-            <Suspense fallback={<ProductsSkeleton />}>
-              <ProductsPageClient products={products} />
-            </Suspense>
+            {initialPage && (
+              <ProductsPageClient
+                initialPage={initialPage}
+                initialFilters={initialFilters}
+              />
+            )}
           )}
         </Container>
       </section>
