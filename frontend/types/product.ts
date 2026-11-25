@@ -1,3 +1,32 @@
+export interface ProductFacet {
+  name: string;
+  count: number;
+}
+
+export interface ProductPage {
+  items: ProductList[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  categoryFacets: ProductFacet[];
+  formFacets: ProductFacet[];
+  categoryFacetTotalCount: number;
+  formFacetTotalCount: number;
+}
+
+export interface ProductPageQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  category?: string;
+  form?: string;
+  sortBy?: "featured" | "name" | "price";
+  sortOrder?: "asc" | "desc";
+}
+
 export interface ProductList {
   id: number;
   name: string;
