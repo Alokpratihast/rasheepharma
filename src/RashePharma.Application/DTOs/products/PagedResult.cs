@@ -1,0 +1,21 @@
+namespace RashePharma.Application.DTOs.Products;
+
+/// <summary>
+/// Standard metadata envelope for server-side paginated API responses.
+/// </summary>
+public sealed class PagedResult<T>
+{
+    public IReadOnlyList<T> Items { get; init; } = Array.Empty<T>();
+
+    public int Page { get; init; }
+
+    public int PageSize { get; init; }
+
+    public int TotalCount { get; init; }
+
+    public int TotalPages { get; init; }
+
+    public bool HasNextPage { get; init; }
+
+    public bool HasPreviousPage { get; init; }
+}
