@@ -3,6 +3,8 @@ import type {
   ProductCreateInput,
   ProductDetails,
   ProductList,
+  ProductPage,
+  ProductPageQuery,
   ProductUpdateInput,
 } from "@/types/product";
 
@@ -12,6 +14,23 @@ export const productService = {
   async getAll(): Promise<ProductList[]> {
     return apiClient<ProductList[]>(
       PRODUCT_ENDPOINT,
+    );
+  },
+
+  async getPaged(query: ProductPageQuery = {}): Promise<ProductPage> {
+    const params = new URLSearchParams();
+
+    if (query.page !== undefined) params.set("page", String(query.page));
+    if (query.pageSize !== undefined) params.set("pageSize", String(query.pageSize));
+    if (query.search?.trim()) params.set("search", query.search.trim());
+    if (query.category) params.set("category", query.category);
+    if (query.form) params.set("form", query.form);
+    if (query.sortBy) params.set("sortBy", query.sortBy);
+    if (query.sortOrder) params.set("sortOrder", query.sortOrder);
+
+    const queryString = params.toString();
+    return apiClient<ProductPage>(
+      `${PRODUCT_ENDPOINT}/paged${queryString ? `?${queryString}` : ""}`,
     );
   },
 
