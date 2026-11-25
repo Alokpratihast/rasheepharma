@@ -62,7 +62,6 @@ public class ProductRepository : IProductRepository
                 p => p.DosageForm == formForCategoryFacet);
         }
 
-        var categoryFacetTotalCount = await categoryFacetQuery.CountAsync();
         var categoryFacets = await categoryFacetQuery
             .GroupBy(p => p.Category.Name)
             .Select(group => new ProductFacetDto
@@ -72,6 +71,7 @@ public class ProductRepository : IProductRepository
             })
             .OrderBy(facet => facet.Name)
             .ToListAsync();
+        var categoryFacetTotalCount = categoryFacets.Sum(facet => facet.Count);
 
         // Dosage-form counts respect search and category filters, but ignore
         // the currently selected dosage form.
