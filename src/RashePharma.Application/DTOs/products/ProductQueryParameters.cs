@@ -7,7 +7,7 @@ namespace RashePharma.Application.DTOs.Products;
 /// </summary>
 public sealed class ProductQueryParameters
 {
-    [Range(1, int.MaxValue)]
+    [Range(1, 1000000)]
     public int Page { get; set; } = 1;
 
     [Range(1, 50)]
