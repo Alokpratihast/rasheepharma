@@ -30,7 +30,7 @@ public class ProductRepository : IProductRepository
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
-            .Where(p => p.IsActive && p.IsFeatured)
+            .Where(p => p.IsActive && p.IsFeatured && p.Category.IsActive)
             .ToListAsync();
     }
 
