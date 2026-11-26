@@ -532,6 +532,10 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
         public Task<List<Product>> GetFeaturedAsync()
             => Task.FromResult(new List<Product>());
 
+        public Task<RashePharma.Application.DTOs.Products.PagedResult<RashePharma.Application.DTOs.Products.ProductListDto>> GetPagedAsync(
+            RashePharma.Application.DTOs.Products.ProductQueryParameters parameters)
+            => throw new NotSupportedException("Paged catalogue queries are not used by this test fake.");
+
         public Task<Product?> GetByIdAsync(int id)
             => Task.FromResult<Product?>(null);
 

@@ -20,6 +20,7 @@ interface FilterPanelProps {
   categories: FacetOption[];
   forms: FacetOption[];
   totalCount: number;
+  formTotalCount: number;
   onSearchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onFormChange: (value: string) => void;
@@ -40,6 +41,7 @@ function FilterPanel({
   categories,
   forms,
   totalCount,
+  formTotalCount,
   onSearchChange,
   onCategoryChange,
   onFormChange,
@@ -115,7 +117,7 @@ function FilterPanel({
         <div>
           <p className={sectionTitle}>Dosage form</p>
           <div className="flex flex-wrap gap-2">
-            {[{ name: ALL_FORMS, count: totalCount }, ...forms].map((item) => {
+            {[{ name: ALL_FORMS, count: formTotalCount }, ...forms].map((item) => {
               const active = form === item.name;
               return (
                 <button

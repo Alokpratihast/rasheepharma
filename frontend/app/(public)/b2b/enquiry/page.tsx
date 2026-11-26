@@ -19,7 +19,11 @@ export default async function EnquiryPage({ searchParams }: EnquiryPageProps) {
   const query = await searchParams;
   let location: (typeof cityLandingPageSeeder)[number] | LocationSeoPage | undefined;
   if (query.countrySlug && query.citySlug) {
-    const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5104/api").replace(/\/+$/, "");
+    const apiBase = (
+      process.env.API_INTERNAL_BASE_URL ??
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://localhost:5104/api"
+    ).replace(/\/+$/, "");
     try {
       const response = await fetch(
         `${apiBase}/location-pages/${encodeURIComponent(query.countrySlug)}/${encodeURIComponent(query.citySlug)}`,

@@ -24,6 +24,8 @@ public class CategoryRepository : ICategoryRepository
     public async Task<List<Category>> GetNavigationAsync()
 {
     return await _context.Categories
+        .AsNoTracking()
+        .AsSplitQuery()
         .Include(c => c.Children)
         .Include(c => c.Products)
         .ToListAsync();

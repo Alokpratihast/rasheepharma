@@ -7,7 +7,6 @@ using RashePharma.Application.Interfaces.Repositories;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Application.Services;
 using RashePharma.Infrastructure.Data;
-using RashePharma.Infrastructure.Data.Seed;
 using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
 using Microsoft.OpenApi;
@@ -768,26 +767,9 @@ var app = builder.Build();
 
 
 
-// =========================================================
-// Database Seed
-// =========================================================
-
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    using var scope = app.Services.CreateScope();
-
-    var db =
-        scope.ServiceProvider
-            .GetRequiredService<ApplicationDbContext>();
-
-    // Apply pending database migrations
-    await db.Database.MigrateAsync();
-
-    // Seed data after database schema is ready
-    await RoleSeeder.SeedAsync(db);
-
-    await AdminSeeder.SeedAsync(db);
-}
+// Database schema changes and bootstrap seeding are executed by
+// RashePharma.DbMigrator during the release process, never by API startup.
+// This keeps API restarts independent from schema migration locks and DDL work.
 
 // =========================================================
 // Swagger
