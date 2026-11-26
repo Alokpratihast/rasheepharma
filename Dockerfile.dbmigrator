@@ -1,0 +1,19 @@
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+WORKDIR /src
+
+COPY src ./src
+COPY frontend/public/images/Rashelifescience.png ./frontend/public/images/Rashelifescience.png
+
+RUN dotnet restore src/RashePharma.DbMigrator/RashePharma.DbMigrator.csproj
+
+RUN dotnet publish src/RashePharma.DbMigrator/RashePharma.DbMigrator.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "RashePharma.DbMigrator.dll"]
