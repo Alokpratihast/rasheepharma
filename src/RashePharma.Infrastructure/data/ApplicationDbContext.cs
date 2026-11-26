@@ -474,6 +474,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(p => p.BuyerFocus).IsRequired();
         });
 
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.Property(role => role.Name)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(role => role.Name)
+                .IsUnique();
+        });
+
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();

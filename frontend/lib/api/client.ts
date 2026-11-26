@@ -8,10 +8,19 @@ import {
 
 import type { AuthResponse } from "@/types/auth";
 
-const API_BASE_URL = (
+const PUBLIC_API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:5104/api"
 ).replace(/\/+$/, "");
+
+function getApiRequestBaseUrl(): string {
+  const baseUrl =
+    typeof window === "undefined"
+      ? process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL
+      : PUBLIC_API_BASE_URL;
+
+  return baseUrl.replace(/\/+$/, "");
+}
 
 export function getApiAssetUrl(
   assetUrl: string | null | undefined,
@@ -27,7 +36,7 @@ export function getApiAssetUrl(
     return assetUrl;
   }
 
-  const apiRoot = API_BASE_URL.replace(/\/api\/?$/, "");
+  const apiRoot = PUBLIC_API_BASE_URL.replace(/\/api\/?$/, "");
 
   return `${apiRoot}${assetUrl.startsWith("/") ? "" : "/"}${assetUrl}`;
 }
@@ -107,7 +116,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   const performRefresh = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        API_BASE_URL + "/Auth/refresh",
+        PUBLIC_API_BASE_URL + "/Auth/refresh",
         {
           method: "POST",
           credentials: "include",
@@ -219,8 +228,10 @@ export async function apiClient<T>(
     headers: requestHeaders,
   };
 
+  const apiBaseUrl = getApiRequestBaseUrl();
+
   let response = await fetch(
-    `${API_BASE_URL}${endpoint}`,
+    `${apiBaseUrl}${endpoint}`,
     fetchOptions,
   );
 
@@ -247,7 +258,7 @@ export async function apiClient<T>(
       );
 
       response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
+        `${apiBaseUrl}${endpoint}`,
         {
           ...fetchOptions,
           headers: retryHeaders,

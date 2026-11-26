@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/blog" },
 };
 
-const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5104/api").replace(/\/+$/, "");
+const apiBase = (
+  process.env.API_INTERNAL_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:5104/api"
+).replace(/\/+$/, "");
 const pageSize = 12;
 const sortOptions = ["newest", "oldest", "title"] as const;
 type SortOption = (typeof sortOptions)[number];

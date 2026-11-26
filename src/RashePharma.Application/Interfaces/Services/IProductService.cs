@@ -6,6 +6,8 @@ public interface IProductService
 {
     Task<List<ProductListDto>> GetAllAsync();
 
+    Task<PagedResult<ProductListDto>> GetPagedAsync(ProductQueryParameters parameters);
+
     Task<List<ProductListDto>> GetFeaturedAsync();
 
     Task<ProductDetailsDto?> GetByIdAsync(int id);

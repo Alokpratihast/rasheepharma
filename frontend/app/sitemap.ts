@@ -7,7 +7,9 @@ import { cityLandingPageSeeder } from "@/data/seed/cityLandingPageSeeder";
 import type { LocationSeoPage, LocationSeoRouteStatus } from "@/types/location-seo-page";
 
 const apiBase = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5104/api"
+  process.env.API_INTERNAL_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:5104/api"
 ).replace(/\/+$/, "");
 
 // Keep canonical sitemap URLs independent of the API host and Azure preview URLs.

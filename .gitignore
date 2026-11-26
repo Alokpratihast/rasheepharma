@@ -35,3 +35,6 @@ full-source-debug.txtstripe
 **/tests/environment/.env
 
 **/.env.emailworker
+# Local Docker testing files
+.env.docker
+/artifacts/

@@ -20,6 +20,15 @@ public class ProductsController : ControllerBase
     // PUBLIC APIs
     // =========================
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResult<ProductListDto>>> GetPaged(
+        [FromQuery] ProductQueryParameters parameters)
+    {
+        var result = await _productService.GetPagedAsync(parameters);
+
+        return Ok(result);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<ProductListDto>>> GetAll()
     {

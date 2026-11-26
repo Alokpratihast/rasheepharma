@@ -6,7 +6,11 @@ import { Container } from "@/components/ui/container";
 import { getCityLandingPage, type CityLandingPageSeed } from "@/data/seed/cityLandingPageSeeder";
 import type { LocationSeoPage } from "@/types/location-seo-page";
 
-const apiBase=(process.env.NEXT_PUBLIC_API_BASE_URL??"http://localhost:5104/api").replace(/\/+$/,"");
+const apiBase=(
+  process.env.API_INTERNAL_BASE_URL??
+  process.env.NEXT_PUBLIC_API_BASE_URL??
+  "http://localhost:5104/api"
+).replace(/\/+$/,"");
 const siteUrl=(process.env.NEXT_PUBLIC_SITE_URL??"https://www.rashelifesciences.in").replace(/\/+$/,"");
 export const revalidate=60;
 interface Props { params: Promise<{country:string;city:string}> }
