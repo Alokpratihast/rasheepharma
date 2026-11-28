@@ -84,7 +84,7 @@ public sealed class BulkUploadDispatchReliabilityTests
     }
 
     [Fact]
-    public void RetryWait_DoesNotWakeForAnUnrelatedRecoveryPoll()
+    public void RetryWait_UsesScheduledRetryWhenItIsSoonerThanRecovery()
     {
         var now = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
         var retryAt = now.AddMinutes(10);
