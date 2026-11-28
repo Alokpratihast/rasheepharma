@@ -45,6 +45,7 @@ public sealed class LocalFileBulkUploadStorageService : IBulkUploadStorageServic
         var manifest = new UploadManifest
         {
             FileSize = expectedFileSize,
+            FileExtension = extension,
             CreatedAtUtc = DateTime.UtcNow
         };
         var manifestPath = GetManifestPath(id);
@@ -228,8 +229,19 @@ public sealed class LocalFileBulkUploadStorageService : IBulkUploadStorageServic
             cancellationToken.ThrowIfCancellationRequested();
             if (File.GetLastWriteTimeUtc(manifestPath) > cutoff) continue;
             var id = Path.GetFileNameWithoutExtension(manifestPath);
+            var manifest = await ReadManifestAsync(manifestPath, cancellationToken);
             var chunks = GetChunkDirectory(id);
             if (Directory.Exists(chunks)) Directory.Delete(chunks, recursive: true);
+
+            // A completed upload moves out of the chunk directory but keeps its
+            // manifest until the job consumes/deletes it. Expiry must remove that
+            // assembled staging file too, otherwise abandoned uploads leak disk.
+            if (AllowedExtensions.Contains(manifest.FileExtension))
+            {
+                var stagedFile = _storage.GetPath("bulk-staging", $"{id}{manifest.FileExtension}");
+                LocalFileStorageRoot.TryDelete(stagedFile);
+            }
+
             LocalFileStorageRoot.TryDelete(manifestPath);
         }
         return Task.CompletedTask;
@@ -306,6 +318,7 @@ public sealed class LocalFileBulkUploadStorageService : IBulkUploadStorageServic
     private sealed class UploadManifest
     {
         public long FileSize { get; set; }
+        public string FileExtension { get; set; } = string.Empty;
         public DateTime CreatedAtUtc { get; set; }
     }
 }
