@@ -91,9 +91,10 @@ public sealed class BulkUploadDispatchReliabilityTests
 
         var wait = BulkUploadDispatchOutboxDispatcher.CalculateWaitDuration(
             retryAt,
-            now);
+            now,
+            TimeSpan.FromSeconds(60));
 
-        Assert.Equal(TimeSpan.FromMinutes(10), wait);
+        Assert.Equal(TimeSpan.FromSeconds(60), wait);
     }
 
     [Fact]
@@ -103,9 +104,10 @@ public sealed class BulkUploadDispatchReliabilityTests
 
         var wait = BulkUploadDispatchOutboxDispatcher.CalculateWaitDuration(
             null,
-            now);
+            now,
+            TimeSpan.FromSeconds(60));
 
-        Assert.Equal(Timeout.InfiniteTimeSpan, wait);
+        Assert.Equal(TimeSpan.FromSeconds(60), wait);
     }
 
     [Fact]
