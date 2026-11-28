@@ -45,6 +45,9 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
                 var wait = CalculateWaitDuration(
                     result.NextRetryAtUtc,
                     DateTime.UtcNow);
+                var recoveryInterval = TimeSpan.FromSeconds(_options.RecoveryIntervalSeconds);
+                if (wait == Timeout.InfiniteTimeSpan || wait > recoveryInterval)
+                    wait = recoveryInterval;
 
                 await _signal.WaitForMessageAsync(wait, stoppingToken);
             }
