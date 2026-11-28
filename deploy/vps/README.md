@@ -6,6 +6,7 @@ This is a staging template for the GoDaddy VPS. It keeps SQL Server and the exis
 
 - Ubuntu 24.04, Docker Engine with Compose, and host Nginx.
 - SQL Server Express reachable from Docker at the private bridge gateway (`172.18.0.1:1433`); firewall/bind SQL Server so it is not publicly reachable.
+- The existing Docker network `rasheepharma-network` must already exist with gateway `172.18.0.1`; Compose reuses it as an external network rather than creating an overlapping `172.18.0.0/16` network. Verify it with `docker network inspect rasheepharma-network` before deployment.
 - Existing RabbitMQ reachable from the containers via `host.docker.internal:5672`. Confirm its Docker network, bind address, credentials and durable storage before starting this stack. Do not recreate or modify the current RabbitMQ container as part of this template.
 - A separate staging database, uploads directory, RabbitMQ queue names, secrets and hostname. Do not use production database credentials for staging.
 - Place the brochure PDF at `/opt/rasheepharma/staging/uploads/Rashe_Lifesciences_Client_Brochure_v2.pdf`.
