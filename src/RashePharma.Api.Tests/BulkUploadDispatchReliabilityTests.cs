@@ -84,7 +84,7 @@ public sealed class BulkUploadDispatchReliabilityTests
     }
 
     [Fact]
-    public void RetryWait_UsesScheduledRetryWhenItIsSoonerThanRecovery()
+    public void RetryWait_CapsLongRetryAtRecoveryInterval()
     {
         var now = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
         var retryAt = now.AddMinutes(10);
@@ -98,7 +98,7 @@ public sealed class BulkUploadDispatchReliabilityTests
     }
 
     [Fact]
-    public void RetryWait_WaitsIndefinitelyWhenNoRetryIsScheduled()
+    public void RetryWait_UsesRecoveryIntervalWhenNoRetryIsScheduled()
     {
         var now = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
 
