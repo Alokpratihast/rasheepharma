@@ -148,8 +148,7 @@ public class BulkUploadService : IBulkUploadService
     }
 
     /// <summary>
-    /// Validates an admin's upload manifest and creates one narrowly scoped
-    /// SAS URL per file. Large file bytes never pass through this API process.
+    /// Validates an admin's upload manifest and creates private local staging targets.
     /// </summary>
     public async Task<IReadOnlyList<BulkUploadUploadTarget>> CreateUploadTargetsAsync(
         IReadOnlyCollection<BulkUploadFileDescriptor> files,
@@ -163,6 +162,7 @@ public class BulkUploadService : IBulkUploadService
             cancellationToken.ThrowIfCancellationRequested();
             var target = await _bulkUploadStorageService.CreateUploadTargetAsync(
                 file.FileName,
+                file.FileSize,
                 cancellationToken);
             targets.Add(new BulkUploadUploadTarget(
                 file.FileName,
@@ -173,6 +173,19 @@ public class BulkUploadService : IBulkUploadService
         }
         return targets;
     }
+
+    public Task WriteUploadChunkAsync(
+        string blobName,
+        int chunkIndex,
+        long expectedFileSize,
+        Stream chunk,
+        CancellationToken cancellationToken = default)
+        => _bulkUploadStorageService.WriteUploadChunkAsync(
+            blobName,
+            chunkIndex,
+            expectedFileSize,
+            chunk,
+            cancellationToken);
     /// <summary>
     /// Verifies every staged blob before persisting a Pending job. The worker
     /// only claims Pending jobs, so incomplete uploads cannot be processed.
@@ -183,18 +196,39 @@ public class BulkUploadService : IBulkUploadService
         CancellationToken cancellationToken = default)
     {
         var normalized = ValidateManifest(files);
-        foreach (var file in normalized)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var exists = await _bulkUploadStorageService.VerifyStagedFileAsync(
-                file.BlobName,
-                file.FileSize,
-                cancellationToken);
-            if (!exists)
+            foreach (var file in normalized)
             {
-                throw new InvalidOperationException(
-                    $"Uploaded file '{file.FileName}' is missing or its size does not match the upload manifest.");
+                cancellationToken.ThrowIfCancellationRequested();
+                var exists = await _bulkUploadStorageService.VerifyStagedFileAsync(
+                    file.BlobName,
+                    file.FileSize,
+                    cancellationToken);
+                if (!exists)
+                {
+                    throw new InvalidOperationException(
+                        $"Uploaded file '{file.FileName}' is missing or its size does not match the upload manifest.");
+                }
             }
+        }
+        catch
+        {
+            foreach (var file in normalized)
+            {
+                try
+                {
+                    await _bulkUploadStorageService.DeleteAsync(
+                        _bulkUploadStorageService.GetStagedFileUrl(file.BlobName));
+                }
+                catch (Exception cleanupException)
+                {
+                    _logger.LogWarning(cleanupException,
+                        "Could not clean up staged bulk-upload file {BlobName} after manifest verification failed.",
+                        file.BlobName);
+                }
+            }
+            throw;
         }
         var excelFile = normalized.Single(file => file.FileType == ExcelFileType);
         var job = new BulkUploadJob
@@ -414,6 +448,7 @@ public class BulkUploadService : IBulkUploadService
                 job,
                 claimToken,
                 cancellationToken);
+            await CleanupStagedFilesAsync(job);
         }
         catch (OperationCanceledException)
         {
@@ -442,6 +477,10 @@ public class BulkUploadService : IBulkUploadService
                         "Bulk upload job {JobId} failed after this worker lost ownership; failure status was not overwritten.",
                         job.Id);
                 }
+                else
+                {
+                    await CleanupStagedFilesAsync(job);
+                }
             }
             catch (Exception saveException)
             {
@@ -453,6 +492,24 @@ public class BulkUploadService : IBulkUploadService
             }
 
             throw;
+        }
+    }
+
+    private async Task CleanupStagedFilesAsync(BulkUploadJob job)
+    {
+        foreach (var file in job.Files)
+        {
+            try
+            {
+                await _bulkUploadStorageService.DeleteAsync(file.FileUrl);
+            }
+            catch (Exception cleanupException)
+            {
+                _logger.LogWarning(
+                    cleanupException,
+                    "Could not clean up staged upload for bulk job {JobId}.",
+                    job.Id);
+            }
         }
     }
     /// <summary>Returns the public status and progress fields for a bulk-upload job.</summary>

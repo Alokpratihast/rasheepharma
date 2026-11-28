@@ -1,4 +1,3 @@
-using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,14 +13,14 @@ namespace RashePharma.Infrastructure.Services;
 public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
 {
     private readonly IServiceScopeFactory _scopes;
-    private readonly AzureServiceBusBulkUploadPublisher _publisher;
+    private readonly IBulkUploadDispatchPublisher _publisher;
     private readonly ILogger<BulkUploadDispatchOutboxDispatcher> _logger;
     private readonly BulkUploadDispatchOptions _options;
     private readonly IBulkUploadDispatchSignal _signal;
 
     public BulkUploadDispatchOutboxDispatcher(
         IServiceScopeFactory scopes,
-        AzureServiceBusBulkUploadPublisher publisher,
+        IBulkUploadDispatchPublisher publisher,
         IOptions<BulkUploadDispatchOptions> options,
         ILogger<BulkUploadDispatchOutboxDispatcher> logger,
         IBulkUploadDispatchSignal signal)
@@ -105,8 +104,7 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
                 item.LastError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
                 item.LeaseUntilUtc = null;
 
-                if ((ex is ServiceBusException sb && !sb.IsTransient) ||
-                    item.AttemptCount >= _options.MaxAttempts)
+                if (item.AttemptCount >= _options.MaxAttempts)
                 {
                     item.Status = BulkUploadDispatchStatus.DeadLettered;
                     item.NextAttemptAtUtc = null;

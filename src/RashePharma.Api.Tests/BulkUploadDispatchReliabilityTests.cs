@@ -18,9 +18,12 @@ public sealed class BulkUploadDispatchReliabilityTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=RasheePharmaTests;User Id=test;Password=not-used;TrustServerCertificate=True",
-                ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
-                ["AzureServiceBus:FullyQualifiedNamespace"] = "test.servicebus.windows.net",
-                ["AzureServiceBus:BulkUploadQueueName"] = "bulk-upload"
+                ["Storage:RootPath"] = Path.Combine(Path.GetTempPath(), "rasheepharma-test-uploads"),
+                ["RabbitMQ:Host"] = "localhost",
+                ["RabbitMQ:Port"] = "5672",
+                ["RabbitMQ:Username"] = "test",
+                ["RabbitMQ:Password"] = "test",
+                ["RabbitMQ:BulkUploadQueueName"] = "bulk-upload"
             })
             .Build();
 

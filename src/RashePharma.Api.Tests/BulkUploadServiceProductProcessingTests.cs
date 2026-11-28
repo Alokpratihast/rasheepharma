@@ -690,8 +690,12 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
 
         public Task<BulkUploadStorageTarget> CreateUploadTargetAsync(
             string fileName,
+            long expectedFileSize,
             CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
+
+        public Task WriteUploadChunkAsync(string blobName, int chunkIndex, long expectedFileSize, Stream chunk,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public string GetStagedFileUrl(string blobName)
             => $"https://storage.test/{blobName}";
@@ -714,6 +718,9 @@ public async Task ProcessAsync_SkuMatching_ShouldIgnoreCase()
                 (new MemoryStream(new byte[] { 1, 2, 3 }), "application/octet-stream"));
 
         public Task DeleteAsync(string fileUrl)
+            => Task.CompletedTask;
+
+        public Task CleanupExpiredUploadsAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 

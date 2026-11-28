@@ -222,7 +222,7 @@ public sealed class BlogPostService(IBlogPostRepository repository) : IBlogPostS
     private static PublicBlogPostDto ToPublicDto(BlogPost p) => new()
     {
         Title = p.Title, Slug = p.Slug, Excerpt = p.Excerpt, Content = p.Content,
-        // Public clients use the API proxy; the private Azure blob URL stays internal.
+        // Public clients use the API proxy; the private storage key stays internal.
         CoverImageUrl = string.IsNullOrWhiteSpace(p.CoverImageUrl) ? null : $"/api/blog/posts/{Uri.EscapeDataString(p.Slug)}/image",
         AuthorName = p.AuthorName, ReviewerName = p.ReviewerName,
         ReviewedAtUtc = p.ReviewedAtUtc, PublishedAtUtc = p.PublishedAtUtc, UpdatedAtUtc = p.UpdatedAtUtc,

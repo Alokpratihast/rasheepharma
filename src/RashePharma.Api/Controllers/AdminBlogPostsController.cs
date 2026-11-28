@@ -46,7 +46,7 @@ public sealed class AdminBlogPostsController(IBlogPostService service, IBlogImag
             Response.Headers.XContentTypeOptions = "nosniff";
             return File(image.Stream, image.ContentType);
         }
-        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        catch (FileNotFoundException)
         {
             return NotFound();
         }

@@ -141,6 +141,7 @@ public class BulkUploadServiceManifestTests
 
         public Task<BulkUploadStorageTarget> CreateUploadTargetAsync(
             string fileName,
+            long expectedFileSize,
             CancellationToken cancellationToken = default)
         {
             CreateTargetCallCount++;
@@ -151,6 +152,9 @@ public class BulkUploadServiceManifestTests
                     $"https://storage.test/{fileName}",
                     $"https://storage.test/upload/{fileName}"));
         }
+
+        public Task WriteUploadChunkAsync(string blobName, int chunkIndex, long expectedFileSize, Stream chunk,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public string GetStagedFileUrl(string blobName)
             => $"https://storage.test/{blobName}";
@@ -173,6 +177,9 @@ public class BulkUploadServiceManifestTests
                 (new MemoryStream(), "application/octet-stream"));
 
         public Task DeleteAsync(string fileUrl)
+            => Task.CompletedTask;
+
+        public Task CleanupExpiredUploadsAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

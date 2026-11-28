@@ -56,7 +56,7 @@ public class ProductService : IProductService
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
                 .Select(i =>
-                    i.ImageUrl.Contains(".blob.core.windows.net/")
+                    i.ImageUrl.StartsWith("local://products/", StringComparison.OrdinalIgnoreCase)
                         ? $"/api/ProductImages/file/{i.Id}"
                         : i.ImageUrl)
                 .FirstOrDefault(),
@@ -106,7 +106,7 @@ public class ProductService : IProductService
             PrimaryImageUrl = p.Images
                 .Where(i => i.IsPrimary)
                 .Select(i =>
-                    i.ImageUrl.Contains(".blob.core.windows.net/")
+                    i.ImageUrl.StartsWith("local://products/", StringComparison.OrdinalIgnoreCase)
                         ? $"/api/ProductImages/file/{i.Id}"
                         : i.ImageUrl)
                 .FirstOrDefault(),
@@ -281,7 +281,7 @@ public class ProductService : IProductService
                 {
                     Id = i.Id,
                     ImageUrl =
-                        i.ImageUrl.Contains(".blob.core.windows.net/")
+                        i.ImageUrl.StartsWith("local://products/", StringComparison.OrdinalIgnoreCase)
                             ? $"/api/ProductImages/file/{i.Id}"
                             : i.ImageUrl,
                     AltText = i.AltText,

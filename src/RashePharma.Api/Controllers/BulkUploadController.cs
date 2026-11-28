@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RashePharma.Application.Interfaces.Services;
+using RashePharma.Infrastructure.Services;
 
 namespace RashePharma.Api.Controllers;
 
@@ -17,8 +18,7 @@ public class BulkUploadController : ControllerBase
     }
 
     /// <summary>
-    /// Requests one short-lived, single-blob SAS URL per file. Only small
-    /// metadata crosses the API; file bytes are uploaded directly to Blob.
+    /// Creates private staging targets for API-mediated chunk uploads.
     /// </summary>
     [HttpPost("targets")]
     public async Task<IActionResult> CreateUploadTargets(
@@ -64,9 +64,37 @@ public class BulkUploadController : ControllerBase
         }
     }
 
+    [HttpPut("files/{blobName}/chunks/{chunkIndex:int}")]
+    [Consumes("application/octet-stream")]
+    [RequestSizeLimit(LocalFileBulkUploadStorageService.ChunkSizeBytes)]
+    public async Task<IActionResult> UploadChunk(
+        string blobName,
+        int chunkIndex,
+        [FromQuery] long fileSize,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _bulkUploadService.WriteUploadChunkAsync(
+                blobName,
+                chunkIndex,
+                fileSize,
+                Request.Body,
+                cancellationToken);
+            return NoContent();
+        }
+        catch (FileNotFoundException exception)
+        {
+            return NotFound(new { Message = exception.Message });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException)
+        {
+            return BadRequest(new { Message = exception.Message });
+        }
+    }
+
     /// <summary>
-    /// Completes a job after the browser has committed all blob blocks. The
-    /// service verifies each stored blob before it becomes visible to the worker.
+    /// Completes a job after the API has assembled and validated every staged file.
     /// </summary>
     [HttpPost("complete")]
     public async Task<IActionResult> CompleteUpload(

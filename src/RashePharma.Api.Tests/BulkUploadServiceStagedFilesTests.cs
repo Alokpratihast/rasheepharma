@@ -253,8 +253,12 @@ public class BulkUploadServiceStagedFilesTests
 
         public Task<BulkUploadStorageTarget> CreateUploadTargetAsync(
             string fileName,
+            long expectedFileSize,
             CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
+
+        public Task WriteUploadChunkAsync(string blobName, int chunkIndex, long expectedFileSize, Stream chunk,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public string GetStagedFileUrl(string blobName)
             => $"https://storage.test/{blobName}";
@@ -279,6 +283,9 @@ public class BulkUploadServiceStagedFilesTests
             => throw new NotImplementedException();
 
         public Task DeleteAsync(string fileUrl)
+            => Task.CompletedTask;
+
+        public Task CleanupExpiredUploadsAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

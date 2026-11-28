@@ -1,7 +1,7 @@
 namespace RashePharma.Application.Interfaces.Services;
 
 /// <summary>
-/// Metadata used to request upload permissions or finalize a staged file.
+/// Metadata used to create an authenticated chunk-upload target or finalize a staged file.
 /// FileType is either "Excel" or "Image" and is validated by the service.
 /// </summary>
 public sealed record BulkUploadFileDescriptor(
@@ -11,8 +11,7 @@ public sealed record BulkUploadFileDescriptor(
     string FileType);
 
 /// <summary>
-/// Upload instructions returned to the browser. UploadUrl contains a short-lived
-/// credential for one generated staging blob; never log or persist that URL.
+/// Upload instructions returned to the browser. UploadUrl is an authenticated API route.
 /// </summary>
 public sealed record BulkUploadUploadTarget(
     string FileName,

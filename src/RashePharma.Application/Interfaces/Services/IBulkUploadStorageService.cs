@@ -6,6 +6,14 @@ public interface IBulkUploadStorageService
 
     Task<BulkUploadStorageTarget> CreateUploadTargetAsync(
         string fileName,
+        long expectedFileSize,
+        CancellationToken cancellationToken = default);
+
+    Task WriteUploadChunkAsync(
+        string blobName,
+        int chunkIndex,
+        long expectedFileSize,
+        Stream chunk,
         CancellationToken cancellationToken = default);
 
     string GetStagedFileUrl(string blobName);
@@ -25,11 +33,14 @@ public interface IBulkUploadStorageService
 
     Task DeleteAsync(
         string fileUrl);
+
+    Task CleanupExpiredUploadsAsync(
+        TimeSpan maxAge,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// A short-lived, single-blob upload URL. It allows direct browser uploads
-/// without exposing the storage account credentials to the client.
+/// A generated staging file name and authenticated API upload route.
 /// </summary>
 public sealed record BulkUploadStorageTarget(
     string BlobName,

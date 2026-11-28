@@ -1,5 +1,6 @@
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RashePharma.Application.Interfaces;
@@ -11,6 +12,7 @@ using RashePharma.Infrastructure.Repositories;
 using RashePharma.Infrastructure.Services;
 using Microsoft.OpenApi;
 using System.Text;
+using System.Net;
 using QuestPDF.Infrastructure;
 using RashePharma.Infrastructure.Workers;
 using Stripe;
@@ -132,18 +134,6 @@ if (!string.IsNullOrWhiteSpace(connectionStringFromEnv))
     builder.Configuration[
         "ConnectionStrings:DefaultConnection"] =
         connectionStringFromEnv;
-}
-
-// Azure Storage Connection String
-var azureStorageConnectionString =
-    Environment.GetEnvironmentVariable(
-        "ConnectionStrings__AzureStorage");
-
-if (!string.IsNullOrWhiteSpace(azureStorageConnectionString))
-{
-    builder.Configuration[
-        "ConnectionStrings:AzureStorage"] =
-        azureStorageConnectionString;
 }
 
 // =========================================================
@@ -380,7 +370,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // -----------------------------------------------------
     // SQL Server
     // Local Development + Staging + Production
-    // Azure SQL compatible
+    // SQL Server is used for local development, staging, and production.
     // -----------------------------------------------------
 
     builder.Services.AddDbContext<ApplicationDbContext>(
@@ -573,6 +563,7 @@ builder.Services.AddScoped<
     BulkUploadRepository>();
 builder.Services.AddScoped<IBulkUploadDispatchOutboxRepository, BulkUploadDispatchOutboxRepository>();
 builder.Services.AddSingleton<IBulkUploadDispatchSignal, BulkUploadDispatchSignal>();
+builder.Services.AddHostedService<LocalBulkUploadStorageCleanupService>();
 
 builder.Services.AddScoped<
     IBulkUploadService,
@@ -595,70 +586,24 @@ builder.Services.AddScoped<
     IProductImageService,
     ProductImageService>();
 
-builder.Services.AddScoped<IImageStorageService>(sp =>
-{
-    var configuration =
-        sp.GetRequiredService<IConfiguration>();
+builder.Services.AddSingleton(new LocalFileStorageRoot(
+    builder.Configuration["Storage:RootPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads")));
 
-    var connectionString =
-        configuration.GetConnectionString("AzureStorage");
+builder.Services.AddScoped<IImageStorageService>(sp => new LocalFileImageStorageService(
+    sp.GetRequiredService<LocalFileStorageRoot>(), "products"));
 
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "ConnectionStrings:AzureStorage is not configured.");
-    }
-
-    return new AzureBlobImageStorageService(
-        connectionString);
-});
-
-builder.Services.AddScoped<IBlogImageStorageService>(sp =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var connectionString = configuration.GetConnectionString("AzureStorage");
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "ConnectionStrings:AzureStorage is not configured.");
-    }
-
-    return new AzureBlobBlogImageStorageService(connectionString);
-});
+builder.Services.AddScoped<IBlogImageStorageService, LocalFileBlogImageStorageService>();
 
 builder.Services.AddScoped<IBrochureStorageService>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
-    var connectionString = configuration.GetConnectionString("AzureStorage");
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException("ConnectionStrings:AzureStorage is not configured.");
-    }
-
-    return new AzureBlobBrochureStorageService(
-        connectionString,
-        configuration["Email:QuotationBrochure:ContainerName"] ?? "brochures",
-        configuration["Email:QuotationBrochure:BlobName"] ?? "Rashe_Lifesciences_Client_Brochure_v2.pdf",
+    return new LocalFileBrochureStorageService(
+        sp.GetRequiredService<LocalFileStorageRoot>(),
+        configuration["Email:QuotationBrochure:FileName"] ?? "Rashe_Lifesciences_Client_Brochure_v2.pdf",
         configuration.GetValue<long?>("Email:QuotationBrochure:MaxBytes") ?? 10 * 1024 * 1024);
 });
 
-builder.Services.AddScoped<IBulkUploadStorageService>(sp =>
-{
-    var configuration =
-        sp.GetRequiredService<IConfiguration>();
-
-    var connectionString =
-        configuration.GetConnectionString("AzureStorage");
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "ConnectionStrings:AzureStorage is not configured.");
-    }
-
-    return new AzureBlobBulkUploadStorageService(
-        connectionString);
-});
+builder.Services.AddScoped<IBulkUploadStorageService, LocalFileBulkUploadStorageService>();
 
 builder.Services.AddScoped<
     IBulkUploadExcelParser,
@@ -700,7 +645,7 @@ builder.Services.AddScoped<
     EmailNotificationService>();
 
 // Enquiry, quotation, and invoice notifications are processed on demand by the API.
-// Bulk-upload processing is hosted by the dedicated Service Bus worker container.
+// Bulk-upload processing is hosted by the dedicated RabbitMQ worker container.
 
 
 
@@ -751,8 +696,8 @@ builder.Services.AddScoped<
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    // Azure Service Bus client and bulk-upload outbox dispatcher.
-    builder.Services.AddAzureServiceBus(builder.Configuration);
+    // RabbitMQ transports messages while SQL remains the durable outbox.
+    builder.Services.AddRabbitMqTransport(builder.Configuration);
     builder.Services.AddBulkUploadDispatchers(builder.Configuration);
 }
 
@@ -762,6 +707,33 @@ if (!builder.Environment.IsEnvironment("Testing"))
 // =========================================================
 
 var app = builder.Build();
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    ForwardLimit = 1
+};
+forwardedHeadersOptions.KnownProxies.Clear();
+forwardedHeadersOptions.KnownNetworks.Clear();
+var trustedProxyAddresses = builder.Configuration
+    .GetSection("ForwardedHeaders:KnownProxies")
+    .Get<string[]>() ?? [];
+if (!builder.Environment.IsDevelopment() && trustedProxyAddresses.Length == 0)
+{
+    throw new InvalidOperationException(
+        "ForwardedHeaders:KnownProxies must list the trusted Nginx proxy address in staging and production.");
+}
+foreach (var proxyAddress in trustedProxyAddresses)
+{
+    if (!IPAddress.TryParse(proxyAddress, out var parsedAddress))
+        throw new InvalidOperationException($"Forwarded proxy address '{proxyAddress}' is invalid.");
+    forwardedHeadersOptions.KnownProxies.Add(parsedAddress);
+}
+if (builder.Environment.IsDevelopment())
+{
+    forwardedHeadersOptions.KnownProxies.Add(IPAddress.Loopback);
+    forwardedHeadersOptions.KnownProxies.Add(IPAddress.IPv6Loopback);
+}
 
 
 
@@ -790,6 +762,7 @@ if (app.Environment.IsDevelopment() ||
 // Middleware Pipeline
 // =========================================================
 
+app.UseForwardedHeaders(forwardedHeadersOptions);
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
@@ -803,6 +776,9 @@ app.UseRateLimiter();
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+    .AllowAnonymous();
 
 app.MapControllers();
 

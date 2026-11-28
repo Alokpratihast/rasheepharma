@@ -67,13 +67,13 @@ public class ProductImagesController : ControllerBase
                 result.Stream,
                 result.ContentType);
         }
-        catch (Azure.RequestFailedException ex)
-            when (ex.Status == 404)
+        catch (FileNotFoundException)
         {
-            return NotFound(new
-            {
-                message = "Image file was not found in Azure Blob Storage."
-            });
+            return NotFound(new { message = "Image file was not found." });
+        }
+        catch (ArgumentException)
+        {
+            return NotFound();
         }
     }
 

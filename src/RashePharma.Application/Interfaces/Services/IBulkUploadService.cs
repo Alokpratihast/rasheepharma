@@ -16,6 +16,13 @@ public interface IBulkUploadService
         IReadOnlyCollection<BulkUploadFileDescriptor> files,
         CancellationToken cancellationToken = default);
 
+    Task WriteUploadChunkAsync(
+        string blobName,
+        int chunkIndex,
+        long expectedFileSize,
+        Stream chunk,
+        CancellationToken cancellationToken = default);
+
     Task<int> CreateJobFromStagedFilesAsync(
         IReadOnlyCollection<BulkUploadStagedFileInput> files,
         CancellationToken cancellationToken = default);

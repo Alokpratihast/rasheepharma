@@ -37,4 +37,8 @@ full-source-debug.txtstripe
 **/.env.emailworker
 # Local Docker testing files
 .env.docker
+
+# VPS deployment secrets and local persistent uploads
+deploy/vps/.env
+deploy/vps/uploads/
 /artifacts/

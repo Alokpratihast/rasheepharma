@@ -1,0 +1,77 @@
+name: rasheepharma
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: rasheepharma-api:staging
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ASPNETCORE_URLS: http://+:8080
+      Storage__RootPath: /app/uploads
+      ForwardedHeaders__KnownProxies__0: 172.18.0.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${UPLOADS_PATH:-/opt/rasheepharma/staging/uploads}:/app/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [app]
+
+  bulk-upload-worker:
+    build:
+      context: ../..
+      dockerfile: src/RashePharma.BulkUploadWorker/Dockerfile
+    image: rasheepharma-bulk-upload-worker:staging
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DOTNET_ENVIRONMENT: Staging
+      Storage__RootPath: /app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${UPLOADS_PATH:-/opt/rasheepharma/staging/uploads}:/app/uploads
+    networks: [app]
+
+  db-migrator:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.dbmigrator
+    image: rasheepharma-db-migrator:staging
+    profiles: [migration]
+    env_file: .env
+    environment:
+      DOTNET_ENVIRONMENT: Staging
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: "no"
+    networks: [app]
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+    image: rasheepharma-frontend:staging
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_BASE_URL: http://api:8080/api
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [app]
+
+networks:
+  app:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1

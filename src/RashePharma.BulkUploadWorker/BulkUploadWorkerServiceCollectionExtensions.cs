@@ -18,11 +18,11 @@ public static class BulkUploadWorkerServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
-        var storageConnection = configuration.GetConnectionString("AzureStorage")
-            ?? throw new InvalidOperationException("ConnectionStrings:AzureStorage is required.");
 
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
-        services.AddAzureServiceBus(configuration);
+        services.AddSingleton(new LocalFileStorageRoot(
+            configuration["Storage:RootPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads")));
+        services.AddRabbitMqTransport(configuration);
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IBulkUploadRepository, BulkUploadRepository>();
         services.AddScoped<IBulkUploadDispatchOutboxRepository, BulkUploadDispatchOutboxRepository>();
@@ -31,11 +31,12 @@ public static class BulkUploadWorkerServiceCollectionExtensions
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
         services.AddScoped<IProductImageRepository, ProductImageRepository>();
         services.AddScoped<IBulkUploadService, BulkUploadService>();
-        services.AddScoped<IImageStorageService>(_ => new AzureBlobImageStorageService(storageConnection));
-        services.AddScoped<IBulkUploadStorageService>(_ => new AzureBlobBulkUploadStorageService(storageConnection));
+        services.AddScoped<IImageStorageService>(sp => new LocalFileImageStorageService(
+            sp.GetRequiredService<LocalFileStorageRoot>(), "products"));
+        services.AddScoped<IBulkUploadStorageService, LocalFileBulkUploadStorageService>();
         services.AddScoped<IBulkUploadExcelParser, ClosedXmlBulkUploadExcelParser>();
         services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
-        services.AddHostedService<BulkUploadServiceBusConsumer>();
+        services.AddHostedService<BulkUploadRabbitMqConsumer>();
 
         return services;
     }

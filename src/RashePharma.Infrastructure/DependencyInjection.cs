@@ -1,9 +1,5 @@
-
-using Azure.Identity;
-using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using RashePharma.Application.Interfaces.Services;
 using RashePharma.Infrastructure.Configurations;
 using RashePharma.Infrastructure.Services;
@@ -12,44 +8,31 @@ namespace RashePharma.Infrastructure;
 
 public static class DependencyInjection
 {
-    // Shared: Azure Service Bus client for bulk upload
-    public static IServiceCollection AddAzureServiceBus(
+    public static IServiceCollection AddRabbitMqTransport(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services
-            .AddOptions<ServiceBusOptions>()
-            .Bind(configuration.GetSection(ServiceBusOptions.SectionName))
-            .Validate(
-                options =>
-                    !string.IsNullOrWhiteSpace(options.ConnectionString) ||
-                    !string.IsNullOrWhiteSpace(options.FullyQualifiedNamespace),
-                "Azure Service Bus connection string or namespace is required.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.BulkUploadQueueName), "Bulk upload queue name is required.")
+        services.AddOptions<RabbitMqOptions>()
+            .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .Validate(options =>
+                    !string.IsNullOrWhiteSpace(options.Host) &&
+                    options.Port is > 0 and <= 65535 &&
+                    !string.IsNullOrWhiteSpace(options.VirtualHost) &&
+                    !string.IsNullOrWhiteSpace(options.Username) &&
+                    !string.IsNullOrWhiteSpace(options.Password) &&
+                    !string.IsNullOrWhiteSpace(options.BulkUploadQueueName) &&
+                    !string.IsNullOrWhiteSpace(options.DeadLetterExchangeName) &&
+                    !string.IsNullOrWhiteSpace(options.DeadLetterQueueName),
+                "RabbitMQ connection and queue settings are required.")
             .ValidateOnStart();
 
-        services.AddSingleton<ServiceBusClient>(serviceProvider =>
-        {
-            var options = serviceProvider
-                .GetRequiredService<IOptions<ServiceBusOptions>>()
-                .Value;
-
-            if (!string.IsNullOrWhiteSpace(options.ConnectionString))
-            {
-                return new ServiceBusClient(options.ConnectionString);
-            }
-
-            return new ServiceBusClient(
-                options.FullyQualifiedNamespace,
-                new DefaultAzureCredential());
-        });
-
-        services.AddSingleton<AzureServiceBusBulkUploadPublisher>();
-
+        services.AddSingleton<RabbitMqBulkUploadPublisher>();
+        services.AddSingleton<IBulkUploadDispatchPublisher>(sp =>
+            sp.GetRequiredService<RabbitMqBulkUploadPublisher>());
         return services;
     }
 
-    // API: Bulk-upload dispatch only; transactional emails are sent directly by the API.
+    // API: the SQL transactional outbox remains the durable source of work.
     public static IServiceCollection AddBulkUploadDispatchers(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -60,8 +43,6 @@ public static class DependencyInjection
                 "Bulk upload dispatch options must be positive.")
             .ValidateOnStart();
         services.AddHostedService<BulkUploadDispatchOutboxDispatcher>();
-
         return services;
     }
-
 }

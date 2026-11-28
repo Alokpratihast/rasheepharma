@@ -38,14 +38,13 @@ public sealed class BlogPostsController(
         return Ok(post);
     }
 
-    // The Azure container is private. Stream approved blog covers through the API instead of making storage public.
+    // Blog storage remains private. Stream approved covers through the API.
     [HttpGet("{slug}/image")]
     public async Task<IActionResult> GetCoverImage(
         string slug,
         CancellationToken cancellationToken)
     {
-        // Public post DTOs intentionally replace the private Blob URL with this proxy route.
-        // Resolve the persisted Blob URL through the dedicated service method for the download.
+        // Public DTOs expose this controlled route, never the private storage key.
         var coverImageUrl = await service.GetPublishedCoverImageUrlAsync(
             slug,
             cancellationToken);
@@ -61,7 +60,7 @@ public sealed class BlogPostsController(
         {
             var image = await imageStorage.DownloadAsync(coverImageUrl);
 
-            // Blob names are immutable/unique; cache the proxy response and prevent MIME sniffing.
+            // Stored image keys are immutable; cache the proxy response and prevent MIME sniffing.
             Response.Headers.CacheControl =
                 "public, max-age=86400, stale-while-revalidate=604800";
             Response.Headers.XContentTypeOptions = "nosniff";
@@ -71,11 +70,11 @@ public sealed class BlogPostsController(
 
             return File(image.Stream, image.ContentType);
         }
-        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        catch (FileNotFoundException ex)
         {
             logger.LogError(
                 ex,
-                "Azure Blob returned 404 while downloading cover for blog slug {Slug}",
+                "Local blog cover file was not found for slug {Slug}",
                 slug);
             return NotFound();
         }

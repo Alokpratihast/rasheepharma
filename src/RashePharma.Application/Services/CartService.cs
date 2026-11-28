@@ -255,7 +255,7 @@ public class CartService : ICartService
         .Where(image => image.IsPrimary)
         .OrderBy(image => image.DisplayOrder)
         .Select(image =>
-            image.ImageUrl.Contains(".blob.core.windows.net/")
+            image.ImageUrl.StartsWith("local://products/", StringComparison.OrdinalIgnoreCase)
                 ? $"/api/ProductImages/file/{image.Id}"
                 : image.ImageUrl)
         .FirstOrDefault()

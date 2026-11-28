@@ -145,7 +145,7 @@ public class ProductRepository : IProductRepository
                 .OrderBy(i => i.DisplayOrder)
                 .ThenBy(i => i.Id)
                 .Select(i =>
-                    i.ImageUrl.Contains(".blob.core.windows.net/")
+                    i.ImageUrl.StartsWith("local://products/")
                         ? $"/api/ProductImages/file/{i.Id}"
                         : i.ImageUrl)
                 .FirstOrDefault(),

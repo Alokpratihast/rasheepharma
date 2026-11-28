@@ -12,7 +12,7 @@ const apiBase = (
   "http://localhost:5104/api"
 ).replace(/\/+$/, "");
 
-// Keep canonical sitemap URLs independent of the API host and Azure preview URLs.
+// Keep canonical sitemap URLs independent of the API host and preview URLs.
 const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.rashelifesciences.in"
 ).replace(/\/+$/, "");

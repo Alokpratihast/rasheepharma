@@ -202,7 +202,9 @@ public class ProductImageService : IProductImageService
         return new ProductImageDto
         {
             Id = image.Id,
-            ImageUrl = image.ImageUrl,
+            ImageUrl = image.ImageUrl.StartsWith("local://products/", StringComparison.OrdinalIgnoreCase)
+                ? $"/api/ProductImages/file/{image.Id}"
+                : image.ImageUrl,
             AltText = image.AltText,
             IsPrimary = image.IsPrimary,
             DisplayOrder = image.DisplayOrder

@@ -20,5 +20,9 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD curl --fail http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "dotnet RashePharma.Api.dll --urls http://0.0.0.0:${PORT:-8080}"]

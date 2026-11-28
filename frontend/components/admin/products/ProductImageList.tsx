@@ -375,9 +375,8 @@ export function ProductImageList({
   /*
    * Returns the correct image URL.
    *
-   * Device-uploaded images are stored in the
-   * private Azure Blob container. Therefore they
-   * must be loaded through the backend endpoint.
+   * Locally stored images remain private and are
+   * loaded through the backend endpoint.
    *
    * Existing external/public URL images continue
    * to use their original URL.
@@ -392,9 +391,7 @@ export function ProductImageList({
   }
 
   if (
-    imageUrl.includes(
-      "rasheepharmastorage01.blob.core.windows.net",
-    )
+    imageUrl.startsWith("local://products/")
   ) {
     const apiBaseUrl =
       process.env.NEXT_PUBLIC_API_BASE_URL ??

@@ -5,10 +5,6 @@ const nextConfig: NextConfig = {
  images: {
   remotePatterns: [
     {
-      protocol: "https",
-      hostname: "rasheepharmastorage01.blob.core.windows.net",
-    },
-    {
       protocol: "http",
       hostname: "localhost",
       port: "5104",

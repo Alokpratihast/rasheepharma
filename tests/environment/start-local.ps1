@@ -35,7 +35,7 @@ if ([string]::IsNullOrWhiteSpace($jwtKey) -or $jwtKey.Length -lt 32) {
 Push-Location $repoRoot
 try {
     & docker compose --env-file $envFile -f $composeFile up -d
-    if ($LASTEXITCODE -ne 0) { throw 'Could not start isolated SQL Server and Azurite containers.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Could not start the isolated SQL Server container.' }
 
     $deadline = (Get-Date).AddSeconds(120)
     $connected = $false
@@ -56,14 +56,14 @@ try {
 
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:ConnectionStrings__DefaultConnection = "Server=127.0.0.1,14330;Database=RashePharma_AutomatedTests;User Id=sa;Password=$sqlPassword;Encrypt=False;TrustServerCertificate=True;Connect Timeout=30"
-    $env:ConnectionStrings__AzureStorage = 'UseDevelopmentStorage=true'
+    $env:Storage__RootPath = Join-Path $env:TEMP 'rasheepharma-test-uploads'
     $env:JWT__KEY = $jwtKey
     $env:Stripe__SecretKey = 'sk_test_local_placeholder_not_a_live_key'
 
     & dotnet ef database update --project src/RashePharma.Infrastructure --startup-project src/RashePharma.Api --context ApplicationDbContext
     if ($LASTEXITCODE -ne 0) { throw 'Applying the application migrations to the disposable test database failed.' }
 
-    Write-Host 'Starting the API against the local disposable test database and Azurite. Press Ctrl+C to stop.'
+    Write-Host "Starting the API against the local disposable test database and file storage at $env:Storage__RootPath. Press Ctrl+C to stop."
     & dotnet run --project src/RashePharma.Api --no-launch-profile --urls http://localhost:5104
     if ($LASTEXITCODE -ne 0) { throw 'The local API process exited with an error.' }
 }
