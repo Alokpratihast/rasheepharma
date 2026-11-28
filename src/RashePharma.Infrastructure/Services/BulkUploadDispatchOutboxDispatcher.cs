@@ -66,13 +66,13 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
         DateTime nowUtc,
         TimeSpan? recoveryInterval = null)
     {
-        var untilRetry = nextRetryAtUtc is null
-            ? Timeout.InfiniteTimeSpan
-            : nextRetryAtUtc.Value - nowUtc;
-        if (untilRetry < TimeSpan.Zero)
-            untilRetry = TimeSpan.Zero;
-        if (recoveryInterval is { } interval &&
-            (untilRetry == Timeout.InfiniteTimeSpan || untilRetry > interval))
+        if (nextRetryAtUtc is null)
+            return recoveryInterval ?? Timeout.InfiniteTimeSpan;
+
+        var untilRetry = nextRetryAtUtc.Value - nowUtc;
+        if (untilRetry <= TimeSpan.Zero)
+            return TimeSpan.Zero;
+        if (recoveryInterval is { } interval && untilRetry > interval)
             return interval;
         return untilRetry;
     }
