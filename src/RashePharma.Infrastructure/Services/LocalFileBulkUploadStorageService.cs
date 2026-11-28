@@ -220,7 +220,7 @@ public sealed class LocalFileBulkUploadStorageService : IBulkUploadStorageServic
         return Task.CompletedTask;
     }
 
-    public Task CleanupExpiredUploadsAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
+    public async Task CleanupExpiredUploadsAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
     {
         var directory = _storage.GetDirectory("bulk-metadata");
         var cutoff = DateTime.UtcNow - maxAge;
@@ -244,7 +244,6 @@ public sealed class LocalFileBulkUploadStorageService : IBulkUploadStorageServic
 
             LocalFileStorageRoot.TryDelete(manifestPath);
         }
-        return Task.CompletedTask;
     }
 
     private string GetManifestPath(string id) => _storage.GetPath("bulk-metadata", $"{id}.json");
