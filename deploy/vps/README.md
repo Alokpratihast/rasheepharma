@@ -23,4 +23,4 @@ This is a staging template for the GoDaddy VPS. It keeps SQL Server and the exis
 7. Migrate and verify existing blog and product image files before switching their database URLs, as described above.
 8. Check `https://staging.rashelifesciences.com/health`, frontend/API flows, images, blog, quotation brochure, Stripe test mode and bulk-upload worker before considering production cutover.
 
-The exact RabbitMQ connectivity and SQL Server bridge binding must be confirmed on the VPS first. The staging domain, TLS certificate and secrets are placeholders; this repository change does not configure the server or change DNS.
+The API outbox dispatcher checks for lost/dead-lettered deliveries every 60 seconds when no earlier retry is scheduled. This is a lightweight recovery query against the VPS-hosted SQL Server, not a serverless database auto-pause workload.\n\nThe exact RabbitMQ connectivity and SQL Server bridge binding must be confirmed on the VPS first. The staging domain, TLS certificate and secrets are placeholders; this repository change does not configure the server or change DNS.
