@@ -68,10 +68,9 @@ services:
       - "127.0.0.1:3000:3000"
     networks: [app]
 
+# Reuse the already-created VPS network. It owns 172.18.0.0/16 and
+# provides the 172.18.0.1 host gateway used by SQL Server.
 networks:
   app:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.18.0.0/16
-          gateway: 172.18.0.1
+    external: true
+    name: rasheepharma-network
