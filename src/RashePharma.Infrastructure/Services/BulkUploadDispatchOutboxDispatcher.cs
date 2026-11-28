@@ -44,10 +44,8 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
 
                 var wait = CalculateWaitDuration(
                     result.NextRetryAtUtc,
-                    DateTime.UtcNow);
-                var recoveryInterval = TimeSpan.FromSeconds(_options.RecoveryIntervalSeconds);
-                if (wait == Timeout.InfiniteTimeSpan || wait > recoveryInterval)
-                    wait = recoveryInterval;
+                    DateTime.UtcNow,
+                    TimeSpan.FromSeconds(_options.RecoveryIntervalSeconds));
 
                 await _signal.WaitForMessageAsync(wait, stoppingToken);
             }
@@ -65,13 +63,18 @@ public sealed class BulkUploadDispatchOutboxDispatcher : BackgroundService
 
     public static TimeSpan CalculateWaitDuration(
         DateTime? nextRetryAtUtc,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        TimeSpan? recoveryInterval = null)
     {
-        if (nextRetryAtUtc is null)
-            return Timeout.InfiniteTimeSpan;
-
-        var untilRetry = nextRetryAtUtc.Value - nowUtc;
-        return untilRetry <= TimeSpan.Zero ? TimeSpan.Zero : untilRetry;
+        var untilRetry = nextRetryAtUtc is null
+            ? Timeout.InfiniteTimeSpan
+            : nextRetryAtUtc.Value - nowUtc;
+        if (untilRetry < TimeSpan.Zero)
+            untilRetry = TimeSpan.Zero;
+        if (recoveryInterval is { } interval &&
+            (untilRetry == Timeout.InfiniteTimeSpan || untilRetry > interval))
+            return interval;
+        return untilRetry;
     }
 
     private async Task<(int Count, DateTime? NextRetryAtUtc)> DispatchAsync(CancellationToken ct)
